@@ -50,8 +50,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={loading || undefined}
         {...props}
       >
-        {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-        {children}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+            {children}
+          </>
+        )}
       </Comp>
     );
   },

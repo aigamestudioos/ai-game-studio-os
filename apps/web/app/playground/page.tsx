@@ -1,6 +1,10 @@
 "use client";
 
+import { Gamepad2, HardDrive, Rocket, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { ProjectCard, StatCard } from "../../components/dashboard/cards";
+import { Sidebar } from "../../components/layout/sidebar";
+import { TopBar } from "../../components/layout/topbar";
 import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Badge } from "../../components/ui/badge";
@@ -54,6 +58,7 @@ const NAV_SECTIONS = [
   { id: "dropdowns", label: "Dropdown Menu" },
   { id: "alerts", label: "Alerts" },
   { id: "feedback", label: "Feedback" },
+  { id: "real-examples", label: "Real Examples" },
 ] as const;
 
 export default function PlaygroundPage() {
@@ -352,6 +357,50 @@ export default function PlaygroundPage() {
               <Button size="sm" variant="outline" onClick={() => setProgress((p) => Math.min(100, p + 20))}>
                 +20
               </Button>
+            </div>
+          </div>
+        </section>
+
+        <section id="real-examples" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Real Examples</h2>
+          <p className="text-sm text-muted-foreground">
+            Os mesmos componentes, em contexto — usados de verdade em <code>/dashboard</code>.
+          </p>
+
+          <div className="space-y-sm">
+            <h3 className="text-sm font-semibold text-text-secondary">Sidebar + TopBar</h3>
+            <div className="flex h-80 max-w-[40rem] flex-col overflow-hidden rounded-lg border border-border">
+              <TopBar />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar active="Dashboard" />
+                <div className="flex-1 bg-background" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-sm">
+            <h3 className="text-sm font-semibold text-text-secondary">Project Card</h3>
+            <div className="grid max-w-[40rem] grid-cols-1 gap-md sm:grid-cols-2">
+              <ProjectCard
+                name="Project Alpha"
+                description="Puzzle mobile — protótipo em desenvolvimento."
+                status="Em desenvolvimento"
+              />
+              <ProjectCard
+                name="Project Gamma"
+                description="Hyper-casual — publicado nas lojas."
+                status="Publicado"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-sm">
+            <h3 className="text-sm font-semibold text-text-secondary">Stat Card</h3>
+            <div className="grid max-w-[40rem] grid-cols-2 gap-md sm:grid-cols-4">
+              <StatCard label="Games" value="3" icon={Gamepad2} />
+              <StatCard label="Assets" value="128" icon={HardDrive} />
+              <StatCard label="AI Credits" value="4.200" icon={Sparkles} />
+              <StatCard label="Publishing" value="1 ativo" icon={Rocket} />
             </div>
           </div>
         </section>
