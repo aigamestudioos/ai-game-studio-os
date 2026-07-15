@@ -97,6 +97,36 @@ Nenhum bloqueante. `next build` reportou o aviso padrão "The Next.js plugin was
 - Nenhum push/deploy feito, conforme escopo explícito pedido (commit local apenas).
 - Tailwind, shadcn/ui e Supabase deliberadamente fora do escopo — entram nos Incrementos 0.3 e 0.6.
 
+### Próximo Sprint / Incremento (0.2)
+
+Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider (sequência ajustada; ver `DECISIONS.md` § "Ajustes de processo pós-0.2").
+
+---
+
+#### Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider
+
+**Arquivos criados**
+
+`apps/web/postcss.config.mjs`, `apps/web/app/globals.css`, `apps/web/providers/theme-provider.tsx`, `apps/web/hooks/use-theme.ts`.
+
+**Arquivos alterados**
+
+`apps/web/package.json` (deps `tailwindcss` + `@tailwindcss/postcss` 4.3.2, script `lint` passa a cobrir `providers`/`hooks`), `apps/web/app/layout.tsx` (importa `globals.css`, script inline anti-flash, envolve `children` em `ThemeProvider`), `apps/web/app/page.tsx` (Client Component demonstrando tokens + toggle de tema).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider": tokens e ThemeProvider ficam em `apps/web` (packages/ui continua stub, reservado para o Sprint 2 da SPEC-005); sem persistência de tema nesta etapa (localStorage/sessionStorage proibidos, Supabase Auth ainda não existe); anti-flash via script inline lendo `prefers-color-scheme`, sem storage.
+
+**Problemas encontrados**
+
+Nenhum bloqueante. Verificado manualmente via `next dev`: CSS gerado contém `--color-background: var(--surface-background)` e a classe `.bg-background` compilada corretamente.
+
+**Pendências**
+
+- Persistência real da escolha de tema (banco/preferência de usuário) fica para o Incremento 0.7 (Supabase Auth).
+- shadcn/ui deliberadamente fora do escopo — entra no Incremento 0.4.
+- `packages/ui` continua stub — tokens/providers compartilhados só quando a biblioteca de componentes for construída (Sprint 2 da SPEC-005).
+
 ### Próximo Sprint / Incremento
 
-Incremento 0.3 — Tailwind CSS + shadcn/ui, conforme `docs/frozen/roadmap/AGSOS-PLAN-001.md`.
+Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast), conforme sequência ajustada em `PROJECT_STATUS.md`.

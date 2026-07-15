@@ -85,3 +85,17 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** Não editar `AGSOS-PLAN-001.md` (continua frozen, como registro da intenção original). A sequência real de execução passa a ser rastreada apenas em `PROJECT_STATUS.md`/`IMPLEMENTATION_LOG.md`: 0.3 = Tailwind v4 + tokens + dark mode + ThemeProvider; 0.4 = shadcn/ui; 0.5–0.8 = CI, Vercel, Supabase Auth, revisão geral (cada um deslocado uma posição).
 **Motivo:** Cumprir a regra de tamanho de sprint sem exigir aprovação de ADR para uma mudança que é apenas de sequenciamento de execução, não de arquitetura.
 **Impacto:** Nenhum impacto arquitetural. Ao final do Sprint 0, o escopo total entregue é o mesmo do roadmap original — só a ordem/numeração operacional muda.
+
+## Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider
+
+### [2026-07-15] Tokens e ThemeProvider ficam em `apps/web`, não em `packages/ui`
+**Contexto:** SPEC-005 §5 define tokens/providers dentro de `packages/ui/{tokens,providers}`, mas isso faz parte da estrutura completa do design system (`server/client/shared/base/composed/...`), cuja implementação a própria SPEC-005 §14 agenda para o "Sprint 2", não para este incremento.
+**Decisão:** Tokens Tailwind em `apps/web/app/globals.css`; `ThemeProvider`/`useTheme` em `apps/web/providers/` e `apps/web/hooks/` (pastas já scaffolded no Incremento 0.2). `packages/ui` permanece stub.
+**Motivo:** Escolha explícita do usuário para não antecipar a estrutura completa de `packages/ui` antes da hora, mantendo o incremento pequeno e focado.
+**Impacto:** Quando `packages/ui` for construído no Sprint 2, o `ThemeProvider` e os tokens precisarão ser migrados/generalizados para lá (hoje acoplados a `apps/web`). Nenhum outro app consome esses tokens ainda, então não há duplicação por enquanto.
+
+### [2026-07-15] Sem persistência de tema neste incremento
+**Contexto:** ARCHITECTURE.md proíbe `localStorage`/`sessionStorage`. Persistência real de preferência de usuário dependeria de Supabase Auth, que só chega no Incremento 0.7.
+**Decisão:** `ThemeProvider` mantém o tema apenas em memória (React state) nesta etapa; dark-first por padrão; detecção de `prefers-color-scheme` via script inline no `<head>` do `layout.tsx` (executa antes do primeiro paint, sem usar storage) evita flash na carga inicial, mas a escolha explícita do usuário não sobrevive a um reload.
+**Motivo:** Escolha explícita do usuário — persistência real fica para quando houver Auth/preferência de usuário no banco.
+**Impacto:** Toggle de tema funciona durante a sessão (validado manualmente via `next dev`), mas reseta para o padrão do sistema a cada reload até o Incremento 0.7.

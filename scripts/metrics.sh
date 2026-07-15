@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 APPS=$(ls apps 2>/dev/null | wc -l | tr -d ' ')
 PACKAGES=$(ls packages 2>/dev/null | wc -l | tr -d ' ')
 FILES=$(git ls-files | wc -l | tr -d ' ')
-LOC=$(git ls-files | grep -E '\.(ts|tsx|js|jsx|sql)$' | xargs cat 2>/dev/null | wc -l | tr -d ' ')
+LOC=$(git ls-files | grep -E '\.(ts|tsx|js|jsx|sql|css)$' | xargs cat 2>/dev/null | wc -l | tr -d ' ')
 COMMITS=$(git rev-list --count HEAD)
 
 TYPECHECK_STATUS="⬜ não executado"
@@ -55,7 +55,7 @@ echo "=== Código ==="
 echo "Apps: $APPS"
 echo "Packages: $PACKAGES"
 echo "Arquivos (git-tracked): $FILES"
-echo "Linhas de código (ts/tsx/js/jsx/sql): $LOC"
+echo "Linhas de código (ts/tsx/js/jsx/sql/css): $LOC"
 echo "Commits: $COMMITS"
 echo "Typecheck: $TYPECHECK_STATUS"
 echo "Lint: $LINT_STATUS"

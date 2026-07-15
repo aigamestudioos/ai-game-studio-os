@@ -110,3 +110,58 @@ Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de 
 | Vercel | — (ainda não configurado, Incremento 0.5) |
 | Supabase | — (ainda não configurado, Incremento 0.6) |
 | Ambientes | — (nenhum ambiente publicado; commit local apenas) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.3)
+
+**Data:** 2026-07-15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | 3 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 88 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 235 |
+| Commits totais | 9 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Módulos implementados | 0 |
+| Integrações implementadas | 0 |
+| Telas implementadas | 1 (home `/`, agora com tokens + dark mode) |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do CI | — (CI ainda não configurado, Incremento 0.5) |
+| Tempo do build (monorepo completo) | ~40s (`pnpm build`, cache frio, 12 workspaces) |
+| Tempo do pnpm install | — (medir no próximo sprint) |
+| Tempo do build (apps/web isolado) | ~28s (`pnpm --filter web build`) |
+| Tempo de start do dev server (apps/web) | ~3s (`next dev` até "Ready in") |
+| Tempo do typecheck (apps/web isolado) | ~3s (`pnpm --filter web typecheck`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | — (ainda não configurado, Incremento 0.6) |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | — (nenhum ambiente publicado; commit local apenas) |

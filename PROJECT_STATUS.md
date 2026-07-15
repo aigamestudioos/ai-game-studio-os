@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 em andamento — Incrementos 0.1 e 0.2 concluídos |
+| Implementação   | Sprint 0 em andamento — Incrementos 0.1, 0.2 e 0.3 concluídos |
 
 ## Sprint 0 — Foundation
 
@@ -15,7 +15,7 @@ Status atual do projeto AI Game Studio OS.
 |---|---|---|
 | **0.1** | **Monorepo + Turborepo + pnpm + TypeScript** | **Concluído (local)** |
 | **0.2** | **Next.js + App Router** | **Concluído (local)** |
-| 0.3 | Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider | Pending |
+| **0.3** | **Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider** | **Concluído (local)** |
 | 0.4 | shadcn/ui (Button, Input, Card, Dialog, Toast) | Pending |
 | 0.5 | GitHub Actions (CI mínimo) | Pending |
 | 0.6 | Vercel + primeiro deploy | Pending |
@@ -26,12 +26,12 @@ Status atual do projeto AI Game Studio OS.
 
 ## Último Sprint
 
-Incremento 0.2 — Next.js + App Router: `apps/web` criado (Next 15.5.20, React 19.2.7, App Router), sem Tailwind/shadcn/Supabase. `pnpm install`, `pnpm build`, `pnpm typecheck` e `pnpm lint` verdes em todos os 12 workspaces; `pnpm dev` verificado servindo a home em runtime. Ver `IMPLEMENTATION_LOG.md` para detalhes.
+Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider: tokens de superfície e semânticos (SPEC-005 §4) em `apps/web/app/globals.css`, dark-first com override `[data-theme="light"]`, `ThemeProvider`/`useTheme` sem persistência (localStorage/sessionStorage proibidos; Supabase Auth ainda não existe), anti-flash via script inline. `pnpm install`, `pnpm build`, `pnpm typecheck` e `pnpm lint` verdes em todos os 12 workspaces; verificado manualmente via `next dev` que os tokens compilam e o toggle de tema funciona. Ver `IMPLEMENTATION_LOG.md` para detalhes.
 
 ## Próxima Etapa
 
-Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider (shadcn/ui fica isolado no 0.4).
+Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast).
 
 ## Observação
 
-`apps/web` (Next.js, App Router — com `features/`, `components/ui/`, `lib/`, `providers/`, `hooks/` já scaffolded vazios, conforme ADR-002/ARCHITECTURE.md §3), `packages/` (11 packages `@agsos/*`) e `supabase/` agora existem no repositório. Ainda sem Tailwind, shadcn/ui, Supabase real ou Auth (entram nos próximos incrementos). Commit local apenas; nenhum push foi feito para `origin`.
+`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode) — com `features/`, `components/ui/`, `lib/` ainda vazios, `providers/` e `hooks/` já com o `ThemeProvider`/`useTheme`, conforme ADR-002/ARCHITECTURE.md §3 —, `packages/` (11 packages `@agsos/*`) e `supabase/` agora existem no repositório. Ainda sem shadcn/ui, Supabase real ou Auth (entram nos próximos incrementos). Commit local apenas; nenhum push foi feito para `origin`.
