@@ -28,8 +28,14 @@ Status atual do projeto AI Game Studio OS.
 | Incremento | Objetivo | Status |
 |---|---|---|
 | **1.1** | **Dashboard Premium**: Application Shell reutilizável (Header + Sidebar + Content) e primeira tela real (`/dashboard`), 100% mock, sem backend | **Concluído (produção)** |
-| 1.2 | Supabase Auth + login/logout + controle de acesso | Pending |
-| 1.3 | Módulo Projects (primeiro fluxo funcional de negócio) | Pending |
+| 1.2 | 📁 Projects — primeiro fluxo de negócio (Dashboard → Projects → New Project → Project Details), 100% mock | Pending |
+| 1.3 | 🎮 Games (Game Workspace) | Pending |
+| 1.4 | 🧠 Knowledge | Pending |
+| 1.5 | 📤 Publishing | Pending |
+| 1.6 | 🔐 Supabase Auth + login/logout + controle de acesso | Pending |
+| 1.7 | 🔄 Conectar todos os módulos ao Supabase (substituir mocks por dados reais) | Pending |
+
+> Reordenação estratégica (2026-07-15): autenticação foi deliberadamente adiada para depois dos módulos de negócio (Projects → Games → Knowledge → Publishing). Motivo: evitar autenticar usuários para chegar a um sistema sem funcionalidade real; validar UX com mocks primeiro reduz retrabalho quando o Supabase for integrado (troca `const data = mockData` por `const data = await supabase...`, sem redesenhar telas). Ver `DECISIONS.md`.
 
 > Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
@@ -43,7 +49,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.2 — Supabase Auth (login/logout, controle de acesso), seguido de 1.3 (Projects).
+Sprint 1.2 — Projects: primeiro fluxo de negócio real (Dashboard → Projects → New Project → Project Details), 100% mockado. Supabase Auth adiado para 1.6, depois dos módulos de negócio (ver nota acima).
 
 ## Observação
 
