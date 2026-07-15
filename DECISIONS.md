@@ -99,3 +99,17 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** `ThemeProvider` mantém o tema apenas em memória (React state) nesta etapa; dark-first por padrão; detecção de `prefers-color-scheme` via script inline no `<head>` do `layout.tsx` (executa antes do primeiro paint, sem usar storage) evita flash na carga inicial, mas a escolha explícita do usuário não sobrevive a um reload.
 **Motivo:** Escolha explícita do usuário — persistência real fica para quando houver Auth/preferência de usuário no banco.
 **Impacto:** Toggle de tema funciona durante a sessão (validado manualmente via `next dev`), mas reseta para o padrão do sistema a cada reload até o Incremento 0.7.
+
+## Incremento 0.6 (antecipado) — Deploy em produção
+
+### [2026-07-15] Deploy na Vercel antecipado para antes de 0.4/0.5
+**Contexto:** O usuário pediu explicitamente publicar em produção antes de iniciar o Sprint 0.4, para validar a cadeia GitHub → Vercel cedo.
+**Decisão:** Push de todos os commits locais para `origin/main` (repositório já estava em sincronia — nenhum commit pendente), e uso do domínio temporário `.vercel.app` gerado pela Vercel a partir do projeto que o usuário já havia conectado via dashboard.
+**Motivo:** Pedido explícito do usuário; antecipar o deploy real reduz risco de surpresas de configuração (Root Directory, variáveis de ambiente) mais tarde.
+**Impacto:** `AGSOS-PLAN-001.md` (frozen) continua listando Vercel como 0.5 (nome antigo)/0.6 (numeração operacional ajustada no 0.2). A tabela em `PROJECT_STATUS.md` marca 0.6 como concluído fora de ordem, mantendo 0.4 e 0.5 como próximos pendentes.
+
+### [2026-07-15] Conexão com a Vercel via dashboard, não via CLI/token
+**Contexto:** Não há token da Vercel disponível neste ambiente para automação via CLI; login interativo (navegador) não é possível para o agente.
+**Decisão:** O usuário conectou o repositório à Vercel manualmente pelo dashboard (Import Git Repository), configurando Root Directory `apps/web`. Nenhum `vercel.json` foi criado no repositório.
+**Motivo:** Único caminho viável sem credenciais da Vercel compartilhadas com o agente.
+**Impacto:** Configuração de build/deploy vive inteiramente no dashboard da Vercel (fora do repositório) — se precisar reproduzir em outro projeto/ambiente, documentar os valores usados (Root Directory, Framework Preset, Node version) fora deste repo, já que não há `vercel.json` versionado.

@@ -17,6 +17,7 @@ Execute incrementos de implementação de forma disciplinada, seguindo rigorosam
 
 ```bash
 # 1. Ler contexto
+cat VISION.md
 cat ARCHITECTURE.md
 cat PROJECT_STATUS.md
 
@@ -26,6 +27,8 @@ git branch
 
 # 3. Consultar DECISIONS.md se houver dúvida sobre escolhas anteriores
 ```
+
+`VISION.md` não é normativo (pode ser editado livremente pelo fundador, sem ADR), mas se uma decisão de incremento parecer entrar em conflito com o que está lá, tratar como as demais divergências: parar e relatar antes de prosseguir.
 
 ---
 

@@ -127,6 +127,35 @@ Nenhum bloqueante. Verificado manualmente via `next dev`: CSS gerado contém `--
 - shadcn/ui deliberadamente fora do escopo — entra no Incremento 0.4.
 - `packages/ui` continua stub — tokens/providers compartilhados só quando a biblioteca de componentes for construída (Sprint 2 da SPEC-005).
 
+### Próximo Sprint / Incremento (0.3)
+
+Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast), conforme sequência ajustada em `PROJECT_STATUS.md`. Antes disso, o usuário pediu antecipar o deploy (0.6).
+
+---
+
+#### Incremento 0.6 (antecipado) — Deploy em produção (Vercel)
+
+**Arquivos criados/alterados**
+
+Nenhum arquivo de código — apenas `git push origin main` (o repositório já estava sincronizado com o histórico local até o Incremento 0.3; nenhum commit novo neste passo).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Incremento 0.6 (antecipado) — Deploy em produção": deploy antecipado a pedido explícito do usuário, antes de 0.4/0.5; conexão com a Vercel feita pelo usuário via dashboard (import do repositório Git, Root Directory `apps/web`), não via CLI (sem token da Vercel disponível para automação).
+
+**Problemas encontrados**
+
+Nenhum. Deploy já estava no ar quando verificado.
+
+**Validação**
+
+`curl https://ai-game-studio-os-web.vercel.app/` → HTTP 200; título "AI Game Studio OS" e `<h1>` corretos; CSS servido contém os tokens Tailwind (`--color-background: var(--surface-background)`) e a classe `.bg-background` compilada — confirma que o build de produção da Vercel reflete o Incremento 0.3 (Tailwind + tokens + dark mode).
+
+**Pendências**
+
+- GitHub Actions (CI mínimo, Incremento 0.5) ainda não existe — o deploy depende só da integração nativa Git da Vercel, sem gate de CI antes de promover para produção.
+- Nenhum `vercel.json` foi adicionado — configuração de build inteiramente via dashboard da Vercel (Root Directory `apps/web`).
+
 ### Próximo Sprint / Incremento
 
-Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast), conforme sequência ajustada em `PROJECT_STATUS.md`.
+Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast) + página `/playground`, conforme sequência ajustada em `PROJECT_STATUS.md`.

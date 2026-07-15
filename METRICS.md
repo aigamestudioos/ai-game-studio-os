@@ -162,6 +162,28 @@ Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de 
 
 | Métrica | Valor |
 |---|---|
-| Vercel | — (ainda não configurado, Incremento 0.6) |
+| Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ (antecipado, Incremento 0.6) |
 | Supabase | — (ainda não configurado, Incremento 0.7) |
-| Ambientes | — (nenhum ambiente publicado; commit local apenas) |
+| Ambientes | Production (`main`, deploy automático via Git) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.6, antecipado)
+
+**Data:** 2026-07-15
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ — HTTP 200, validado |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
+| GitHub → Vercel | Conectado via dashboard (Root Directory `apps/web`) |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do CI | — (CI ainda não configurado, Incremento 0.5) |
+| Push para origin/main | 9 commits (repositório já estava sincronizado nesta etapa) |
