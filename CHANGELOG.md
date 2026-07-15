@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.4 (Knowledge)
+- `apps/web/lib/knowledge-store.ts` — store mock cliente (localStorage), mesmo padrão de `projects-store.ts`/`games-store.ts`: `useDocuments`/`useDocument`/`addDocument`/`getDocument`, seed com Onboarding Playbook/Code Review SOP/Convenções de Nomenclatura (título, resumo, tipo, status, conteúdo).
+- `apps/web/components/knowledge/cards.tsx` — `DocumentCard` (status Rascunho/Publicado + tipo como badge outline).
+- `apps/web/app/knowledge/page.tsx` — lista de documentos + diálogo "New Document" (título, resumo, seleção de tipo — Documento/Template/Playbook/SOP/ADR/SPEC — via badges alternáveis, seleção única).
+- `apps/web/app/knowledge/[id]/page.tsx` — página de detalhes do documento (título, status, tipo, resumo, conteúdo); `notFound()` para ids inexistentes.
+
+### Changed — Sprint 1.4
+- `apps/web/components/layout/sidebar.tsx` — item "Knowledge" ganhou `href="/knowledge"`.
+- `apps/web/app/dashboard/page.tsx` — Quick Action "Knowledge" agora navega para `/knowledge`.
+
 ### Added — Sprint 1.3 (Games — Game Workspace)
 - `apps/web/lib/games-store.ts` — store mock cliente (localStorage), mesmo padrão de `projects-store.ts`: `useGames`/`useGame`/`addGame`/`getGame`, seed com Nebula Drift/Sprint Runner/Hyper Dash (status, plataformas, builds).
 - `apps/web/components/games/cards.tsx` — `GameCard` (status + plataformas como badges), paralelo ao `ProjectCard` mas com campos próprios de Games.

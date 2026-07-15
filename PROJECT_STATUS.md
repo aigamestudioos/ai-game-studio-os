@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects e Games concluídos |
+| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games e Knowledge concluídos |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -30,7 +30,7 @@ Status atual do projeto AI Game Studio OS.
 | **1.1** | **Dashboard Premium**: Application Shell reutilizável (Header + Sidebar + Content) e primeira tela real (`/dashboard`), 100% mock, sem backend | **Concluído (produção)** |
 | **1.2** | **Projects** — primeiro fluxo de negócio (Dashboard → Projects → New Project → Project Details), 100% mock | **Concluído (local)** |
 | **1.3** | **Games** (Game Workspace) — Dashboard → Games → Create Game → Game Workspace, 100% mock | **Concluído (local)** |
-| 1.4 | 🧠 Knowledge | Pending |
+| **1.4** | **Knowledge** — Dashboard → Knowledge → New Document → Document Details, 100% mock | **Concluído (local)** |
 | 1.5 | 📤 Publishing | Pending |
 | 1.6 | 🔐 Supabase Auth + login/logout + controle de acesso | Pending |
 | 1.7 | 🔄 Conectar todos os módulos ao Supabase (substituir mocks por dados reais) | Pending |
@@ -41,7 +41,11 @@ Status atual do projeto AI Game Studio OS.
 
 ## Último Sprint
 
-Sprint 1.3 — Games: segundo fluxo de negócio, mesmo padrão de Projects (`/games` e `/games/[id]`), 100% mock. `/games` lista os jogos (novo `GameCard`, com plataformas como badges em vez da barra de progresso do `ProjectCard`) e tem o botão **Create Game**, que abre um `Dialog` com nome, descrição e seleção de plataformas (iOS/Android/Steam via badges alternáveis) e cria o jogo via `apps/web/lib/games-store.ts` — replica a estrutura de `projects-store.ts` (`localStorage`, ver `DECISIONS.md`). A página de detalhes (`Game Workspace`) mostra status, plataformas e a lista de builds com ícone de status (Pronta/Em build/Falhou); ids inexistentes caem em `notFound()`. Sidebar e o Quick Action "Create Game" do Dashboard agora apontam para `/games`.
+Sprint 1.4 — Knowledge: terceiro fluxo de negócio, mesmo padrão de Projects/Games (`/knowledge` e `/knowledge/[id]`), 100% mock. `/knowledge` lista os documentos (novo `DocumentCard`, status Rascunho/Publicado + tipo como badge) e tem o botão **New Document**, que abre um `Dialog` com título, resumo e seleção de tipo (Documento/Template/Playbook/SOP/ADR/SPEC — badges alternáveis de seleção única, mesmo padrão usado para plataformas em Games) e cria o documento via `apps/web/lib/knowledge-store.ts`. A página de detalhes mostra título, status, tipo, resumo e conteúdo; ids inexistentes caem em `notFound()`. Sidebar e o Quick Action "Knowledge" do Dashboard agora apontam para `/knowledge`.
+
+Testado o fluxo completo (golden path) via Playwright, incluindo título com acentuação (Português): abrir `/knowledge` → "New Document" → preencher título/resumo → selecionar tipo → criar → toast de confirmação → clicar no card criado → chegar em `/knowledge/[id]` com os dados corretos. Nenhum bug de layout encontrado nos 3 breakpoints × 2 temas.
+
+### Sprint 1.3 — Games: segundo fluxo de negócio, mesmo padrão de Projects (`/games` e `/games/[id]`), 100% mock. `/games` lista os jogos (novo `GameCard`, com plataformas como badges em vez da barra de progresso do `ProjectCard`) e tem o botão **Create Game**, que abre um `Dialog` com nome, descrição e seleção de plataformas (iOS/Android/Steam via badges alternáveis) e cria o jogo via `apps/web/lib/games-store.ts` — replica a estrutura de `projects-store.ts` (`localStorage`, ver `DECISIONS.md`). A página de detalhes (`Game Workspace`) mostra status, plataformas e a lista de builds com ícone de status (Pronta/Em build/Falhou); ids inexistentes caem em `notFound()`. Sidebar e o Quick Action "Create Game" do Dashboard agora apontam para `/games`.
 
 Testado o fluxo completo (golden path) via Playwright: abrir `/games` → "Create Game" → preencher nome/descrição → selecionar plataformas → criar → toast de confirmação → clicar no card criado → chegar em `/games/[id]` com os dados corretos. Nenhum bug de layout encontrado nos 3 breakpoints × 2 temas.
 
@@ -57,8 +61,8 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.4 — Knowledge, 100% mockado, seguindo o mesmo padrão de Projects/Games (Application Shell + store client-side). Supabase Auth adiado para 1.6, depois dos módulos de negócio (ver nota acima).
+Sprint 1.5 — Publishing, 100% mockado, seguindo o mesmo padrão de Projects/Games/Knowledge (Application Shell + store client-side). Supabase Auth adiado para 1.6, depois dos módulos de negócio (ver nota acima).
 
 ## Observação
 
-`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data; `app/projects/` (lista + detalhes) com `lib/projects-store.ts`; `app/games/` (lista + Game Workspace) com `lib/games-store.ts` e `components/games/cards.tsx` — ambos os stores mock client-side (localStorage), mesmo padrão. `/dashboard` e `/projects` em produção; `/games` local (ainda não deployado), todos 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data; `app/projects/` (lista + detalhes) com `lib/projects-store.ts`; `app/games/` (lista + Game Workspace) com `lib/games-store.ts` e `components/games/cards.tsx`; `app/knowledge/` (lista + detalhes) com `lib/knowledge-store.ts` e `components/knowledge/cards.tsx` — três stores mock client-side (localStorage), mesmo padrão. `/dashboard`, `/projects` e `/games` em produção; `/knowledge` local (ainda não deployado), todos 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.

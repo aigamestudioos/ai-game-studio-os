@@ -4,6 +4,13 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.4 — Knowledge
+
+✨ Novo módulo **Knowledge**, em `/knowledge` — a base de conhecimento do estúdio
+✨ Botão **New Document** abre um formulário com título, resumo e tipo (Documento, Template, Playbook, SOP, ADR ou SPEC)
+✨ Cada documento tem sua própria página com o conteúdo completo
+🔧 Ainda sem login ou banco de dados real — os documentos criados ficam salvos só neste navegador, prontos para virar dados reais quando o Supabase for integrado
+
 ## Sprint 1.3 — Games
 
 ✨ Novo módulo **Games**, em `/games` — gerencie o ciclo de vida dos seus jogos

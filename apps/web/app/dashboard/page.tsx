@@ -62,7 +62,9 @@ export default function DashboardPage() {
                     ? () => router.push("/projects")
                     : action.label === "Create Game"
                       ? () => router.push("/games")
-                      : undefined
+                      : action.label === "Knowledge"
+                        ? () => router.push("/knowledge")
+                        : undefined
                 }
               />
             ))}

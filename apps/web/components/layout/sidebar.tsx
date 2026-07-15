@@ -32,7 +32,7 @@ const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Marketing", icon: Megaphone },
   { label: "Analytics", icon: BarChart3 },
   { label: "Finance", icon: Wallet },
-  { label: "Knowledge", icon: BookOpen },
+  { label: "Knowledge", href: "/knowledge", icon: BookOpen },
   { label: "Settings", icon: Settings },
 ];
 

@@ -433,3 +433,35 @@ Nenhum.
 ### Próximo Sprint
 
 Sprint 1.4 — Knowledge, 100% mockado.
+
+#### Incremento 1.4 — Knowledge
+
+**Arquivos criados**
+
+`apps/web/lib/knowledge-store.ts`, `apps/web/components/knowledge/cards.tsx`, `apps/web/app/knowledge/page.tsx`, `apps/web/app/knowledge/[id]/page.tsx`, `docs/screenshots/sprint-1.4/*`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/sidebar.tsx` (item "Knowledge" ganhou `href`), `apps/web/app/dashboard/page.tsx` (Quick Action "Knowledge" agora navega para `/knowledge`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.4": terceira réplica do padrão de store mock com `localStorage` (Projects → Games → Knowledge), confirmando que o padrão é estável para módulos de negócio 100% mock sem precisar virar abstração compartilhada agora. Para o campo "Tipo" do documento (seleção única entre 6 opções), reaproveitado o mesmo padrão de badges alternáveis usado para "Plataformas" em Games — o design system ainda não tem um componente `Select`, e não havia necessidade real de criar um agora.
+
+**Validações executadas**
+
+`pnpm lint`, `pnpm typecheck`, `pnpm build` (9 páginas, incluindo as três rotas dinâmicas `/projects/[id]`, `/games/[id]`, `/knowledge/[id]`) — todos ✅. Playwright: `/knowledge` e `/knowledge/[id]` em dark/light (desktop) + 3 breakpoints, zero overflow horizontal, zero erros de página. Golden path testado de ponta a ponta, incluindo título com acentuação: abrir `/knowledge` → "New Document" → preencher título ("Guia de Publicação")/resumo → selecionar tipo (SOP) → criar → toast "Documento criado" → clicar no card recém-criado → chegar em `/knowledge/[id]` com os dados corretos (id gerado corretamente a partir do slug do título acentuado).
+
+**Bugs encontrados via validação**
+
+Nenhum.
+
+**Pendências**
+
+- Push e deploy deste incremento (próximo passo) — `/knowledge` ainda não está em produção.
+- Sprint 1.5 (Publishing) é o próximo módulo de negócio, seguindo o mesmo padrão.
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas, sem posição fixa no roadmap atual.
+
+### Próximo Sprint
+
+Sprint 1.5 — Publishing, 100% mockado.
