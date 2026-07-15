@@ -15,11 +15,14 @@ Status atual do projeto AI Game Studio OS.
 |---|---|---|
 | **0.1** | **Monorepo + Turborepo + pnpm + TypeScript** | **Concluído (local)** |
 | **0.2** | **Next.js + App Router** | **Concluído (local)** |
-| 0.3 | Tailwind CSS + shadcn/ui | Pending |
-| 0.4 | GitHub Actions (CI mínimo) | Pending |
-| 0.5 | Vercel + primeiro deploy | Pending |
-| 0.6 | Supabase Auth + login/logout + rota protegida | Pending |
-| 0.7 | Revisão geral, testes, documentação | Pending |
+| 0.3 | Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider | Pending |
+| 0.4 | shadcn/ui (Button, Input, Card, Dialog, Toast) | Pending |
+| 0.5 | GitHub Actions (CI mínimo) | Pending |
+| 0.6 | Vercel + primeiro deploy | Pending |
+| 0.7 | Supabase Auth + login/logout + rota protegida | Pending |
+| 0.8 | Revisão geral, testes, documentação | Pending |
+
+> Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` define 0.3 como "Tailwind + shadcn/ui" combinado. A tabela acima diverge dessa numeração apenas na *sequência de execução* (Tailwind isolado de shadcn, para respeitar o limite de ~50 arquivos/sprint de `CLAUDE.md`) — o documento frozen não foi alterado. Ver `DECISIONS.md`.
 
 ## Último Sprint
 
@@ -27,8 +30,8 @@ Incremento 0.2 — Next.js + App Router: `apps/web` criado (Next 15.5.20, React 
 
 ## Próxima Etapa
 
-Incremento 0.3 — Tailwind CSS + shadcn/ui, conforme `docs/frozen/roadmap/AGSOS-PLAN-001.md`
+Incremento 0.3 — Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider (shadcn/ui fica isolado no 0.4).
 
 ## Observação
 
-`apps/web` (Next.js, App Router), `packages/` (11 packages `@agsos/*`) e `supabase/` agora existem no repositório. Ainda sem Tailwind, shadcn/ui, Supabase real ou Auth (entram nos próximos incrementos). Commit local apenas; nenhum push foi feito para `origin`.
+`apps/web` (Next.js, App Router — com `features/`, `components/ui/`, `lib/`, `providers/`, `hooks/` já scaffolded vazios, conforme ADR-002/ARCHITECTURE.md §3), `packages/` (11 packages `@agsos/*`) e `supabase/` agora existem no repositório. Ainda sem Tailwind, shadcn/ui, Supabase real ou Auth (entram nos próximos incrementos). Commit local apenas; nenhum push foi feito para `origin`.

@@ -97,8 +97,11 @@ Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de 
 | Métrica | Valor |
 |---|---|
 | Tempo do CI | — (CI ainda não configurado, Incremento 0.4) |
-| Tempo do build | ~33s (`pnpm build`, cache frio, 12 workspaces) |
+| Tempo do build (monorepo completo) | ~33s (`pnpm build`, cache frio, 12 workspaces) |
 | Tempo do pnpm install | — (medir no próximo sprint) |
+| Tempo do build (apps/web isolado) | ~28s (`pnpm --filter web build`) |
+| Tempo de start do dev server (apps/web) | ~3s (`next dev` até "Ready in") |
+| Tempo do typecheck (apps/web isolado) | ~2s (`pnpm --filter web typecheck`) |
 
 ### Deploy
 
