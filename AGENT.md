@@ -133,6 +133,7 @@ Pare e relate antes de implementar quando:
 2. Surgir decisão arquitetural não prevista
 3. Falha técnica não resolvível sem alterar arquitetura aprovada
 4. Termo novo necessário (UL-001 deve ser atualizado primeiro)
+5. O escopo do incremento exigir: mais de 50 arquivos alterados, OU mais de 10 arquivos novos, OU mais de 3 packages modificados — propor dividir o incremento em vez de executar (ver CLAUDE.md)
 
 ```
 INTERRUPÇÃO — [tipo]
