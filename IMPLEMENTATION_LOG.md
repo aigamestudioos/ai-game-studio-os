@@ -24,7 +24,7 @@ Cada entrada de sprint segue o formato:
 
 ## Sprint 0 — Foundation (Release 0.1)
 
-**Status:** Em andamento (Incremento 0.1 concluído)
+**Status:** Em andamento (Incrementos 0.1 e 0.2 concluídos)
 **Período:** 2026-07-15 —
 
 ### Objetivo
@@ -34,7 +34,7 @@ Conforme `docs/frozen/roadmap/AGSOS-PLAN-001.md`, o Sprint 0 cobre os incremento
 | Incremento | Escopo | Critério de aceite | Status |
 |---|---|---|---|
 | **0.1** | **Monorepo + Turborepo + pnpm + TypeScript + docs** | **`pnpm build` verde em todos os packages** | **Concluído (local)** |
-| 0.2 | Next.js + App Router | `pnpm dev` → página em localhost:3000 | Pending |
+| **0.2** | **Next.js + App Router** | **`pnpm dev` → página em localhost:3000** | **Concluído (local)** |
 | 0.3 | Tailwind CSS + shadcn/ui (Button, Card, Input, Dialog) | Página estilizada + todos os componentes funcionando | Pending |
 | 0.4 | GitHub Actions (CI mínimo) | CI verde no primeiro PR | Pending |
 | 0.5 | Vercel + primeiro deploy | URL de preview acessível | Pending |
@@ -67,6 +67,36 @@ Nenhum. `pnpm install`, `pnpm typecheck`, `pnpm build` e `pnpm lint` passaram se
 - Commit feito apenas localmente (`chore(repo): bootstrap monorepo foundation`) — sem push, conforme instrução.
 - `apps/web` (Next.js) ainda não existe — entra no Incremento 0.2.
 
-### Próximo Sprint / Incremento
+### Próximo Sprint / Incremento (0.1)
 
 Incremento 0.2 — Next.js + App Router, conforme `docs/frozen/roadmap/AGSOS-PLAN-001.md`.
+
+---
+
+#### Incremento 0.2 — Next.js + App Router
+
+**Arquivos criados**
+
+`apps/web/`: `package.json`, `tsconfig.json` (estende `tsconfig.base.json`), `next.config.mjs`, `next-env.d.ts`, `app/layout.tsx`, `app/page.tsx`, `app/loading.tsx`, `app/error.tsx`, `app/not-found.tsx`.
+
+**Arquivos alterados**
+
+`turbo.json` (outputs do task `build` passam a incluir `.next/**`, excluindo `.next/cache/**`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Incremento 0.2 — Next.js + App Router": scaffold manual (sem `create-next-app`) com Next 15.5.20 + React 19.2.7; `verbatimModuleSyntax: false` restrito a `apps/web`; ajuste de `outputs` no `turbo.json`.
+
+**Problemas encontrados**
+
+Nenhum bloqueante. `next build` reportou o aviso padrão "The Next.js plugin was not detected in your ESLint configuration" — esperado, já que o escopo do incremento não pediu configuração de lint específica do Next (eslint-config-next); lint roda normalmente com o `eslint.config.mjs` existente e passou sem erros.
+
+**Pendências**
+
+- Plugin de ESLint específico do Next (`@next/eslint-plugin-next`) não configurado — avaliar no Incremento 0.3 ou 0.7 se necessário.
+- Nenhum push/deploy feito, conforme escopo explícito pedido (commit local apenas).
+- Tailwind, shadcn/ui e Supabase deliberadamente fora do escopo — entram nos Incrementos 0.3 e 0.6.
+
+### Próximo Sprint / Incremento
+
+Incremento 0.3 — Tailwind CSS + shadcn/ui, conforme `docs/frozen/roadmap/AGSOS-PLAN-001.md`.
