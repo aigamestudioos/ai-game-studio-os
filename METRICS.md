@@ -303,3 +303,65 @@ Fecha o 0.4a: correção do bug de `max-w-md`, validação visual com Playwright
 | Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ — bug de layout corrigido e validado |
 | Supabase | — (ainda não configurado, Incremento 0.7) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.4b)
+
+**Data:** 2026-07-15
+
+10 componentes avançados (Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress). Três bugs encontrados via revisão visual e corrigidos no mesmo incremento (hidratação, Alert, overlay). Ver `IMPLEMENTATION_LOG.md`/`DECISIONS.md`.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | 6 (0.1, 0.2, 0.3, 0.4a, 0.4b, 0.6) |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 123 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 1399 |
+| Commits totais | 15 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 (sugestão do usuário para 0.4c/0.5 — reaproveitar Playwright) |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 2 (`/`, `/playground`) |
+| Rotas | 2 |
+| Componentes UI (arquivos) | 15 (`components/ui/`) |
+| Componentes UI (contagem lógica) | 16 (Button, Input, Textarea, Card, Badge, Avatar, Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress) |
+| Componentes avançados | 10 (Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress) |
+| Providers | 1 (ThemeProvider) — TooltipProvider/ToastProvider do Radix não contam como próprios |
+| Hooks | 2 (useTheme, useToast) |
+| Features | 0 |
+| Fluxos completos | 0 |
+| Deploys | 6 (pushes para `main` com deploy validado em produção) |
+| ADRs | 4 (002, 003, 004, 005) |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~34s |
+| Tempo médio de deploy | — (manual/TBD) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ (será validado após push deste incremento) |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

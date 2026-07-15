@@ -222,3 +222,44 @@ Depois do bug de `max-w-md` (encontrado só por revisão visual, não por build/
 
 - A partir do 0.4b, todo relatório final deve incluir Sprint Review + checklist de encerramento do DoD.
 - "Componentes avançados", "Fluxos completos" e "Deploys" em `METRICS.md` continuam com contagem manual — não há convenção de nomenclatura ainda para automatizar "avançado vs. básico", nem token da Vercel para medir deploys via API.
+- Adiciona regra permanente: todo relatório final responde também "Product Delta" (o que o usuário consegue fazer hoje que não conseguia ontem, nunca vazio) e atualiza `PRODUCT_PROGRESS.md` — ver `DEFINITION_OF_DONE.md` §9.
+
+### Próximo Sprint / Incremento
+
+Incremento 0.4b — Componentes avançados, primeiro a seguir `DEFINITION_OF_DONE.md` integralmente.
+
+---
+
+#### Incremento 0.4b — Componentes avançados (overlays e feedback)
+
+**Arquivos criados**
+
+`apps/web/components/ui/{dialog,toast,tooltip,dropdown-menu,alert,spinner,skeleton,separator,progress}.tsx`, `apps/web/hooks/use-toast.ts` — 10 componentes em 10 arquivos (Dialog e Modal combinados em `dialog.tsx`; Toast e Toaster combinados em `toast.tsx`), respeitando o limite de 10 arquivos novos por incremento.
+
+**Arquivos alterados**
+
+`apps/web/package.json` (7 dependências `@radix-ui/*` novas), `apps/web/app/layout.tsx` (`TooltipProvider` + `Toaster` globais, `suppressHydrationWarning` no `<html>`), `apps/web/app/globals.css` (token `--backdrop`), `apps/web/app/playground/page.tsx` (6 novas seções).
+
+**Decisões tomadas**
+
+Dialog (dispensável) e Modal/AlertDialog (exige ação explícita) combinados em um único arquivo por serem a mesma família semântica (overlays modais), mantendo o limite de arquivos. Toast usa estado global simples (`hooks/use-toast.ts`, módulo com listeners) em vez de Context, para poder ser chamado de qualquer lugar (`toast({...})`) sem precisar estar dentro de um Provider React específico além do `ToastProvider` do Radix (que só cuida do posicionamento/acessibilidade, não do estado). Token `--backdrop` criado com o mesmo valor nos dois temas — overlay de modal deve sempre escurecer, independentemente do tema ativo (diferente dos demais tokens, que invertem entre dark/light).
+
+**Bugs encontrados via revisão visual (Playwright) e corrigidos no mesmo incremento**
+
+1. **Hidratação**: `<html>` sem `suppressHydrationWarning` — o script anti-flash (existente desde o 0.3) muda `data-theme` no DOM antes de React hidratar, e isso gerava warning de mismatch no console em toda carga com `prefers-color-scheme: light`. Só apareceu ao inspecionar o console do navegador via Playwright — nunca tinha sido checado antes (só o log do servidor, que não mostra isso). Corrigido adicionando `suppressHydrationWarning` ao `<html>`.
+2. **Alert**: título e descrição renderizavam lado a lado (`flex` sem `flex-col`) em vez de empilhados. Corrigido no `alertVariants`.
+3. **Overlay de Dialog/Modal**: usava `bg-surface-inverse/60`, que em dark mode produzia uma névoa clara em vez de escurecer o fundo (porque `surface-inverse` inverte com o tema). Corrigido com o novo token `--backdrop` (constante nos dois temas).
+
+**Validações executadas**
+
+`pnpm install`, `pnpm build` (12 workspaces), `pnpm typecheck`, `pnpm lint` — todos ✅. Screenshots via Playwright (headless Chromium): `/` e `/playground` completos em light e dark (`docs/screenshots/sprint-0.4b/`), mais capturas de cada componente interativo aberto (Dialog, Modal, Toast, Tooltip, Dropdown Menu) para confirmar que funcionam de verdade, não só que renderizam estaticamente. Nenhum erro de console/página em nenhuma das capturas, após as correções.
+
+**Pendências**
+
+- Seções restantes do playground (Checkbox, Switch, RadioGroup, Select, Tabs, Accordion + Typography/Spacing/Icons/Colors/Animations/Dark Mode) — Incremento 0.4c.
+- Persistência de tema — Incremento 0.7.
+- Suíte de testes E2E com Playwright (reaproveitando a mesma infraestrutura de screenshots) — sugestão do usuário, ainda não implementada; candidata ao 0.4c ou 0.5.
+
+### Próximo Sprint / Incremento
+
+Incremento 0.4c — Playground completo, ou, conforme sugestão do usuário, avaliar já construir uma tela real de produto reaproveitando só os componentes existentes.

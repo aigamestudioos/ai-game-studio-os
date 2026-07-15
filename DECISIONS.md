@@ -140,3 +140,29 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** Substituir `max-w-md` por `max-w-[28rem]` (valor arbitrário) nos dois containers afetados em `apps/web/app/playground/page.tsx`. Não renomear os tokens de espaçamento (usados corretamente em `p-*`/`gap-*`/`px-*`/`py-*` em todos os componentes).
 **Motivo:** Correção cirúrgica no ponto de uso, sem alterar os tokens do design system (que continuam corretos para seu propósito original — padding/gap).
 **Impacto:** **Risco sistêmico a observar nos próximos incrementos (0.4b/0.4c):** qualquer uso de `w-sm`, `w-md`, `w-lg`, `h-sm`, `h-md`, `h-lg`, `min-w-*`/`min-h-*` com esses mesmos nomes (`sm`/`md`/`lg`) vai colidir do mesmo jeito. Ao dimensionar containers/larguras fixas, preferir a escala numérica padrão do Tailwind (`max-w-96`, `w-64`, etc.) ou valores arbitrários (`max-w-[28rem]`), nunca os nomes `sm`/`md`/`lg`/`xl` para as famílias `w-*`/`h-*`/`max-w-*`/`min-w-*`/`min-h-*`.
+
+## Incremento 0.4b — Componentes avançados
+
+### [2026-07-15] Dialog + Modal combinados em um arquivo; Toast + Toaster combinados em outro
+**Contexto:** O escopo aprovado do 0.4b tem 10 componentes (Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress). Um arquivo por componente no padrão shadcn geraria 12 arquivos (Toast sozinho precisaria de toast.tsx + toaster.tsx + hook), passando do limite de 10 arquivos novos por incremento (`CLAUDE.md`).
+**Decisão:** `dialog.tsx` exporta tanto a família `Dialog*` (Radix Dialog, dispensável) quanto `Modal*` (Radix AlertDialog, não dispensável — exige ação explícita); `toast.tsx` exporta os primitivos de Toast e o componente `Toaster` (renderer); `hooks/use-toast.ts` fica separado por já existir a convenção de hooks em `apps/web/hooks/`.
+**Motivo:** Manter os 10 componentes pedidos sem exceder o limite de arquivos novos — Dialog/Modal são a mesma família semântica (overlay modal), assim como Toast/Toaster (primitivo + renderer do mesmo conceito).
+**Impacto:** Nenhum a nível de API pública — cada componente é importado normalmente pelo nome (`Dialog`, `Modal`, `Toast...`, `Toaster`). Se o arquivo crescer demais no futuro, pode ser desmembrado sem quebrar consumidores (basta manter os mesmos exports, movidos para arquivos separados).
+
+### [2026-07-15] Toast usa estado global via módulo (não Context React)
+**Contexto:** `toast({ title, description })` precisa poder ser chamado de qualquer componente/Server Action/handler, não só de dentro de uma árvore React específica.
+**Decisão:** `hooks/use-toast.ts` mantém um array de toasts em uma variável de módulo, com um `Set` de listeners; `toast()` e `dismissToast()` mutam esse estado e notificam os listeners; `useToast()` é o hook que assina esse estado para re-renderizar. O `Toaster` (dentro de `ToastProvider` do Radix, que só cuida de posicionamento/acessibilidade) é o único consumidor de `useToast()` que efetivamente renderiza os toasts.
+**Motivo:** Padrão simples e testado (mesma técnica usada pelo shadcn/ui), sem dependência externa nova, e sem exigir um Provider próprio além do já necessário do Radix.
+**Impacto:** Estado de toasts é global à aba do navegador (não por Server Component/request) — comportamento esperado para notificações client-side.
+
+### [2026-07-15] Token `--backdrop` criado para overlays de Dialog/Modal
+**Contexto:** Overlay inicialmente usava `bg-surface-inverse/60`, mas `surface-inverse` inverte de valor entre os temas (claro no dark mode, escuro no light mode) — resultado: o overlay ficava claro/lavado no dark mode em vez de escurecer o conteúdo por trás. Encontrado via revisão visual dos screenshots (Playground DoD §6).
+**Decisão:** Novo token `--backdrop` (e `--color-backdrop`), com o **mesmo valor** (`oklch(0.08 0 0 / 0.6)`) em ambos os temas — não segue o padrão dos demais tokens de superfície, que invertem entre dark/light.
+**Motivo:** Overlays de modal convencionalmente escurecem o conteúdo por trás para dar foco ao diálogo, independentemente do tema ativo — um comportamento distinto de "tokens de superfície" que representam a UI normal.
+**Impacto:** Nenhum nos tokens existentes; `--backdrop` é de uso exclusivo de `DialogOverlay`/`AlertDialogPrimitive.Overlay`.
+
+### [2026-07-15] `suppressHydrationWarning` adicionado ao `<html>`
+**Contexto:** O script anti-flash (Incremento 0.3) muda `data-theme` no DOM antes da hidratação do React, para evitar flash visual em quem prefere tema claro. Isso sempre gerou um warning de mismatch de hidratação no console do navegador — não detectado antes porque as validações anteriores só checavam o log do **servidor** (`next dev`), não o console do **navegador**. Só apareceu ao rodar Playwright com listener de console/pageerror, como o novo DoD exige.
+**Decisão:** Adicionar `suppressHydrationWarning` ao elemento `<html>` em `layout.tsx`.
+**Motivo:** É a técnica padrão (mesma usada por `next-themes`) para esse exato padrão de "script inline que muda um atributo do `<html>` antes da hidratação" — o warning é conhecido e esperado, não um bug real de conteúdo divergente.
+**Impacto:** Nenhum efeito colateral: `suppressHydrationWarning` só silencia mismatches nos atributos do próprio elemento onde é aplicado, não em elementos filhos — não mascara bugs de hidratação reais no restante da árvore.

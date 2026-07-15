@@ -22,6 +22,10 @@
   --success-foreground: oklch(0.98 0.01 145);
   --warning: oklch(0.75 0.17 80);
   --warning-foreground: oklch(0.2 0.02 80);
+
+  /* Backdrop de overlays (Dialog/Modal) — mesmo valor em ambos os temas, de propósito:
+     sempre escurece o conteúdo por trás, independentemente do tema ativo. */
+  --backdrop: oklch(0.08 0 0 / 0.6);
 }
 
 [data-theme="light"] {
@@ -54,6 +58,7 @@
   --color-surface-base: var(--surface-base);
   --color-surface-raised: var(--surface-raised);
   --color-surface-overlay: var(--surface-overlay);
+  --color-backdrop: var(--backdrop);
   --color-surface-inverse: var(--surface-inverse);
   --color-border-default: var(--border-default);
   --color-border-subtle: var(--border-subtle);

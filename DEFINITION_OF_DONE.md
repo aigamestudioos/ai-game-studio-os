@@ -118,4 +118,23 @@ Todo relatório final termina com o resumo estruturado abaixo (adaptar os itens 
 
 ## Valor entregue ao usuário
 (o que existe agora que não existia antes — rotas, componentes, funcionalidades)
+
+## Product Delta
+O que o usuário consegue fazer hoje que não conseguia ontem?
 ```
+
+## 9. Product Delta (obrigatório, não pode ficar vazio)
+
+Regra permanente: todo relatório final responde, em uma frase concreta e perceptível, "o que o usuário consegue fazer hoje que não conseguia ontem?". Atualizar também [PRODUCT_PROGRESS.md](PRODUCT_PROGRESS.md) com essa mesma frase.
+
+Respostas inválidas (melhoria interna, não delta de produto):
+- ❌ "Atualizamos métricas."
+- ❌ "Melhoramos a arquitetura."
+- ❌ "Refatoramos componentes."
+
+Respostas válidas (algo que o usuário vê ou faz na aplicação):
+- ✅ "Agora existe uma página Playground com componentes interativos."
+- ✅ "Agora é possível autenticar com Google."
+- ✅ "Agora o Dashboard mostra os projetos."
+
+Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicação — ex.: este próprio incremento de governança) declaram isso explicitamente em vez de forçar uma resposta artificial: "Nenhum Product Delta — sprint de processo/infraestrutura."

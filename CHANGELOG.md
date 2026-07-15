@@ -6,6 +6,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Incremento 0.4b (Componentes avançados)
+- `apps/web/components/ui/{dialog,toast,tooltip,dropdown-menu,alert,spinner,skeleton,separator,progress}.tsx` + `apps/web/hooks/use-toast.ts` — Dialog, Modal (AlertDialog), Toast, Tooltip, Dropdown Menu, Alert, Spinner, Skeleton, Separator, Progress. Todos usando tokens (nenhuma cor/espaçamento hardcoded).
+- Novo token `--backdrop` em `globals.css` — overlay de Dialog/Modal, mesmo valor em ambos os temas (escurece o conteúdo por trás independentemente do tema ativo).
+- `apps/web/app/layout.tsx` — `TooltipProvider` e `Toaster` adicionados globalmente.
+- `/playground` — seções Dialogs & Modals, Toasts, Tooltips, Dropdown Menu, Alerts, Feedback (Spinner/Skeleton/Separator/Progress).
+- `PRODUCT_PROGRESS.md` e seção "Product Delta" no `DEFINITION_OF_DONE.md`.
+
+### Fixed — Incremento 0.4b
+- Hidratação: `<html>` recebe `suppressHydrationWarning` (o script anti-flash muda `data-theme` antes da hidratação; sem isso, React acusava mismatch em toda carga com `prefers-color-scheme: light`). Bug pré-existente desde o 0.3, encontrado ao checar o console do navegador — não apenas o log do servidor — pela primeira vez.
+- `Alert`: título e descrição renderizavam lado a lado em vez de empilhados (`flex` sem `flex-col`).
+
 ### Added — Governança de processo (Definition of Done)
 - `DEFINITION_OF_DONE.md` — SPEC de processo (não frozen): Definition of Done obrigatória, Sprint Review, métricas de produto, screenshots + revisão visual obrigatórios para UI, limites de escopo, checklist de encerramento.
 - `RELEASE_NOTES.md` — changelog em linguagem simples, para acompanhar o produto sem contexto técnico (complementa `CHANGELOG.md`, que continua técnico).

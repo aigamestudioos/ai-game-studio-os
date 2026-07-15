@@ -1,13 +1,46 @@
 "use client";
 
 import { useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "../../components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Modal,
+  ModalAction,
+  ModalCancel,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+  ModalTrigger,
+} from "../../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { Input } from "../../components/ui/input";
+import { Progress } from "../../components/ui/progress";
+import { Separator } from "../../components/ui/separator";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Spinner } from "../../components/ui/spinner";
 import { Textarea } from "../../components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useTheme } from "../../hooks/use-theme";
+import { toast } from "../../hooks/use-toast";
 
 const NAV_SECTIONS = [
   { id: "buttons", label: "Buttons" },
@@ -15,16 +48,23 @@ const NAV_SECTIONS = [
   { id: "cards", label: "Cards" },
   { id: "badges", label: "Badges" },
   { id: "avatars", label: "Avatars" },
+  { id: "dialogs", label: "Dialogs & Modals" },
+  { id: "toasts", label: "Toasts" },
+  { id: "tooltips", label: "Tooltips" },
+  { id: "dropdowns", label: "Dropdown Menu" },
+  { id: "alerts", label: "Alerts" },
+  { id: "feedback", label: "Feedback" },
 ] as const;
 
 export default function PlaygroundPage() {
   const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [progress, setProgress] = useState(40);
 
   return (
     <div className="flex min-h-screen">
-      <nav className="sticky top-0 flex h-screen w-48 shrink-0 flex-col gap-sm border-r border-border bg-surface-base p-md">
+      <nav className="sticky top-0 flex h-screen w-48 shrink-0 flex-col gap-sm overflow-y-auto border-r border-border bg-surface-base p-md">
         <p className="mb-sm text-xs font-semibold uppercase tracking-wide text-text-tertiary">Playground</p>
         {NAV_SECTIONS.map((section) => (
           <a
@@ -46,7 +86,8 @@ export default function PlaygroundPage() {
         <header>
           <h1 className="text-2xl font-semibold">Design System Playground</h1>
           <p className="text-sm text-muted-foreground">
-            Incremento 0.4a — fundação (Button, Input, Textarea, Card, Badge, Avatar).
+            Incremento 0.4b — componentes avançados (Dialog, Modal, Toast, Tooltip, Dropdown Menu, Alert,
+            Spinner, Skeleton, Separator, Progress).
           </p>
         </header>
 
@@ -143,6 +184,175 @@ export default function PlaygroundPage() {
             <Avatar>
               <AvatarFallback>OS</AvatarFallback>
             </Avatar>
+          </div>
+        </section>
+
+        <section id="dialogs" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Dialogs &amp; Modals</h2>
+
+          <div className="flex flex-wrap items-center gap-sm">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">Abrir Dialog</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Editar projeto</DialogTitle>
+                  <DialogDescription>
+                    Dialog dispensável — fecha ao clicar fora ou pressionar Esc.
+                  </DialogDescription>
+                </DialogHeader>
+                <Input placeholder="Nome do projeto" />
+                <DialogFooter>
+                  <Button variant="outline">Cancelar</Button>
+                  <Button>Salvar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Modal>
+              <ModalTrigger asChild>
+                <Button variant="destructive">Excluir (Modal)</Button>
+              </ModalTrigger>
+              <ModalContent>
+                <ModalHeader>
+                  <ModalTitle>Excluir projeto?</ModalTitle>
+                  <ModalDescription>
+                    Modal (AlertDialog) — não fecha ao clicar fora, exige uma ação explícita. Esta ação não
+                    pode ser desfeita.
+                  </ModalDescription>
+                </ModalHeader>
+                <ModalFooter>
+                  <ModalCancel asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </ModalCancel>
+                  <ModalAction asChild>
+                    <Button variant="destructive">Excluir</Button>
+                  </ModalAction>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
+          </div>
+        </section>
+
+        <section id="toasts" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Toasts</h2>
+
+          <div className="flex flex-wrap items-center gap-sm">
+            <Button
+              variant="outline"
+              onClick={() => toast({ title: "Padrão", description: "Uma notificação simples." })}
+            >
+              Disparar default
+            </Button>
+            <Button
+              variant="success"
+              onClick={() => toast({ title: "Sucesso", description: "Projeto salvo.", variant: "success" })}
+            >
+              Disparar success
+            </Button>
+            <Button
+              variant="warning"
+              onClick={() =>
+                toast({ title: "Atenção", description: "Revise os campos.", variant: "warning" })
+              }
+            >
+              Disparar warning
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                toast({ title: "Erro", description: "Não foi possível salvar.", variant: "destructive" })
+              }
+            >
+              Disparar destructive
+            </Button>
+          </div>
+        </section>
+
+        <section id="tooltips" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Tooltips</h2>
+
+          <div className="flex flex-wrap items-center gap-sm">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline">Passe o mouse aqui</Button>
+              </TooltipTrigger>
+              <TooltipContent>Texto de ajuda contextual</TooltipContent>
+            </Tooltip>
+          </div>
+        </section>
+
+        <section id="dropdowns" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Dropdown Menu</h2>
+
+          <div className="flex flex-wrap items-center gap-sm">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">Abrir menu</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Editar</DropdownMenuItem>
+                <DropdownMenuItem>Duplicar</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Excluir</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </section>
+
+        <section id="alerts" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Alerts</h2>
+
+          <div className="flex max-w-[28rem] flex-col gap-sm">
+            <Alert>
+              <AlertTitle>Informação</AlertTitle>
+              <AlertDescription>Alerta padrão, sem ação necessária.</AlertDescription>
+            </Alert>
+            <Alert variant="success">
+              <AlertTitle>Sucesso</AlertTitle>
+              <AlertDescription>Operação concluída.</AlertDescription>
+            </Alert>
+            <Alert variant="warning">
+              <AlertTitle>Atenção</AlertTitle>
+              <AlertDescription>Revise antes de continuar.</AlertDescription>
+            </Alert>
+            <Alert variant="destructive">
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>Algo deu errado.</AlertDescription>
+            </Alert>
+          </div>
+        </section>
+
+        <section id="feedback" className="scroll-mt-lg space-y-md">
+          <h2 className="text-lg font-semibold">Feedback (Spinner, Skeleton, Separator, Progress)</h2>
+
+          <div className="flex flex-wrap items-center gap-md">
+            <Spinner size="sm" />
+            <Spinner size="md" />
+            <Spinner size="lg" />
+          </div>
+
+          <div className="flex max-w-[28rem] flex-col gap-sm">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+
+          <Separator />
+
+          <div className="flex max-w-[28rem] flex-col gap-sm">
+            <Progress value={progress} />
+            <div className="flex gap-sm">
+              <Button size="sm" variant="outline" onClick={() => setProgress((p) => Math.max(0, p - 20))}>
+                -20
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setProgress((p) => Math.min(100, p + 20))}>
+                +20
+              </Button>
+            </div>
           </div>
         </section>
       </main>
