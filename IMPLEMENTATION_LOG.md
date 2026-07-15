@@ -178,11 +178,13 @@ Ver `DECISIONS.md` § "Incremento 0.4a": tokens `success`/`warning` adicionados 
 
 **Problemas encontrados**
 
-Nenhum bloqueante. Aviso "The Next.js plugin was not detected in your ESLint configuration" persiste (mesmo do 0.2/0.3, não bloqueante).
+Aviso "The Next.js plugin was not detected in your ESLint configuration" persiste (mesmo do 0.2/0.3, não bloqueante).
+
+**Bug de layout encontrado via validação visual (Playwright) e corrigido no mesmo incremento**: `Input`, `Textarea` e `Card` renderizavam muito mais estreitos que o esperado em `/playground`. `pnpm build`/`lint`/`typecheck` não detectaram — só apareceu nos screenshots. Causa raiz: `max-w-md` colide com o token `--spacing-md` (Tailwind v4 usa a escala de `spacing` como fallback para utilities nomeadas de tamanho). Corrigido trocando por `max-w-[28rem]`. Ver `DECISIONS.md` § "Bug de layout: `max-w-{sm,md,lg,xl}` colide com os tokens de espaçamento" para o detalhe e o risco a observar em 0.4b/0.4c.
 
 **Validações executadas**
 
-`pnpm install`, `pnpm build` (12 workspaces), `pnpm typecheck`, `pnpm lint` — todos ✅. Verificado manualmente via `next dev`: `/` (HTTP 200) e `/playground` (HTTP 200, todas as 5 seções presentes no HTML — Buttons, Inputs, Cards, Badges, Avatars); log do servidor sem erros/warnings; `AvatarFallback` renderiza corretamente.
+`pnpm install`, `pnpm build` (12 workspaces), `pnpm typecheck`, `pnpm lint` — todos ✅. Verificado via `next dev` e screenshots reais (Playwright, headless Chromium): `/` e `/playground` em light e dark, antes e depois da correção — `docs/screenshots/sprint-0.4a/` (`home-dark.png`, `home-light.png`, `playground-before-fix.png`, `playground-after-fix-local.png`). Log do servidor sem erros/warnings; `AvatarFallback` renderiza corretamente.
 
 **Pendências**
 
@@ -190,6 +192,7 @@ Nenhum bloqueante. Aviso "The Next.js plugin was not detected in your ESLint con
 - Seções restantes do playground (Forms, Feedback, Navigation, Typography, Spacing, Icons, Colors, Animations, Loading, Dark Mode) — Incremento 0.4c.
 - Persistência de tema — Incremento 0.7 (junto com Supabase Auth).
 - `@next/eslint-plugin-next` continua não configurado.
+- Ao construir 0.4b/0.4c, evitar `w-sm/md/lg`, `h-sm/md/lg`, `max-w-sm/md/lg`, `min-w-*`/`min-h-*` com esses nomes — usar escala numérica padrão ou valores arbitrários (ver decisão acima).
 
 ### Próximo Sprint / Incremento
 

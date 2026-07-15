@@ -76,6 +76,11 @@ Fase 4 — Validar
   pnpm typecheck
   pnpm test
   pnpm build
+  Se o incremento tocar em UI (novo componente, página, layout, tema):
+    screenshots via Playwright (headless) — home e toda rota/seção nova, light e dark
+    revisar cada screenshot antes de considerar o incremento concluído
+    build/lint/typecheck verdes não substituem essa revisão visual — bugs de layout
+    (ex.: containers com largura errada) não aparecem em nenhuma validação automática
 
 Fase 5 — Documentar + Commitar
   Atualizar CHANGELOG.md

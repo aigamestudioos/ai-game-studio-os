@@ -81,7 +81,7 @@ export default function PlaygroundPage() {
         <section id="inputs" className="scroll-mt-lg space-y-md">
           <h2 className="text-lg font-semibold">Inputs</h2>
 
-          <div className="grid max-w-md gap-sm">
+          <div className="flex max-w-[28rem] flex-col gap-sm">
             <Input
               placeholder="Default"
               value={inputValue}
@@ -100,7 +100,7 @@ export default function PlaygroundPage() {
         <section id="cards" className="scroll-mt-lg space-y-md">
           <h2 className="text-lg font-semibold">Cards</h2>
 
-          <div className="grid max-w-md gap-md">
+          <div className="flex max-w-[28rem] flex-col gap-md">
             <Card>
               <CardHeader>
                 <CardTitle>Card padrão</CardTitle>
