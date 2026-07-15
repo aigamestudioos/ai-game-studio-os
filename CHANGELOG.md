@@ -6,6 +6,12 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Governança de processo (Definition of Done)
+- `DEFINITION_OF_DONE.md` — SPEC de processo (não frozen): Definition of Done obrigatória, Sprint Review, métricas de produto, screenshots + revisão visual obrigatórios para UI, limites de escopo, checklist de encerramento.
+- `RELEASE_NOTES.md` — changelog em linguagem simples, para acompanhar o produto sem contexto técnico (complementa `CHANGELOG.md`, que continua técnico).
+- `scripts/metrics.sh` — agora coleta métricas de produto (páginas, rotas, componentes UI, providers, hooks, features, ADRs, SPECs).
+- `AGENT.md` — Fase 4/5/relatório final atualizados para exigir screenshots + revisão visual, RELEASE_NOTES.md, métricas de produto, Sprint Review e checklist de encerramento em todo sprint.
+
 ### Added — Incremento 0.4a (Fundação do Design System + shell do `/playground`)
 - `apps/web/lib/utils.ts` (`cn`), `apps/web/components/ui/{button,input,textarea,card,badge,avatar}.tsx` — componentes com variantes via `class-variance-authority`, todos usando apenas tokens (nenhuma cor/espaçamento/raio/sombra hardcoded), estados default/hover/focus/disabled/loading/success/warning/error onde aplicável.
 - `apps/web/app/playground/page.tsx` — shell interativo com navegação e 5 seções (Buttons, Inputs, Cards, Badges, Avatars).

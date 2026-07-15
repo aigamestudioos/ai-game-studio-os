@@ -20,6 +20,7 @@ Execute incrementos de implementação de forma disciplinada, seguindo rigorosam
 cat VISION.md
 cat ARCHITECTURE.md
 cat PROJECT_STATUS.md
+cat DEFINITION_OF_DONE.md
 
 # 2. Verificar estado do git
 git status
@@ -28,7 +29,7 @@ git branch
 # 3. Consultar DECISIONS.md se houver dúvida sobre escolhas anteriores
 ```
 
-`VISION.md` não é normativo (pode ser editado livremente pelo fundador, sem ADR), mas se uma decisão de incremento parecer entrar em conflito com o que está lá, tratar como as demais divergências: parar e relatar antes de prosseguir.
+`VISION.md` e `DEFINITION_OF_DONE.md` não são normativos (podem ser editados livremente pelo fundador, sem ADR), mas se uma decisão de incremento parecer entrar em conflito com o que está lá, tratar como as demais divergências: parar e relatar antes de prosseguir.
 
 ---
 
@@ -76,21 +77,25 @@ Fase 4 — Validar
   pnpm typecheck
   pnpm test
   pnpm build
-  Se o incremento tocar em UI (novo componente, página, layout, tema):
-    screenshots via Playwright (headless) — home e toda rota/seção nova, light e dark
-    revisar cada screenshot antes de considerar o incremento concluído
+  Se o incremento tocar em UI (novo componente, página, layout, tema) — ver DEFINITION_OF_DONE.md §5/§6:
+    screenshots via Playwright (headless) em docs/screenshots/sprint-X.Y/ — home e toda rota
+    nova/alterada, light e dark
+    revisar cada screenshot e responder: componentes quebrados? overflow horizontal?
+    alinhamento incorreto? espaçamento inconsistente? contraste? responsividade?
     build/lint/typecheck verdes não substituem essa revisão visual — bugs de layout
     (ex.: containers com largura errada) não aparecem em nenhuma validação automática
 
 Fase 5 — Documentar + Commitar
-  Atualizar CHANGELOG.md
+  Atualizar CHANGELOG.md (técnico) e RELEASE_NOTES.md (linguagem simples, se houver algo perceptível)
   Atualizar PROJECT_STATUS.md
   Atualizar DECISIONS.md (somente se houver nova decisão real)
+  Atualizar METRICS.md — incluindo a seção Produto (ver DEFINITION_OF_DONE.md §3)
   git add -A
   git commit -m "tipo(escopo): descrição"
   git push
   Aguardar CI + Preview
-  Apresentar relatório
+  Apresentar relatório, incluindo Sprint Review e o checklist de encerramento
+  (ver DEFINITION_OF_DONE.md §2 e §8)
 ```
 
 ---
@@ -180,6 +185,8 @@ ci(escopo): descrição
 9. Resultado do GitHub Actions
 10. Pendências reais
 11. Confirmação de cada critério de aceite
+12. **Sprint Review** (DEFINITION_OF_DONE.md §2): o que ficou excelente, o que pode melhorar, débito técnico criado, riscos, recomendações, o que será reaproveitado
+13. **Checklist de encerramento** (DEFINITION_OF_DONE.md §8): Definition of Done (✔/N/A por item) + Valor entregue ao usuário (rotas/componentes/funcionalidades novas, em resposta direta à pergunta do DoD §1)
 
 ---
 

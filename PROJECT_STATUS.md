@@ -29,12 +29,14 @@ Status atual do projeto AI Game Studio OS.
 
 ## Último Sprint
 
-Incremento 0.4a — Fundação do Design System: `Button`, `Input`, `Textarea`, `Card` (+ subcomponentes), `Badge`, `Avatar` em `apps/web/components/ui/`, todos usando exclusivamente tokens do Tailwind (nenhuma cor/espaçamento/raio/sombra hardcoded), com estados default/hover/focus/disabled/loading/success/warning/error onde aplicável. Tokens `success`/`warning` adicionados a `globals.css` (extensão a SPEC-005 §4, não coberta lá). Shell de `/playground` criado com navegação e 5 seções interativas. Tema **sem persistência** (apenas em memória durante a sessão — decisão explícita do usuário; persistência real fica para o 0.7, junto com Supabase Auth). `pnpm install`, `pnpm build`, `pnpm typecheck` e `pnpm lint` verdes; `/` e `/playground` verificados manualmente via `next dev` (HTTP 200, sem erros/warnings no log do servidor).
+Incremento 0.4a — Fundação do Design System: `Button`, `Input`, `Textarea`, `Card` (+ subcomponentes), `Badge`, `Avatar` em `apps/web/components/ui/`, todos usando exclusivamente tokens do Tailwind (nenhuma cor/espaçamento/raio/sombra hardcoded), com estados default/hover/focus/disabled/loading/success/warning/error onde aplicável. Shell de `/playground` criado com navegação e 5 seções interativas. Tema **sem persistência** (apenas em memória durante a sessão; persistência real fica para o 0.7). Um bug de layout (`max-w-md` colidindo com tokens de espaçamento) foi encontrado via validação visual com Playwright e corrigido — ver `DECISIONS.md`. `pnpm install`, `pnpm build`, `pnpm typecheck` e `pnpm lint` verdes; `/` e `/playground` validados em produção (light e dark, com screenshots em `docs/screenshots/sprint-0.4a/`).
+
+Na sequência, formalizado `DEFINITION_OF_DONE.md` — SPEC de processo (não frozen) com Definition of Done obrigatória, Sprint Review, métricas de produto, screenshots + revisão visual obrigatórios, limites de escopo e checklist de encerramento, a valer a partir do 0.4b. Criado `RELEASE_NOTES.md` (changelog em linguagem simples).
 
 ## Próxima Etapa
 
-Incremento 0.4b — Componentes avançados (overlays e feedback): Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress.
+Incremento 0.4b — Componentes avançados (overlays e feedback): Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress. Primeiro incremento a seguir integralmente `DEFINITION_OF_DONE.md`.
 
 ## Observação
 
-`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode, **em produção na Vercel**) — `components/ui/` e `lib/` agora com a fundação do design system; `features/` ainda vazio; `providers/`/`hooks/` com `ThemeProvider`/`useTheme` (sem persistência), conforme ADR-002/ARCHITECTURE.md §3. `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório. Ainda sem componentes avançados/Playground completo, CI ou Supabase Auth (entram nos próximos incrementos).
+`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode, **em produção na Vercel**) — `components/ui/` e `lib/` agora com a fundação do design system; `features/` ainda vazio; `providers/`/`hooks/` com `ThemeProvider`/`useTheme` (sem persistência), conforme ADR-002/ARCHITECTURE.md §3. `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório. Ainda sem componentes avançados/Playground completo, CI ou Supabase Auth (entram nos próximos incrementos). Processo agora regido também por `DEFINITION_OF_DONE.md`, além de `AGENT.md`/`CLAUDE.md`.

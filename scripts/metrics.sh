@@ -74,5 +74,27 @@ echo "Testes unitários: $UNIT_TESTS"
 echo "Testes E2E: $E2E_TESTS"
 echo "Cobertura: $COVERAGE"
 echo
-echo "=== Produto / Deploy ==="
-echo "Módulos, integrações, telas, Vercel, Supabase, Ambientes: preencher manualmente com base no sprint atual."
+
+PAGES=$(find apps/web/app -name "page.tsx" 2>/dev/null | wc -l | tr -d ' ')
+UI_COMPONENTS=$(ls apps/web/components/ui 2>/dev/null | wc -l | tr -d ' ')
+PROVIDERS=$(find apps/web/providers -maxdepth 1 -name "*.tsx" 2>/dev/null | wc -l | tr -d ' ')
+HOOKS=$(find apps/web/hooks -maxdepth 1 -name "*.ts" 2>/dev/null | wc -l | tr -d ' ')
+FEATURES=$(find apps/web/features -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+ADRS=$(ls ADR-*.md docs/frozen/architecture/ADR-*.md 2>/dev/null | wc -l | tr -d ' ')
+SPECS=$(ls docs/frozen/architecture/AGSOS-SPEC-*.md 2>/dev/null | wc -l | tr -d ' ')
+
+echo "=== Produto ==="
+echo "Páginas: $PAGES"
+echo "Rotas: $PAGES (igual a Páginas até existirem rotas dinâmicas/paralelas)"
+echo "Componentes UI: $UI_COMPONENTS"
+echo "Componentes avançados: (definir manualmente — subconjunto documentado em PROJECT_STATUS.md)"
+echo "Providers: $PROVIDERS"
+echo "Hooks: $HOOKS"
+echo "Features: $FEATURES"
+echo "Fluxos completos: (definir manualmente)"
+echo "Deploys: (definir manualmente — contagem de pushes para main com deploy validado)"
+echo "ADRs: $ADRS"
+echo "SPECs: $SPECS"
+echo
+echo "=== Deploy ==="
+echo "Vercel, Supabase, Ambientes: preencher manualmente com base no sprint atual."

@@ -196,4 +196,29 @@ Aviso "The Next.js plugin was not detected in your ESLint configuration" persist
 
 ### Próximo Sprint / Incremento
 
-Incremento 0.4b — Componentes avançados (overlays e feedback).
+Incremento 0.4b — Componentes avançados (overlays e feedback), primeiro a seguir `DEFINITION_OF_DONE.md` integralmente.
+
+---
+
+#### Governança — Definition of Done oficial do projeto
+
+**Contexto**
+
+Depois do bug de `max-w-md` (encontrado só por revisão visual, não por build/lint/typecheck) e da avaliação do usuário sobre o Sprint 0.4a, ficou claro que valia formalizar o processo antes de seguir para o 0.4b: uma "Definition of Done" explícita, Sprint Review no relatório, métricas de produto (não só técnicas), changelog para público não técnico, e revisão visual como etapa obrigatória — não só geração de screenshots.
+
+**Arquivos criados**
+
+`DEFINITION_OF_DONE.md`, `RELEASE_NOTES.md`.
+
+**Arquivos alterados**
+
+`AGENT.md` (Fase 4/5 e relatório final agora exigem screenshots + revisão visual, RELEASE_NOTES.md, métricas de produto, Sprint Review e checklist de encerramento), `scripts/metrics.sh` (coleta automática de páginas, rotas, componentes UI, providers, hooks, features, ADRs, SPECs), `METRICS.md` (template de 5 seções documentado + nova entrada de fechamento do 0.4a), `CHANGELOG.md`.
+
+**Decisões tomadas**
+
+`DEFINITION_OF_DONE.md` é autorado pelo projeto (mesmo padrão do `ADR-005-sprint-governance.md`) — não frozen, editável livremente conforme o processo evolui. Complementa (não substitui) `AGENT.md`/`CLAUDE.md`/`VISION.md`.
+
+**Pendências**
+
+- A partir do 0.4b, todo relatório final deve incluir Sprint Review + checklist de encerramento do DoD.
+- "Componentes avançados", "Fluxos completos" e "Deploys" em `METRICS.md` continuam com contagem manual — não há convenção de nomenclatura ainda para automatizar "avançado vs. básico", nem token da Vercel para medir deploys via API.

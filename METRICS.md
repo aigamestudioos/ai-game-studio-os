@@ -1,8 +1,10 @@
 # METRICS.md
 
-Snapshot técnico do projeto, atualizado ao final de cada sprint. Gerado com `./scripts/metrics.sh` (ajustar manualmente os campos que o script não coleta, como "Tempo médio de build").
+Snapshot técnico **e de produto** do projeto, atualizado ao final de cada sprint. Gerado com `./scripts/metrics.sh` (ajustar manualmente os campos que o script não coleta — ver `DEFINITION_OF_DONE.md` §3 para a lista completa e como cada métrica é medida).
 
-Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de cada sprint.
+A partir do Incremento 0.4a, cada entrada passa a ter 5 seções: Código, Qualidade, **Produto** (páginas, rotas, componentes, providers, hooks, features, ADRs, SPECs, deploys), Infraestrutura, Deploy. Entradas anteriores não são reescritas retroativamente — o histórico de cada sprint reflete o que era medido naquele momento.
+
+Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de cada sprint, e [RELEASE_NOTES.md](RELEASE_NOTES.md) para o changelog em linguagem simples.
 
 ---
 
@@ -238,5 +240,66 @@ Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de 
 | Métrica | Valor |
 |---|---|
 | Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ (será atualizado após push deste incremento) |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.4a — fechamento + DoD)
+
+**Data:** 2026-07-15
+
+Fecha o 0.4a: correção do bug de `max-w-md`, validação visual com Playwright e formalização do `DEFINITION_OF_DONE.md`. Primeira entrada usando o template de 5 seções completo (ver `DEFINITION_OF_DONE.md` §3).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | 5 (0.1, 0.2, 0.3, 0.4a, 0.6) |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 103 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 672 |
+| Commits totais | 14 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 2 (`/`, `/playground`) |
+| Rotas | 2 |
+| Componentes UI | 6 (Button, Input, Textarea, Card, Badge, Avatar) |
+| Componentes avançados | 0 (entram no 0.4b) |
+| Providers | 1 (ThemeProvider) |
+| Hooks | 1 (useTheme) |
+| Features | 0 |
+| Fluxos completos | 0 |
+| Deploys | 5 (pushes para `main` com deploy validado em produção) |
+| ADRs | 4 (002, 003, 004, 005) |
+| SPECs | 9 (`docs/frozen/architecture/AGSOS-SPEC-*`) |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~40s (cache frio) |
+| Tempo médio de deploy | — (sem token da Vercel para medir via API; manual/TBD) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ — bug de layout corrigido e validado |
 | Supabase | — (ainda não configurado, Incremento 0.7) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
