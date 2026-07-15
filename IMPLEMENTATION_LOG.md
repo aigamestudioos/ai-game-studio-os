@@ -156,6 +156,41 @@ Nenhum. Deploy já estava no ar quando verificado.
 - GitHub Actions (CI mínimo, Incremento 0.5) ainda não existe — o deploy depende só da integração nativa Git da Vercel, sem gate de CI antes de promover para produção.
 - Nenhum `vercel.json` foi adicionado — configuração de build inteiramente via dashboard da Vercel (Root Directory `apps/web`).
 
+### Próximo Sprint / Incremento (0.6 antecipado)
+
+Incremento 0.4 (dividido em 0.4a/0.4b/0.4c — ver `ADR-005-sprint-governance.md`) — começando por 0.4a: Fundação do Design System.
+
+---
+
+#### Incremento 0.4a — Fundação do Design System + shell do `/playground`
+
+**Arquivos criados**
+
+`apps/web/lib/utils.ts` (`cn`), `apps/web/components/ui/{button,input,textarea,card,badge,avatar}.tsx`, `apps/web/app/playground/page.tsx`.
+
+**Arquivos alterados**
+
+`apps/web/package.json` (deps: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `@radix-ui/react-slot`, `@radix-ui/react-avatar`; script `lint` passa a cobrir `lib`/`components`), `apps/web/app/globals.css` (tokens `success`/`warning` adicionados).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Incremento 0.4a": tokens `success`/`warning` adicionados (SPEC-005 §4 não os lista, mas o sprint exige estados Success/Warning sem cor hardcoded); componentes em `apps/web/components/ui/` (não `packages/ui`), consistente com a decisão do 0.3 e com SPEC-005 §2 ("componentes copiados manualmente"); **sem persistência de tema** — decisão explícita do usuário nesta rodada (reverte uma proposta anterior de persistência via cookie): tema fica só em memória durante a sessão, persistência real entra junto com Supabase Auth no 0.7, evitando solução intermediária.
+
+**Problemas encontrados**
+
+Nenhum bloqueante. Aviso "The Next.js plugin was not detected in your ESLint configuration" persiste (mesmo do 0.2/0.3, não bloqueante).
+
+**Validações executadas**
+
+`pnpm install`, `pnpm build` (12 workspaces), `pnpm typecheck`, `pnpm lint` — todos ✅. Verificado manualmente via `next dev`: `/` (HTTP 200) e `/playground` (HTTP 200, todas as 5 seções presentes no HTML — Buttons, Inputs, Cards, Badges, Avatars); log do servidor sem erros/warnings; `AvatarFallback` renderiza corretamente.
+
+**Pendências**
+
+- Componentes avançados (Dialog, Toast, Tooltip, etc.) — Incremento 0.4b.
+- Seções restantes do playground (Forms, Feedback, Navigation, Typography, Spacing, Icons, Colors, Animations, Loading, Dark Mode) — Incremento 0.4c.
+- Persistência de tema — Incremento 0.7 (junto com Supabase Auth).
+- `@next/eslint-plugin-next` continua não configurado.
+
 ### Próximo Sprint / Incremento
 
-Incremento 0.4 — shadcn/ui (Button, Input, Card, Dialog, Toast) + página `/playground`, conforme sequência ajustada em `PROJECT_STATUS.md`.
+Incremento 0.4b — Componentes avançados (overlays e feedback).

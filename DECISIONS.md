@@ -13,10 +13,11 @@ _A ser definido. Este documento serve como índice central para os Architecture 
 | [ADR-002](docs/frozen/architecture/ADR-002.md) | Monorepo: pnpm + Turborepo | FROZEN |
 | [ADR-003](docs/frozen/architecture/ADR-003.md) | Supabase nativo, RLS, sem Prisma | FROZEN |
 | [ADR-004](docs/frozen/architecture/ADR-004.md) | TanStack Query + Zustand | FROZEN |
+| [ADR-005](ADR-005-sprint-governance.md) | Governança de execução em subincrementos (roadmap operacional vs. `AGSOS-PLAN-001.md`) | APPROVED |
 
 ## Observação
 
-Numeração inicia em ADR-002 conforme definido no bootstrap documental; nenhum ADR-001 foi criado. Os ADRs foram importados de `docs/frozen/architecture/` e não devem ser editados diretamente (mudanças exigem novo ADR ou revisão aprovada).
+Numeração inicia em ADR-002 conforme definido no bootstrap documental; nenhum ADR-001 foi criado. ADR-002 a ADR-004 foram importados de `docs/frozen/architecture/` e não devem ser editados diretamente (mudanças exigem novo ADR ou revisão aprovada). A partir do ADR-005, novos ADRs são autorados pelo próprio projeto na raiz do repositório (`ADR-00N-*.md`), não em `docs/frozen/` — ver ADR-005 para o motivo.
 
 Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a dia (não arquiteturais) — decisões técnicas livres tomadas durante a implementação, quando as SPECs não determinam uma escolha específica.
 
@@ -113,3 +114,23 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** O usuário conectou o repositório à Vercel manualmente pelo dashboard (Import Git Repository), configurando Root Directory `apps/web`. Nenhum `vercel.json` foi criado no repositório.
 **Motivo:** Único caminho viável sem credenciais da Vercel compartilhadas com o agente.
 **Impacto:** Configuração de build/deploy vive inteiramente no dashboard da Vercel (fora do repositório) — se precisar reproduzir em outro projeto/ambiente, documentar os valores usados (Root Directory, Framework Preset, Node version) fora deste repo, já que não há `vercel.json` versionado.
+
+## Incremento 0.4a — Fundação do Design System + shell do `/playground`
+
+### [2026-07-15] Sprint 0.4 dividido em 0.4a/0.4b/0.4c
+**Contexto:** A instrução original de "Sprint 0.4" pedia 21 componentes com matriz completa de estados (default/hover/focus/pressed/disabled/loading/success/warning/error), dark/light, acessibilidade, e um playground de 16 seções interativas — muito acima do limite de ~10 arquivos novos / 50 alterados por incremento (`CLAUDE.md`).
+**Decisão:** Dividir em três subincrementos: 0.4a (fundação: Button, Input, Textarea, Card, Badge, Avatar + shell do playground), 0.4b (componentes avançados: overlays/feedback), 0.4c (playground completo + demais componentes e seções). Formalizado em `ADR-005-sprint-governance.md`.
+**Motivo:** Escolha explícita do usuário, aprovando a proposta de divisão apresentada.
+**Impacto:** Cada subincremento tem seu próprio ciclo de validação/documentação/commit, mantendo os limites de tamanho de sprint.
+
+### [2026-07-15] Tokens `success`/`warning` adicionados a `globals.css`
+**Contexto:** SPEC-005 §4 lista tokens de superfície e semânticos obrigatórios, mas não inclui `success`/`warning` — e este sprint exige que todo componente suporte esses estados sem cor hardcoded.
+**Decisão:** Adicionar `--success`/`--success-foreground`/`--warning`/`--warning-foreground` (valores oklch, dark-first + override em `[data-theme="light"]`) e os respectivos `--color-success*`/`--color-warning*` no bloco `@theme`.
+**Motivo:** SPEC-005 define tokens "obrigatórios", não uma lista fechada — extensão necessária para cumprir um requisito explícito deste sprint sem violar a regra de "nunca cor hardcoded".
+**Impacto:** Nenhum impacto em tokens existentes; `Button` e `Badge` já usam `success`/`warning` como variantes.
+
+### [2026-07-15] Reversão da persistência de tema via cookie
+**Contexto:** No planejamento deste sprint, cookie-based persistence havia sido a opção recomendada e aprovada para resolver o conflito entre "validar persistência" e a proibição de `localStorage`/`sessionStorage`. Antes da implementação ser finalizada, o usuário reverteu essa escolha.
+**Decisão:** Manter o `ThemeProvider` apenas em memória (React state) nesta etapa, sem gravar cookie. Nenhuma mudança de código chegou a ser commitada com a abordagem de cookie.
+**Motivo:** Evitar uma solução de persistência intermediária/temporária; persistência real será implementada junto com Supabase Auth (Incremento 0.7), reduzindo complexidade arquitetural (uma única fonte de verdade — preferência do usuário no banco — em vez de cookie + banco depois).
+**Impacto:** Nenhum. A decisão do Incremento 0.3 ("sem persistência até 0.7") permanece válida e não precisou ser revertida — a tentativa de mudança neste sprint não chegou a ser commitada.

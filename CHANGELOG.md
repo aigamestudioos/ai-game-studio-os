@@ -6,6 +6,13 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Incremento 0.4a (Fundação do Design System + shell do `/playground`)
+- `apps/web/lib/utils.ts` (`cn`), `apps/web/components/ui/{button,input,textarea,card,badge,avatar}.tsx` — componentes com variantes via `class-variance-authority`, todos usando apenas tokens (nenhuma cor/espaçamento/raio/sombra hardcoded), estados default/hover/focus/disabled/loading/success/warning/error onde aplicável.
+- `apps/web/app/playground/page.tsx` — shell interativo com navegação e 5 seções (Buttons, Inputs, Cards, Badges, Avatars).
+- Tokens `success`/`warning` adicionados a `globals.css` (extensão à SPEC-005 §4).
+- Dependências: `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `@radix-ui/react-slot`, `@radix-ui/react-avatar`.
+- Tema permanece **sem persistência** nesta etapa (decisão explícita do usuário — ver `DECISIONS.md`); componentes avançados e demais seções do playground ficam para 0.4b/0.4c (`ADR-005-sprint-governance.md`).
+
 ### Added — Incremento 0.6 (antecipado — Deploy em produção)
 - Repositório sincronizado com `origin/main` (GitHub) pela primeira vez.
 - Projeto conectado à Vercel (dashboard, Root Directory `apps/web`); deploy automático a cada push em `main`.

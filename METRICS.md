@@ -187,3 +187,56 @@ Ver também: [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o "porquê" de 
 |---|---|
 | Tempo do CI | — (CI ainda não configurado, Incremento 0.5) |
 | Push para origin/main | 9 commits (repositório já estava sincronizado nesta etapa) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.4a)
+
+**Data:** 2026-07-15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | 5 (0.1, 0.2, 0.3, 0.4a, 0.6) |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 96 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 672 |
+| Commits totais | 11 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Módulos implementados | 0 |
+| Componentes de design system | 6 (Button, Input, Textarea, Card, Badge, Avatar) |
+| Telas implementadas | 2 (home `/`, `/playground`) |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~1s (cache quente; ~40s em cache frio) |
+| Tempo do build (apps/web isolado) | ~30s (`pnpm --filter web build`) |
+| Tempo de start do dev server (apps/web) | ~3s |
+| Tempo do typecheck (apps/web isolado) | ~3s |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ https://ai-game-studio-os-web.vercel.app/ (será atualizado após push deste incremento) |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
