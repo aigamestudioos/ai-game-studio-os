@@ -166,3 +166,43 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** Adicionar `suppressHydrationWarning` ao elemento `<html>` em `layout.tsx`.
 **Motivo:** É a técnica padrão (mesma usada por `next-themes`) para esse exato padrão de "script inline que muda um atributo do `<html>` antes da hidratação" — o warning é conhecido e esperado, não um bug real de conteúdo divergente.
 **Impacto:** Nenhum efeito colateral: `suppressHydrationWarning` só silencia mismatches nos atributos do próprio elemento onde é aplicado, não em elementos filhos — não mascara bugs de hidratação reais no restante da árvore.
+
+## Congelamento do 0.4c e reordenação do roadmap (0.5/0.6)
+
+### [2026-07-15] Playground congelado; 0.4c não será executado
+**Contexto:** Com 16 componentes prontos (fundação + avançados), o usuário avaliou que nenhuma tela real do produto está bloqueada por falta de componente. Continuar adicionando componentes ao Playground (0.4c: Checkbox, Switch, RadioGroup, Select, Tabs, Accordion + seções restantes) passaria a ter retorno decrescente.
+**Decisão:** Não executar o 0.4c. Playground permanece exatamente como está ao fim do 0.4b — ferramenta interna permanente, não mais o objetivo principal. Prioridade muda de "quais componentes faltam" para "qual tela real dá para construir com o que já existe".
+**Motivo:** Decisão estratégica explícita do usuário.
+**Impacto:** Componentes de formulário (Checkbox, Switch, RadioGroup, Select) e Tabs ficam pendentes até que uma tela real precise deles — nesse momento, a exceção pontual (como a do Accordion no 0.5, abaixo) é o padrão a seguir, em vez de reabrir o 0.4c inteiro.
+
+### [2026-07-15] Reordenação: Landing (0.5) antes de Dashboard (0.6)
+**Contexto:** O usuário definiu inicialmente "Sprint 0.5 = Dashboard visual, Sprint 0.6 = Landing Premium". Antes que esse trabalho fosse commitado/documentado como sprint fechado, uma nova mensagem do usuário pediu a Landing como "Sprint 0.5", com o Dashboard implicitamente reordenado para 0.6 — um conflito direto com a instrução anterior. Segui a própria regra da nova instrução ("caso exista conflito, interrompa, não implemente, solicite esclarecimento") e parei antes de prosseguir.
+**Decisão:** Usuário confirmou a nova ordem: Landing = 0.5, Dashboard = 0.6. O trabalho do Dashboard já implementado foi commitado localmente como checkpoint (`688931a`, sem push), a formalizar quando o 0.6 for executado de fato (validação/docs/push/deploy completos). `apps/web/app/page.tsx` (que eu tinha alterado para linkar ao Dashboard/Playground) foi revertido ao estado do 0.4b antes de começar a Landing, já que ela substitui a home por completo.
+**Motivo:** Autoridade do usuário sobre sequenciamento é sempre a mais recente; nenhum trabalho foi perdido, só reordenado.
+**Impacto:** `PROJECT_STATUS.md` reflete a nova ordem. Nenhum ADR novo necessário — é uma continuação do padrão já estabelecido no `ADR-005-sprint-governance.md` (divergências de sequenciamento vivem nos documentos operacionais, não em `docs/frozen/`).
+
+## Incremento 0.5 — Landing Page premium
+
+### [2026-07-15] Accordion construído como exceção pontual ao congelamento do Playground
+**Contexto:** A seção FAQ pedida para a Landing exige um componente `Accordion`, que não existe (ficou no 0.4c, recém congelado). A própria instrução do usuário para este sprint previu esse cenário: "caso algum componente necessário não exista: interromper, explicar, propor, somente depois implementar."
+**Decisão:** Construir apenas `Accordion` (Radix), sem reabrir o restante do 0.4c (Checkbox, Switch, RadioGroup, Select, Tabs continuam pendentes).
+**Motivo:** Aprovação explícita do usuário diante da pergunta feita; é estritamente necessário para a Landing, diferente dos demais componentes do 0.4c.
+**Impacto:** Nenhum — mantém o princípio de "construir componentes sob demanda de uma tela real", não antecipadamente.
+
+### [2026-07-15] Sete arquivos de seção em vez de um por seção
+**Contexto:** A Landing tem 7 seções (Hero, How It Works, Why Us, Platform, Benefits, Roadmap, FAQ) + Header + Footer + Reveal — um arquivo por seção geraria 10 arquivos só de landing, mais o Accordion, passando do limite de 10 arquivos novos por incremento.
+**Decisão:** Consolidar em `features.tsx` (How It Works + Why Us), `platform.tsx` (Platform + Benefits) e `roadmap-faq.tsx` (Roadmap + FAQ); `header.tsx`, `hero.tsx`, `footer.tsx` e `reveal.tsx` continuam individuais por serem estruturalmente distintos. Total: 7 arquivos de landing + 1 Accordion = 8, mais `robots.ts`/`sitemap.ts` = 10 novos arquivos exatos.
+**Motivo:** Mesmo padrão já usado no 0.4b (Dialog+Modal, Toast+Toaster) — agrupar por afinidade temática, não um arquivo por seção/componente a qualquer custo.
+**Impacto:** Nenhum na API — cada seção continua sendo um componente exportado e importado individualmente em `page.tsx`.
+
+### [2026-07-15] Bug de build: `Button asChild` quebrava o Radix Slot
+**Contexto:** Ao usar `<Button asChild><Link>...</Link></Button>` pela primeira vez (Header e Hero da Landing), o build falhou: "Slot failed to slot onto its children. Expected a single React element child." O componente `Button` sempre renderizava `{loading ? <Loader2/> : null}` seguido de `{children}` — quando `asChild` vira `Comp = Slot`, isso são 2 filhos, mas o Radix `Slot` exige exatamente 1. Nunca detectado antes porque todo uso anterior de `asChild` estava em *Trigger* de outro componente (`DialogTrigger asChild`, `TooltipTrigger asChild`), envolvendo um `<Button>` inteiro como filho único — o `Button` em si nunca tinha recebido `asChild` diretamente.
+**Decisão:** `Button` agora renderiza `children` puro quando `asChild={true}`, e só inclui o wrapper de loading (`<>{loading...}{children}</>`) quando renderiza como `<button>` nativo.
+**Motivo:** É o comportamento correto esperado pelo Radix Slot; loading + asChild não é uma combinação sensata de qualquer forma (um link não tem estado de loading próprio).
+**Impacto:** Nenhuma quebra de API — `Button asChild` sem `loading` (o único uso real) continua funcionando; simplesmente deixou de quebrar o build.
+
+### [2026-07-15] Screenshots `fullPage` precisam de scroll programático antes da captura
+**Contexto:** A Landing usa scroll-reveal (`IntersectionObserver`) para fade-in de seções. As primeiras screenshots `fullPage` mostraram tudo abaixo de "Como funciona" completamente invisível (`opacity-0`). Investigação confirmou que usuários reais veem o reveal normalmente ao rolar — o problema é que o Playwright `page.screenshot({ fullPage: true })` não dispara scroll real antes de compor a imagem, então o `IntersectionObserver` nunca ativa para conteúdo abaixo da viewport inicial.
+**Decisão:** Ajustar o **script de screenshot** (não o app) para rolar a página em passos incrementais antes de cada captura `fullPage`, em qualquer página com scroll-reveal.
+**Motivo:** Era um falso positivo de bug de produto — na verdade um artefato do método de teste. Corrigir no lugar certo (harness de screenshot) evita relatórios de "bug" incorretos em sprints futuros com o mesmo padrão de animação.
+**Impacto:** Nenhum no código do produto. Prática de screenshot documentada aqui para sprints futuros que usem `Reveal`/scroll-reveal.

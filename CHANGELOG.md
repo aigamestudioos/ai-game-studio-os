@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Incremento 0.5 (Landing Page premium)
+- `apps/web/app/page.tsx` reescrito por completo — Header sticky, Hero (grid/glow/blur via tokens), How It Works, Why Us, Platform (8 módulos), Benefits, Roadmap (timeline), FAQ.
+- `apps/web/components/landing/{header,hero,features,platform,roadmap-faq,footer,reveal}.tsx` — novos componentes de página, compostos com os primitivos existentes do design system.
+- `apps/web/components/ui/accordion.tsx` — único componente novo do design system nesta etapa (necessário para o FAQ).
+- `apps/web/app/robots.ts`, `apps/web/app/sitemap.ts` — SEO técnico. `layout.tsx` com metadata completo (title template, OG, Twitter Card, canonical, robots).
+- Animações `--animate-accordion-down/up/fade-in` em `globals.css`, com `prefers-reduced-motion` respeitado.
+
+### Fixed — Incremento 0.5
+- `Button`: `asChild` quebrava o build (Radix Slot exige exatamente 1 filho; o componente passava um `null` condicional + `children` = 2 filhos). Só detectado agora porque nenhuma tela anterior usava `Button asChild` diretamente (usos anteriores eram `<Trigger asChild><Button>` — o `asChild` ficava no Trigger, não no Button).
+
 ### Added — Incremento 0.4b (Componentes avançados)
 - `apps/web/components/ui/{dialog,toast,tooltip,dropdown-menu,alert,spinner,skeleton,separator,progress}.tsx` + `apps/web/hooks/use-toast.ts` — Dialog, Modal (AlertDialog), Toast, Tooltip, Dropdown Menu, Alert, Spinner, Skeleton, Separator, Progress. Todos usando tokens (nenhuma cor/espaçamento hardcoded).
 - Novo token `--backdrop` em `globals.css` — overlay de Dialog/Modal, mesmo valor em ambos os temas (escurece o conteúdo por trás independentemente do tema ativo).

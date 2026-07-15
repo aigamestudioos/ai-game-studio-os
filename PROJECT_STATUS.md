@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 em andamento — Incrementos 0.1, 0.2, 0.3, 0.4a, 0.4b e 0.6 (Vercel, antecipado) concluídos |
+| Implementação   | Sprint 0 em andamento — Incrementos 0.1, 0.2, 0.3, 0.4a, 0.4b, 0.5 e 0.6 (Vercel, antecipado) concluídos |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -19,22 +19,27 @@ Status atual do projeto AI Game Studio OS.
 | **0.3** | **Tailwind v4 + Design Tokens + Dark Mode + ThemeProvider** | **Concluído (local)** |
 | **0.4a** | **Fundação do Design System (Button, Input, Textarea, Card, Badge, Avatar) + shell do `/playground`** | **Concluído (local)** |
 | **0.4b** | **Componentes avançados (Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress)** | **Concluído (local)** |
-| 0.4c | Playground completo (Checkbox, Switch, RadioGroup, Select, Tabs, Accordion + seções Typography/Spacing/Icons/Colors/Animations/Dark Mode) | Pending |
-| 0.5 | GitHub Actions (CI mínimo) | Pending |
-| **0.6** | **Vercel + primeiro deploy** | **Concluído (produção) — antecipado antes do 0.4b/0.4c/0.5, a pedido do usuário** |
-| 0.7 | Supabase Auth + login/logout + rota protegida | Pending |
-| 0.8 | Revisão geral, testes, documentação | Pending |
+| 0.4c | ~~Playground completo~~ — **congelado por decisão do usuário**: o Playground cumpriu sua missão com 16+1 componentes; energia agora vai para telas reais | Frozen |
+| **0.5** | **Landing Page premium** (substitui a home) | **Concluído (local)** |
+| Vercel/CI | Vercel + primeiro deploy antecipado (item antigo "0.5/0.6" do roadmap original) | **Concluído (produção)** — GitHub Actions/CI mínimo ainda não configurado |
+| 0.6 | Dashboard visual (layout completo, sem backend) | Em andamento — scaffold pronto (commit local, sem push) |
+| 0.7 | Supabase Auth + login/logout + controle de acesso | Pending |
+| 0.8 | Módulo Projects (primeiro fluxo funcional de negócio) | Pending |
 
-> Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define 0.3 como "Tailwind + shadcn/ui" combinado. A tabela acima é a sequência de execução real, refinada em subincrementos por limite de tamanho de sprint e governança — ver `ADR-005-sprint-governance.md` e `DECISIONS.md`.
+> Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente da tabela acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário (Landing antes do Dashboard, Playground congelado) — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências.
 
 ## Último Sprint
 
-Incremento 0.4b — Componentes avançados: `Dialog`, `Modal` (AlertDialog), `Toast`, `Tooltip`, `DropdownMenu`, `Alert`, `Spinner`, `Skeleton`, `Separator`, `Progress` em `apps/web/components/ui/`, todos via tokens (novo token `--backdrop` para overlays). `TooltipProvider`/`Toaster` globais em `layout.tsx`. `/playground` ganhou 6 novas seções, todas interativas (abrir Dialog/Modal, disparar Toast, hover Tooltip, abrir Dropdown). Três bugs encontrados via revisão visual com Playwright e corrigidos no mesmo incremento: hidratação (`suppressHydrationWarning` faltando desde o 0.3), `Alert` com título/descrição lado a lado, overlay de Dialog/Modal não escurecendo em dark mode. `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm lint` verdes; screenshots + revisão visual completos (`docs/screenshots/sprint-0.4b/`), incluindo capturas de cada componente interativo aberto.
+Incremento 0.5 — Landing Page premium: substitui inteiramente a home antiga. Header sticky com efeito de scroll, Hero com grid/glow/blur (tokens, sem cor hardcoded), seções Como Funciona, Por que Nós, Plataforma (8 módulos), Benefícios, Roadmap (timeline) e FAQ (novo componente `Accordion`, único componente criado nesta etapa). Scroll-reveal via `IntersectionObserver`. SEO completo (metadata, OG, Twitter Card, `robots.ts`, `sitemap.ts`, canonical). 100% composta pelos componentes já existentes (só Accordion é novo). Sem Supabase, sem login funcional, sem dashboard funcional — só UI.
+
+Um bug real de build foi encontrado e corrigido: `Button` com `asChild` quebrava o Radix Slot (passava 2 filhos em vez de 1) — nunca detectado antes porque nenhuma tela anterior usava `Button asChild` diretamente. Um artefato de processo também foi identificado: screenshots `fullPage` do Playwright não disparam scroll real, então conteúdo com scroll-reveal aparecia "invisível" nas capturas — corrigido rolando a página programaticamente antes de cada screenshot.
+
+Em paralelo, o Dashboard visual (Sidebar per SPEC-005 §9, TopBar, Recent Projects, Statistics) foi construído e commitado localmente como checkpoint do Incremento 0.6 — ainda sem push, aguardando execução formal desse incremento.
 
 ## Próxima Etapa
 
-Incremento 0.4c — Playground completo (Checkbox, Switch, RadioGroup, Select, Tabs, Accordion + seções restantes), ou — conforme sugestão do usuário — já avaliar construir uma tela real de produto reaproveitando só os componentes existentes, em vez de perguntar "qual componente falta".
+Incremento 0.6 — formalizar o Dashboard visual já commitado localmente (validação completa, documentação, push, deploy), seguido de 0.7 (Supabase Auth) e 0.8 (Projects).
 
 ## Observação
 
-`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode, **em produção na Vercel**) — `components/ui/` agora com 16 componentes (6 da fundação + 10 avançados); `features/`/`lib/` (além de `utils.ts`) ainda mínimos; `providers/`/`hooks/` com `ThemeProvider`/`useTheme`/`useToast` (tema sem persistência), conforme ADR-002/ARCHITECTURE.md §3. `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório. Ainda sem Playground 100% completo, CI ou Supabase Auth (entram nos próximos incrementos). Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode, **Landing em produção na Vercel**) — `components/ui/` com 17 componentes (16 + Accordion); `components/landing/` (novo) com Header/Hero/seções/Footer/Reveal; `components/layout/` e `components/dashboard/` (Sidebar/TopBar/cards) prontos mas ainda não formalizados como sprint concluído. `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório. Ainda sem CI, Supabase Auth ou funcionalidades de negócio. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.

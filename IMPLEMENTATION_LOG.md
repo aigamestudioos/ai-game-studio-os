@@ -260,6 +260,68 @@ Dialog (dispensável) e Modal/AlertDialog (exige ação explícita) combinados e
 - Persistência de tema — Incremento 0.7.
 - Suíte de testes E2E com Playwright (reaproveitando a mesma infraestrutura de screenshots) — sugestão do usuário, ainda não implementada; candidata ao 0.4c ou 0.5.
 
+### Próximo Sprint / Incremento (0.4b)
+
+Decisão estratégica do usuário: **não executar o 0.4c**. Com 16 componentes prontos, a pergunta deixa de ser "qual componente falta" e passa a ser "qual tela real dá para construir com o que já existe". Playground congelado como está — ferramenta interna permanente, não mais o objetivo principal. `PRODUCT_PROGRESS.md` e a seção "Product Delta" (obrigatória em todo relatório) formalizados nesse meio-tempo.
+
+Ordem seguinte definida pelo usuário, depois ajustada uma vez no meio da sessão: inicialmente "0.5 Dashboard / 0.6 Landing", depois invertida para **"0.5 Landing / 0.6 Dashboard"** — ver `DECISIONS.md`.
+
+---
+
+#### Checkpoint — Dashboard visual (WIP, vira Incremento 0.6)
+
+**Arquivos criados**
+
+`apps/web/components/layout/{sidebar,topbar}.tsx`, `apps/web/components/dashboard/cards.tsx` (ProjectCard, StatCard), `apps/web/app/dashboard/page.tsx`.
+
+**Decisões tomadas**
+
+Sidebar segue a lista oficial de `AGSOS-SPEC-005` §9 (Dashboard, Studio, Projects, Games, AI, Publishing, Marketing, Analytics, Finance, Knowledge, Settings), mais completa que o mock original do usuário — só "Dashboard" tem link real, os demais renderizam desabilitados (sem rota ainda) para não criar links mortos. 100% mock/visual, sem Supabase, sem persistência.
+
+**Bug encontrado e corrigido**
+
+`Button` com `asChild` (usado pela primeira vez nos links da home) quebrava o build: Radix `Slot` exige exatamente 1 filho, mas o componente passava `{loading ? <Loader2/> : null}` + `{children}` = 2 filhos sempre. Corrigido para só renderizar `children` puro quando `asChild`.
+
+**Status**
+
+Commitado localmente (`688931a`), sem push — o usuário reordenou o roadmap no meio da sessão antes da validação completa/documentação formal deste incremento. Screenshots preliminares em `docs/screenshots/sprint-0.6/`. Retomar quando o Incremento 0.6 for formalmente executado (validação completa, docs, push, deploy).
+
+---
+
+#### Incremento 0.5 — Landing Page premium
+
+**Contexto**
+
+Nova instrução do usuário, em paralelo/logo após a anterior: construir a Landing oficial (substituindo a home), como Sprint 0.5 — invertendo a ordem que tinha acabado de ser definida (Dashboard 0.5 → Landing 0.6 virou Landing 0.5 → Dashboard 0.6). Identifiquei o conflito e parei para esclarecer antes de prosseguir (ver `DECISIONS.md`), incluindo o fato de que a seção FAQ pedida exige `Accordion`, que não existe (ficou no 0.4c, recém congelado). Usuário aprovou: Landing agora como 0.5, Dashboard vira 0.6; Accordion construído como exceção pontual ao congelamento do Playground, por ser estritamente necessário.
+
+**Arquivos criados**
+
+`apps/web/components/ui/accordion.tsx` (único componente novo do design system), `apps/web/components/landing/{header,hero,features,platform,roadmap-faq,footer,reveal}.tsx`, `apps/web/app/robots.ts`, `apps/web/app/sitemap.ts`.
+
+**Arquivos alterados**
+
+`apps/web/app/page.tsx` (reescrito por completo), `apps/web/app/layout.tsx` (metadata SEO completo), `apps/web/app/globals.css` (animações `accordion-down/up`, `fade-in`, `prefers-reduced-motion`), `apps/web/package.json` (dep `@radix-ui/react-accordion`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Incremento 0.5": reordenação Landing↔Dashboard; Accordion como exceção pontual ao congelamento do 0.4c; consolidação dos 7 arquivos de seção (em vez de 1 por seção) para respeitar o limite de 10 arquivos novos.
+
+**Bugs encontrados via validação e corrigidos**
+
+1. **Build quebrado**: `Button asChild` passava 2 filhos ao Radix `Slot` (que exige exatamente 1) — nunca exercitado antes porque todo uso anterior de `asChild` estava no *Trigger* (Dialog/Tooltip/Dropdown), não diretamente no `Button`. Corrigido condicionando o render interno do `Button` ao valor de `asChild`.
+2. **Artefato de processo, não bug de produto**: screenshots `fullPage` do Playwright tiradas logo após `networkidle` mostravam as seções abaixo de "Como funciona" completamente invisíveis (`opacity-0` nunca virava 1). Causa: o scroll-reveal via `IntersectionObserver` não dispara em uma captura `fullPage` porque o Playwright não rola a página de verdade antes de compor a imagem. Confirmado que usuários reais veem o reveal normalmente (testado com scroll programático). Corrigido o **script de screenshot** (não o app) para rolar a página em passos antes de capturar — nova prática a manter em sprints futuros com scroll-reveal.
+
+**Validações executadas**
+
+`pnpm install`, `pnpm build` (8 rotas), `pnpm typecheck`, `pnpm lint` — todos ✅. Playwright: home em dark/light (desktop) + 3 breakpoints (desktop/tablet/mobile), zero overflow horizontal em todos, zero erros de console/página em todos. `/dashboard` e `/playground` também re-verificados sem erros após a mudança no `Button`.
+
+**Pendências**
+
+- Push e deploy deste incremento (próximo passo).
+- Favicon/ícone real (`app/icon.tsx` ou asset) — adiado por falta de identidade visual de marca definida; SEO usa metadata textual completo, mas sem imagem OG customizada ainda.
+- Pequeno detalhe cosmético: no breakpoint tablet, o conector "→" antes de "Resultado" (seção Como Funciona) fica sozinho ao quebrar linha — não é um bug funcional, cosmético menor, candidato a ajuste fino futuro.
+- CI (GitHub Actions) continua sem posição fixa no roadmap atual — avaliar quando fizer sentido antes do 0.7/0.8.
+
 ### Próximo Sprint / Incremento
 
-Incremento 0.4c — Playground completo, ou, conforme sugestão do usuário, avaliar já construir uma tela real de produto reaproveitando só os componentes existentes.
+Incremento 0.6 — formalizar o Dashboard visual (já commitado localmente como checkpoint), com validação completa, documentação e deploy.

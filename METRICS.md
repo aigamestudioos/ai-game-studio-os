@@ -365,3 +365,64 @@ Fecha o 0.4a: correção do bug de `max-w-md`, validação visual com Playwright
 | Vercel | ✅ (será validado após push deste incremento) |
 | Supabase | — (ainda não configurado, Incremento 0.7) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 0 — Foundation (Incremento 0.5 — Landing Page premium)
+
+**Data:** 2026-07-15
+
+Playground congelado (0.4c não executado, decisão do usuário). Landing Page premium substitui a home. Dashboard visual (Incremento 0.6) commitado localmente como checkpoint, ainda não formalizado/pushado — não contabilizado como "concluído" nesta entrada.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | 7 (0.1, 0.2, 0.3, 0.4a, 0.4b, 0.5, 0.6-antecipado/Vercel) |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 144 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 2266 |
+| Commits totais | 18 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 (sugestão do usuário, ainda pendente) |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 3 (`/`, `/dashboard` [WIP], `/playground`) |
+| Rotas | 3 + `robots.txt`/`sitemap.xml` |
+| Componentes UI | 17 (16 + Accordion) |
+| Componentes de página (landing/layout/dashboard) | 10 (Header, Hero, HowItWorks, WhyUs, Platform, Benefits, Roadmap, Faq, Footer, Reveal) + 4 (Sidebar, TopBar, ProjectCard, StatCard) |
+| Providers | 1 (ThemeProvider) |
+| Hooks | 2 (useTheme, useToast) |
+| Features | 0 |
+| Fluxos completos | 0 (tudo visual, sem backend) |
+| Deploys | 7 (pushes para `main` com deploy validado) |
+| ADRs | 4 (002, 003, 004, 005) |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~41s |
+| Rotas geradas | 8 (`/`, `/_not-found`, `/dashboard`, `/playground`, `/robots.txt`, `/sitemap.xml`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ (a validar após push deste incremento) |
+| Supabase | — (ainda não configurado, Incremento 0.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

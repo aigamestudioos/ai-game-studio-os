@@ -5,9 +5,38 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { ThemeProvider } from "../providers/theme-provider";
 import "./globals.css";
 
+const SITE_URL = "https://ai-game-studio-os-web.vercel.app";
+const TITLE = "AI Game Studio OS";
+const DESCRIPTION =
+  "Sistema Operacional para Estúdios de Jogos Mobile AI-First — da ideia à publicação, com a IA como sua equipe.";
+
 export const metadata: Metadata = {
-  title: "AI Game Studio OS",
-  description: "Sistema Operacional para Estúdios de Jogos Mobile AI-First",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: `%s — ${TITLE}`,
+  },
+  description: DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    url: SITE_URL,
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 const NO_FLASH_THEME_SCRIPT = `
