@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.3 (Games — Game Workspace)
+- `apps/web/lib/games-store.ts` — store mock cliente (localStorage), mesmo padrão de `projects-store.ts`: `useGames`/`useGame`/`addGame`/`getGame`, seed com Nebula Drift/Sprint Runner/Hyper Dash (status, plataformas, builds).
+- `apps/web/components/games/cards.tsx` — `GameCard` (status + plataformas como badges), paralelo ao `ProjectCard` mas com campos próprios de Games.
+- `apps/web/app/games/page.tsx` — lista de jogos + diálogo "Create Game" (nome, descrição, seleção de plataformas via badges alternáveis).
+- `apps/web/app/games/[id]/page.tsx` — workspace do jogo: status, plataformas, lista de builds com ícone de status (Pronta/Em build/Falhou); `notFound()` para ids inexistentes.
+
+### Changed — Sprint 1.3
+- `apps/web/components/layout/sidebar.tsx` — item "Games" ganhou `href="/games"`.
+- `apps/web/app/dashboard/page.tsx` — Quick Action "Create Game" agora navega para `/games`.
+
 ### Added — Sprint 1.2 (Projects — primeiro fluxo de negócio)
 - `apps/web/lib/projects-store.ts` — store mock cliente (localStorage) com `useProjects`/`useProject`/`addProject`/`getProject`, seed com Project Alpha/Beta/Gamma (mesmos dados do Dashboard, agora com `id` e `epics`). Substituído por Supabase no Incremento 1.7.
 - `apps/web/app/projects/page.tsx` — lista de projetos (grid de `ProjectCard` já existente) + diálogo "New Project" (`Dialog` + `Input` + `Textarea`) que cria um projeto e navega/permanece na lista com toast de confirmação.

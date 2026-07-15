@@ -4,6 +4,13 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.3 — Games
+
+✨ Novo módulo **Games**, em `/games` — gerencie o ciclo de vida dos seus jogos
+✨ Botão **Create Game** abre um formulário com nome, descrição e seleção de plataformas (iOS, Android, Steam)
+✨ Cada jogo tem sua própria página com plataformas e histórico de builds
+🔧 Ainda sem login ou banco de dados real — os jogos criados ficam salvos só neste navegador, prontos para virar dados reais quando o Supabase for integrado
+
 ## Sprint 1.2 — Projects
 
 ✨ Primeiro fluxo de negócio de verdade: **Projects**, em `/projects`

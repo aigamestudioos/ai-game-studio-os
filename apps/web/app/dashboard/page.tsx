@@ -57,7 +57,13 @@ export default function DashboardPage() {
               <QuickActionCard
                 key={action.label}
                 {...action}
-                onClick={action.label === "New Project" ? () => router.push("/projects") : undefined}
+                onClick={
+                  action.label === "New Project"
+                    ? () => router.push("/projects")
+                    : action.label === "Create Game"
+                      ? () => router.push("/games")
+                      : undefined
+                }
               />
             ))}
           </div>

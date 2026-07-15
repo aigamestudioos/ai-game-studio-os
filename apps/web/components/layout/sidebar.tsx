@@ -26,7 +26,7 @@ const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Studio", icon: Building2 },
   { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "Games", icon: Gamepad2 },
+  { label: "Games", href: "/games", icon: Gamepad2 },
   { label: "AI", icon: Sparkles },
   { label: "Publishing", icon: Rocket },
   { label: "Marketing", icon: Megaphone },

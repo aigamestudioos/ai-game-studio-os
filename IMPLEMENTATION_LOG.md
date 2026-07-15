@@ -401,3 +401,35 @@ Nenhum bug de produto. Um falso positivo do harness de screenshot foi identifica
 ### Próximo Sprint
 
 Sprint 1.3 — Games (Game Workspace), 100% mockado.
+
+#### Incremento 1.3 — Games (Game Workspace)
+
+**Arquivos criados**
+
+`apps/web/lib/games-store.ts`, `apps/web/components/games/cards.tsx`, `apps/web/app/games/page.tsx`, `apps/web/app/games/[id]/page.tsx`, `docs/screenshots/sprint-1.3/*`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/sidebar.tsx` (item "Games" ganhou `href`), `apps/web/app/dashboard/page.tsx` (Quick Action "Create Game" agora navega para `/games`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.3": replicado o padrão de store mock com `localStorage` já aprovado em 1.2 (Projects), sem repetir a pergunta ao usuário para o mesmo tipo de escolha em um módulo irmão. `GameCard` foi criado como componente novo e paralelo a `ProjectCard` (não reaproveitado) — os campos divergem o suficiente (plataformas como badges, sem barra de progresso) para não justificar props condicionais num componente só.
+
+**Validações executadas**
+
+`pnpm lint`, `pnpm typecheck`, `pnpm build` (7 páginas, incluindo as duas rotas dinâmicas `/projects/[id]` e `/games/[id]`) — todos ✅. Playwright: `/games` e `/games/[id]` em dark/light (desktop) + 3 breakpoints, zero overflow horizontal, zero erros de página. Golden path testado de ponta a ponta: abrir `/games` → "Create Game" → preencher nome/descrição → selecionar plataformas (iOS, Steam) → criar → toast "Jogo criado" → clicar no card recém-criado → chegar em `/games/[id]` com plataformas e status corretos.
+
+**Bugs encontrados via validação**
+
+Nenhum.
+
+**Pendências**
+
+- Push e deploy deste incremento (próximo passo) — `/games` ainda não está em produção.
+- Sprint 1.4 (Knowledge) é o próximo módulo de negócio, seguindo o mesmo padrão.
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas, sem posição fixa no roadmap atual.
+
+### Próximo Sprint
+
+Sprint 1.4 — Knowledge, 100% mockado.
