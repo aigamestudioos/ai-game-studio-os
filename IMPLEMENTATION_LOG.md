@@ -368,4 +368,36 @@ Ver `DECISIONS.md` § "Sprint 1.1": reaproveitamento de `StatCard`/`ProjectCard`
 
 ### Próximo Sprint
 
-Sprint 1.2 — Supabase Auth (login/logout, controle de acesso).
+Sprint 1.2 — Projects (primeiro fluxo de negócio, 100% mock). Ver nota de reordenação em `DECISIONS.md`: Supabase Auth foi adiado para 1.6, depois de Projects/Games/Knowledge/Publishing.
+
+#### Incremento 1.2 — Projects (primeiro fluxo de negócio)
+
+**Arquivos criados**
+
+`apps/web/lib/projects-store.ts`, `apps/web/app/projects/page.tsx`, `apps/web/app/projects/[id]/page.tsx`, `docs/screenshots/sprint-1.2/*`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/sidebar.tsx` (item "Projects" ganhou `href`), `apps/web/app/dashboard/page.tsx` ("New Project" e Recent Projects agora navegam para `/projects`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.2": o mock de projetos usa `localStorage` (não só `useState`) para que o projeto criado no diálogo "New Project" realmente exista ao navegar para `/projects/[id]` — decisão levada ao usuário porque um `useState` isolado por página quebraria a própria demonstração do fluxo pedido (Dashboard → Projects → New Project → Project Details). Reaproveitado `ProjectCard`, `Dialog`, `Input`, `Textarea`, `Badge`, `Card`, `Progress` já existentes — nenhum componente novo do design system.
+
+**Validações executadas**
+
+`pnpm install` (não necessário, sem novas dependências), `pnpm lint`, `pnpm typecheck`, `pnpm build` (5 páginas, incluindo a rota dinâmica `/projects/[id]`) — todos ✅. Playwright: `/projects` e `/projects/[id]` em dark/light (desktop) + 3 breakpoints (desktop/tablet/mobile), zero overflow horizontal, zero erros de console/página. Golden path testado de ponta a ponta via automação: abrir `/projects` → "New Project" → preencher nome/descrição → criar → toast "Projeto criado" → clicar no card recém-criado → chegar em `/projects/[id]` com os dados corretos (confirmado tanto via script quanto via inspeção visual dos screenshots).
+
+**Bugs encontrados via validação**
+
+Nenhum bug de produto. Um falso positivo do harness de screenshot foi identificado e descartado: ao forçar `colorScheme` por `BrowserContext` no Playwright, o Chromium ocasionalmente emite um aviso de hidratação sobre `caret-color` no `<input type="search">` do `SearchBar` (componente pré-existente do Sprint 1.1, inalterado aqui) — reproduzido de forma inconsistente mesmo sem qualquer mudança de código, e ausente em navegação client-side normal (`Link`/`router.push`) fora do loop de múltiplos `BrowserContext`. Tratado como artefato do ambiente de teste, não como bug de produto.
+
+**Pendências**
+
+- Push e deploy deste incremento (próximo passo) — `/projects` ainda não está em produção.
+- Sprint 1.3 (Games) é o próximo módulo de negócio, seguindo o mesmo padrão (Application Shell + store client-side mock).
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas, sem posição fixa no roadmap atual.
+
+### Próximo Sprint
+
+Sprint 1.3 — Games (Game Workspace), 100% mockado.

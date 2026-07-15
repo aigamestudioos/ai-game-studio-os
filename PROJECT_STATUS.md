@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium concluído |
+| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium e Projects concluídos |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -28,7 +28,7 @@ Status atual do projeto AI Game Studio OS.
 | Incremento | Objetivo | Status |
 |---|---|---|
 | **1.1** | **Dashboard Premium**: Application Shell reutilizável (Header + Sidebar + Content) e primeira tela real (`/dashboard`), 100% mock, sem backend | **Concluído (produção)** |
-| 1.2 | 📁 Projects — primeiro fluxo de negócio (Dashboard → Projects → New Project → Project Details), 100% mock | Pending |
+| **1.2** | **Projects** — primeiro fluxo de negócio (Dashboard → Projects → New Project → Project Details), 100% mock | **Concluído (local)** |
 | 1.3 | 🎮 Games (Game Workspace) | Pending |
 | 1.4 | 🧠 Knowledge | Pending |
 | 1.5 | 📤 Publishing | Pending |
@@ -41,7 +41,11 @@ Status atual do projeto AI Game Studio OS.
 
 ## Último Sprint
 
-Sprint 1.1 — Dashboard Premium: construída a **Application Shell** reutilizável (`AppShell` = `TopBar` + `Sidebar` + `Content`), usada por `/dashboard` e projetada para ser reaproveitada por Projects, Games, Knowledge, Publishing, Marketing, Analytics, Finance e Settings sem recriar header/sidebar. `TopBar` ganhou busca global (placeholder), notificações, troca de tema, `UserMenu` (Avatar + DropdownMenu) e breadcrumb. `Sidebar` ganhou colapso (com tooltips quando recolhida) e detecção automática do item ativo via `usePathname`. `/dashboard` traz Welcome, Quick Stats, Quick Actions, Recent Projects (com progresso), Recent Activity (timeline), AI Insights e Roadmap Snapshot — tudo mockado em `components/dashboard/mock-data.ts`, pronto para ser substituído por dados reais sem alterar os componentes.
+Sprint 1.2 — Projects: primeiro fluxo de negócio real construído sobre a Application Shell (`/projects` e `/projects/[id]`), 100% mock. `/projects` lista os projetos (reaproveita `ProjectCard`) e tem o botão **New Project**, que abre um `Dialog` com `Input`/`Textarea` e cria o projeto via `apps/web/lib/projects-store.ts` — um store simples com persistência em `localStorage` (ver `DECISIONS.md`), necessário para que o projeto recém-criado apareça de verdade em `/projects/[id]` ao navegar, e não apenas na mesma renderização. A página de detalhes mostra status, descrição, lista de epics (checklist visual) e progresso; ids inexistentes caem em `notFound()`. Sidebar e Dashboard (`New Project`, Recent Projects) agora apontam para `/projects`.
+
+Testado o fluxo completo (golden path) via Playwright: abrir `/projects` → clicar "New Project" → preencher nome/descrição → criar → toast de confirmação → clicar no card criado → chegar em `/projects/[id]` com os dados corretos. Nenhum bug de layout encontrado nos 3 breakpoints × 2 temas.
+
+### Sprint 1.1 — Dashboard Premium: construída a **Application Shell** reutilizável (`AppShell` = `TopBar` + `Sidebar` + `Content`), usada por `/dashboard` e projetada para ser reaproveitada por Projects, Games, Knowledge, Publishing, Marketing, Analytics, Finance e Settings sem recriar header/sidebar. `TopBar` ganhou busca global (placeholder), notificações, troca de tema, `UserMenu` (Avatar + DropdownMenu) e breadcrumb. `Sidebar` ganhou colapso (com tooltips quando recolhida) e detecção automática do item ativo via `usePathname`. `/dashboard` traz Welcome, Quick Stats, Quick Actions, Recent Projects (com progresso), Recent Activity (timeline), AI Insights e Roadmap Snapshot — tudo mockado em `components/dashboard/mock-data.ts`, pronto para ser substituído por dados reais sem alterar os componentes.
 
 Reaproveitou `StatCard`/`ProjectCard`/`Card` já existentes em vez de criar "MetricCard"/"DashboardCard" paralelos (ver `DECISIONS.md`). Único componente novo do design system: nenhum — tudo composto a partir dos 17 componentes já existentes + novos componentes de layout/dashboard (`AppShell`, `SearchBar`, `UserMenu`, widgets do dashboard).
 
@@ -49,8 +53,8 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.2 — Projects: primeiro fluxo de negócio real (Dashboard → Projects → New Project → Project Details), 100% mockado. Supabase Auth adiado para 1.6, depois dos módulos de negócio (ver nota acima).
+Sprint 1.3 — Games (Game Workspace), 100% mockado, seguindo o mesmo padrão de Projects (Application Shell + store client-side). Supabase Auth adiado para 1.6, depois dos módulos de negócio (ver nota acima).
 
 ## Observação
 
-`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data. `/dashboard` em produção, 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data; `app/projects/` (lista + detalhes) com `lib/projects-store.ts` (mock client-side, localStorage). `/dashboard` em produção, `/projects` local (ainda não deployado), ambos 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.

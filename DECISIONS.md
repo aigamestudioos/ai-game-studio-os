@@ -238,3 +238,9 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** Nova ordem: 1.2 Projects → 1.3 Games → 1.4 Knowledge → 1.5 Publishing → 1.6 Supabase Auth → 1.7 conectar todos os módulos ao Supabase (substituir mocks por dados reais).
 **Motivo:** Evitar a armadilha comum de meses construindo infraestrutura (login, permissões, banco, APIs) sem nenhuma funcionalidade útil entregue. Autenticação faz mais sentido quando já existe algo de valor para proteger; a troca de mock por dado real é mecânica (`const data = mockData` → `const data = await supabase...`) se as telas já estiverem prontas.
 **Impacto:** `PROJECT_STATUS.md` atualizado com a nova sequência. Nenhum código afetado — é só reordenação de prioridade, mesmo padrão de divergência operacional já registrado em `ADR-005-sprint-governance.md`.
+
+### [2026-07-15] Sprint 1.2 — mock de Projects persistido em localStorage (não apenas `useState`)
+**Contexto:** O fluxo pedido é Dashboard → Projects → New Project → Project Details, 100% mock (sem backend). Um `useState` local em `/projects` perderia o projeto criado ao navegar para `/projects/[id]` (páginas diferentes, sem estado compartilhado), quebrando a própria demonstração do fluxo.
+**Decisão:** `apps/web/lib/projects-store.ts` guarda os projetos (seed + criados pelo usuário) em `localStorage`, com um pub/sub simples em memória para notificar componentes montados na mesma sessão. Escopo deliberadamente mínimo — sem Zustand/Context, só o necessário para o mock funcionar de ponta a ponta.
+**Motivo:** Perguntado ao usuário; localStorage foi a opção escolhida em vez de manter tudo em memória (que deixaria a navegação para o projeto recém-criado sempre em "não encontrado").
+**Impacto:** `lib/projects-store.ts` é código descartável — inteiramente substituído no Incremento 1.7 (integração real com Supabase). Nenhum outro módulo deve replicar esse padrão além de Projects sem decisão equivalente.

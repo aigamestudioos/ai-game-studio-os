@@ -4,6 +4,13 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.2 — Projects
+
+✨ Primeiro fluxo de negócio de verdade: **Projects**, em `/projects`
+✨ Botão **New Project** abre um formulário simples (nome e descrição) e cria o projeto na hora
+✨ Cada projeto tem sua própria página de detalhes, com epics e progresso
+🔧 Ainda sem login ou banco de dados real — os projetos criados ficam salvos só neste navegador, prontos para virar dados reais quando o Supabase for integrado
+
 ## Sprint 1.1 — Dashboard
 
 ✨ Primeira tela real do produto: o **Dashboard**, em `/dashboard`

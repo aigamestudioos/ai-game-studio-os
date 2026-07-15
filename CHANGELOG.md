@@ -6,6 +6,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.2 (Projects — primeiro fluxo de negócio)
+- `apps/web/lib/projects-store.ts` — store mock cliente (localStorage) com `useProjects`/`useProject`/`addProject`/`getProject`, seed com Project Alpha/Beta/Gamma (mesmos dados do Dashboard, agora com `id` e `epics`). Substituído por Supabase no Incremento 1.7.
+- `apps/web/app/projects/page.tsx` — lista de projetos (grid de `ProjectCard` já existente) + diálogo "New Project" (`Dialog` + `Input` + `Textarea`) que cria um projeto e navega/permanece na lista com toast de confirmação.
+- `apps/web/app/projects/[id]/page.tsx` — página de detalhes do projeto (status, descrição, lista de epics com checklist visual, progresso); `notFound()` para ids inexistentes.
+
+### Changed — Sprint 1.2
+- `apps/web/components/layout/sidebar.tsx` — item "Projects" ganhou `href="/projects"` (antes sem link).
+- `apps/web/app/dashboard/page.tsx` — "New Project" (Quick Action e botão da seção Recent Projects) e os cards de Recent Projects agora navegam para `/projects`.
+
 ### Added — Sprint 1.1 (Dashboard Premium / Application Foundation)
 - `apps/web/components/layout/app-shell.tsx` — Application Shell reutilizável (Header + Sidebar + Content), base para todos os módulos futuros.
 - `apps/web/components/layout/{search-bar,user-menu}.tsx` — busca global (placeholder) e menu do usuário (Avatar + DropdownMenu).

@@ -1,6 +1,8 @@
 "use client";
 
 import { BookOpen, FolderPlus, Gamepad2, Rocket, Upload } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ProjectCard, StatCard } from "../../components/dashboard/cards";
 import {
   AI_INSIGHTS,
@@ -29,6 +31,8 @@ const QUICK_ACTIONS = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   return (
     <AppShell breadcrumbs={[{ label: "Dashboard" }]}>
       <div className="space-y-lg p-lg">
@@ -50,7 +54,11 @@ export default function DashboardPage() {
           <SectionHeader title="Quick Actions" />
           <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-5">
             {QUICK_ACTIONS.map((action) => (
-              <QuickActionCard key={action.label} {...action} />
+              <QuickActionCard
+                key={action.label}
+                {...action}
+                onClick={action.label === "New Project" ? () => router.push("/projects") : undefined}
+              />
             ))}
           </div>
         </section>
@@ -61,15 +69,19 @@ export default function DashboardPage() {
               <SectionHeader
                 title="Recent Projects"
                 action={
-                  <Button size="sm">
-                    <FolderPlus className="mr-sm size-4" aria-hidden="true" />
-                    New Project
+                  <Button size="sm" asChild>
+                    <Link href="/projects">
+                      <FolderPlus className="mr-sm size-4" aria-hidden="true" />
+                      New Project
+                    </Link>
                   </Button>
                 }
               />
               <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
                 {RECENT_PROJECTS.map((project) => (
-                  <ProjectCard key={project.name} {...project} />
+                  <Link key={project.name} href="/projects" className="block">
+                    <ProjectCard {...project} />
+                  </Link>
                 ))}
               </div>
             </section>

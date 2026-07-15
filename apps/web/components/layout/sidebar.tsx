@@ -25,7 +25,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Studio", icon: Building2 },
-  { label: "Projects", icon: FolderKanban },
+  { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Games", icon: Gamepad2 },
   { label: "AI", icon: Sparkles },
   { label: "Publishing", icon: Rocket },
