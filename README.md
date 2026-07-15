@@ -8,3 +8,4 @@ AI Game Studio OS
 - [ARCHITECTURE.md](ARCHITECTURE.md) — manual operacional de arquitetura
 - [PROJECT_BIBLE.md](PROJECT_BIBLE.md) — referência operacional consolidada
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — status atual do projeto
+- [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) — diário técnico de implementação, por sprint
