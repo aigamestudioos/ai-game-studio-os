@@ -6,6 +6,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.1 (Dashboard Premium / Application Foundation)
+- `apps/web/components/layout/app-shell.tsx` — Application Shell reutilizável (Header + Sidebar + Content), base para todos os módulos futuros.
+- `apps/web/components/layout/{search-bar,user-menu}.tsx` — busca global (placeholder) e menu do usuário (Avatar + DropdownMenu).
+- `apps/web/components/layout/topbar.tsx` — expandido: breadcrumb, busca, notificações, tema, menu do usuário, menu hambúrguer (mobile).
+- `apps/web/components/layout/sidebar.tsx` — colapso (com tooltips), detecção automática de rota ativa via `usePathname`, drawer off-canvas em mobile.
+- `apps/web/components/dashboard/mock-data.ts` — dados fictícios centralizados (Quick Stats, Recent Projects, Recent Activity, AI Insights, Roadmap Snapshot), preparados para substituição futura por dados reais.
+- `apps/web/components/dashboard/widgets.tsx` — `SectionHeader`, `QuickActionCard`, `ActivityItem`, `AiInsightsCard`, `RoadmapSnapshotCard`.
+- `apps/web/app/dashboard/page.tsx` reescrito — Welcome, Quick Stats, Quick Actions, Recent Projects, Recent Activity, AI Insights, Roadmap Snapshot.
+
+### Fixed — Sprint 1.1
+- Sidebar não colapsava em telas estreitas (mobile), espremendo todo o conteúdo — corrigido com drawer off-canvas abaixo do breakpoint `md`.
+- Screenshots do Dashboard capturavam só a viewport (a Application Shell usa scroll interno no `<main>`, não no documento) — corrigido redimensionando o viewport ao tamanho real do conteúdo antes de cada captura.
+
 ### Added — Incremento 0.5 (Landing Page premium)
 - `apps/web/app/page.tsx` reescrito por completo — Header sticky, Hero (grid/glow/blur via tokens), How It Works, Why Us, Platform (8 módulos), Benefits, Roadmap (timeline), FAQ.
 - `apps/web/components/landing/{header,hero,features,platform,roadmap-faq,footer,reveal}.tsx` — novos componentes de página, compostos com os primitivos existentes do design system.

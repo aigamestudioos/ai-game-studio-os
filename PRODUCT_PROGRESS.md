@@ -11,4 +11,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 0.4b | Agora é possível abrir janelas de diálogo/confirmação, receber notificações (toasts), ver dicas ao passar o mouse e usar menus suspensos — 10 novos componentes interativos no `/playground` |
 | 0.4c | _(congelado por decisão estratégica — Playground não será mais expandido; energia vai para telas reais do produto)_ |
 | 0.5 | A home antiga virou uma **Landing Page completa**: primeira impressão real do produto, com visão geral, como funciona, módulos, benefícios, roadmap e FAQ |
-| 0.6 | _(preencher ao concluir — Dashboard visual)_ |
+| 1.1 | Existe um **Dashboard** de verdade em `/dashboard` — menu com todos os módulos, estatísticas, ações rápidas, projetos recentes, atividade e insights de IA (ainda sem login/dados reais) |

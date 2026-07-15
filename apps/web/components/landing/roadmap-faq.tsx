@@ -6,7 +6,7 @@ type RoadmapStatus = "done" | "in-progress" | "planned";
 
 const ROADMAP: { title: string; description: string; status: RoadmapStatus }[] = [
   { title: "Fundação técnica", description: "Monorepo, Next.js, design system e Playground.", status: "done" },
-  { title: "Dashboard visual", description: "Primeira tela real do produto.", status: "in-progress" },
+  { title: "Dashboard visual", description: "Primeira tela real do produto.", status: "done" },
   { title: "Autenticação", description: "Login e controle de acesso via Supabase.", status: "planned" },
   { title: "Projects", description: "Primeiro fluxo de negócio: da ideia ao projeto.", status: "planned" },
   { title: "Games & Publishing", description: "Publicação de jogos nas lojas.", status: "planned" },

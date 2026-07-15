@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Progress } from "../ui/progress";
 
 export type ProjectStatus = "Em desenvolvimento" | "Em revisão" | "Publicado";
 
@@ -14,13 +15,17 @@ export function ProjectCard({
   name,
   description,
   status,
+  progress,
+  updatedAt,
 }: {
   name: string;
   description: string;
   status: ProjectStatus;
+  progress?: number;
+  updatedAt?: string;
 }) {
   return (
-    <Card>
+    <Card className="transition-transform hover:-translate-y-1">
       <CardHeader>
         <div className="flex items-center justify-between gap-sm">
           <CardTitle className="text-base">{name}</CardTitle>
@@ -28,6 +33,15 @@ export function ProjectCard({
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
+      {progress !== undefined ? (
+        <CardContent className="space-y-sm">
+          <Progress value={progress} />
+          <div className="flex items-center justify-between text-xs text-text-tertiary">
+            <span>{progress}%</span>
+            {updatedAt ? <span>Atualizado {updatedAt}</span> : null}
+          </div>
+        </CardContent>
+      ) : null}
     </Card>
   );
 }

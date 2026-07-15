@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 em andamento — Incrementos 0.1, 0.2, 0.3, 0.4a, 0.4b, 0.5 e 0.6 (Vercel, antecipado) concluídos |
+| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium concluído |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -20,26 +20,31 @@ Status atual do projeto AI Game Studio OS.
 | **0.4a** | **Fundação do Design System (Button, Input, Textarea, Card, Badge, Avatar) + shell do `/playground`** | **Concluído (local)** |
 | **0.4b** | **Componentes avançados (Dialog, Modal, Toast, Tooltip, DropdownMenu, Alert, Spinner, Skeleton, Separator, Progress)** | **Concluído (local)** |
 | 0.4c | ~~Playground completo~~ — **congelado por decisão do usuário**: o Playground cumpriu sua missão com 16+1 componentes; energia agora vai para telas reais | Frozen |
-| **0.5** | **Landing Page premium** (substitui a home) | **Concluído (local)** |
+| **0.5** | **Landing Page premium** (substitui a home) | **Concluído (produção)** |
 | Vercel/CI | Vercel + primeiro deploy antecipado (item antigo "0.5/0.6" do roadmap original) | **Concluído (produção)** — GitHub Actions/CI mínimo ainda não configurado |
-| 0.6 | Dashboard visual (layout completo, sem backend) | Em andamento — scaffold pronto (commit local, sem push) |
-| 0.7 | Supabase Auth + login/logout + controle de acesso | Pending |
-| 0.8 | Módulo Projects (primeiro fluxo funcional de negócio) | Pending |
 
-> Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente da tabela acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário (Landing antes do Dashboard, Playground congelado) — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências.
+## Sprint 1 — Application Foundation
+
+| Incremento | Objetivo | Status |
+|---|---|---|
+| **1.1** | **Dashboard Premium**: Application Shell reutilizável (Header + Sidebar + Content) e primeira tela real (`/dashboard`), 100% mock, sem backend | **Concluído (produção)** |
+| 1.2 | Supabase Auth + login/logout + controle de acesso | Pending |
+| 1.3 | Módulo Projects (primeiro fluxo funcional de negócio) | Pending |
+
+> Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
 ## Último Sprint
 
-Incremento 0.5 — Landing Page premium: substitui inteiramente a home antiga. Header sticky com efeito de scroll, Hero com grid/glow/blur (tokens, sem cor hardcoded), seções Como Funciona, Por que Nós, Plataforma (8 módulos), Benefícios, Roadmap (timeline) e FAQ (novo componente `Accordion`, único componente criado nesta etapa). Scroll-reveal via `IntersectionObserver`. SEO completo (metadata, OG, Twitter Card, `robots.ts`, `sitemap.ts`, canonical). 100% composta pelos componentes já existentes (só Accordion é novo). Sem Supabase, sem login funcional, sem dashboard funcional — só UI.
+Sprint 1.1 — Dashboard Premium: construída a **Application Shell** reutilizável (`AppShell` = `TopBar` + `Sidebar` + `Content`), usada por `/dashboard` e projetada para ser reaproveitada por Projects, Games, Knowledge, Publishing, Marketing, Analytics, Finance e Settings sem recriar header/sidebar. `TopBar` ganhou busca global (placeholder), notificações, troca de tema, `UserMenu` (Avatar + DropdownMenu) e breadcrumb. `Sidebar` ganhou colapso (com tooltips quando recolhida) e detecção automática do item ativo via `usePathname`. `/dashboard` traz Welcome, Quick Stats, Quick Actions, Recent Projects (com progresso), Recent Activity (timeline), AI Insights e Roadmap Snapshot — tudo mockado em `components/dashboard/mock-data.ts`, pronto para ser substituído por dados reais sem alterar os componentes.
 
-Um bug real de build foi encontrado e corrigido: `Button` com `asChild` quebrava o Radix Slot (passava 2 filhos em vez de 1) — nunca detectado antes porque nenhuma tela anterior usava `Button asChild` diretamente. Um artefato de processo também foi identificado: screenshots `fullPage` do Playwright não disparam scroll real, então conteúdo com scroll-reveal aparecia "invisível" nas capturas — corrigido rolando a página programaticamente antes de cada screenshot.
+Reaproveitou `StatCard`/`ProjectCard`/`Card` já existentes em vez de criar "MetricCard"/"DashboardCard" paralelos (ver `DECISIONS.md`). Único componente novo do design system: nenhum — tudo composto a partir dos 17 componentes já existentes + novos componentes de layout/dashboard (`AppShell`, `SearchBar`, `UserMenu`, widgets do dashboard).
 
-Em paralelo, o Dashboard visual (Sidebar per SPEC-005 §9, TopBar, Recent Projects, Statistics) foi construído e commitado localmente como checkpoint do Incremento 0.6 — ainda sem push, aguardando execução formal desse incremento.
+Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: a Sidebar não colapsava/ocultava em telas estreitas, espremendo todo o conteúdo. Corrigido com um drawer off-canvas (menu hambúrguer) abaixo do breakpoint `md`. Um problema no método de screenshot também foi identificado e corrigido: a Application Shell usa scroll interno no `<main>` (header/sidebar fixos), então `fullPage` do Playwright capturava só a viewport — corrigido redimensionando o viewport para caber o conteúdo real antes de cada captura.
 
 ## Próxima Etapa
 
-Incremento 0.6 — formalizar o Dashboard visual já commitado localmente (validação completa, documentação, push, deploy), seguido de 0.7 (Supabase Auth) e 0.8 (Projects).
+Sprint 1.2 — Supabase Auth (login/logout, controle de acesso), seguido de 1.3 (Projects).
 
 ## Observação
 
-`apps/web` (Next.js, App Router, Tailwind v4 + tokens + dark mode, **Landing em produção na Vercel**) — `components/ui/` com 17 componentes (16 + Accordion); `components/landing/` (novo) com Header/Hero/seções/Footer/Reveal; `components/layout/` e `components/dashboard/` (Sidebar/TopBar/cards) prontos mas ainda não formalizados como sprint concluído. `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório. Ainda sem CI, Supabase Auth ou funcionalidades de negócio. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data. `/dashboard` em produção, 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.

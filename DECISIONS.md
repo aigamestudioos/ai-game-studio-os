@@ -206,3 +206,29 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** Ajustar o **script de screenshot** (não o app) para rolar a página em passos incrementais antes de cada captura `fullPage`, em qualquer página com scroll-reveal.
 **Motivo:** Era um falso positivo de bug de produto — na verdade um artefato do método de teste. Corrigir no lugar certo (harness de screenshot) evita relatórios de "bug" incorretos em sprints futuros com o mesmo padrão de animação.
 **Impacto:** Nenhum no código do produto. Prática de screenshot documentada aqui para sprints futuros que usem `Reveal`/scroll-reveal.
+
+## Sprint 1 — Application Foundation
+
+### [2026-07-15] Numeração volta a "Sprint 1", alinhada ao roadmap frozen
+**Contexto:** O usuário nomeou este trabalho "SPRINT 1 — APPLICATION FOUNDATION", que é literalmente o nome do Sprint 1 em `docs/frozen/roadmap/AGSOS-PLAN-001.md` ("Sprint 1 | Application Foundation (SPEC-004)"). Diferente das divergências anteriores (0.4c congelado, Landing↔Dashboard reordenados), aqui a numeração de alto nível volta a **coincidir** com o documento frozen — só o conteúdo real diverge (SPEC-004 descreve Event Bus/Commands/Queries de backend; o que foi construído é 100% UI/Application Shell).
+**Decisão:** Adotar "Sprint 1" como nome operacional a partir de agora (com incrementos 1.1, 1.2...), documentando que o conteúdo é diferente do previsto em SPEC-004, sem alterar esse documento frozen.
+**Motivo:** Seguir a intenção do usuário; a numeração de sprints de alto nível (0, 1, 2...) é estável o suficiente no roadmap frozen para valer a pena realinhar com ela, ao contrário da numeração fina de incrementos (0.x), que já tinha divergido bastante.
+**Impacto:** `PROJECT_STATUS.md` agora usa "Sprint 0" (concluído) e "Sprint 1" (em andamento) como agrupadores, com incrementos dentro de cada um. Sprints frozen futuros (2 = Design System, 3 = Core Features...) podem ou não ser seguidos à risca dependendo do que for pedido — cada divergência real continua sendo registrada aqui.
+
+### [2026-07-15] Reaproveitar StatCard/ProjectCard/Card em vez de MetricCard/DashboardCard paralelos
+**Contexto:** A instrução do sprint listou como exemplo de componentes a criar: "DashboardCard, SectionHeader, QuickActionCard, MetricCard, SidebarItem, SidebarSection, ActivityItem, ProjectCard, TopBar, SearchBar, UserMenu" — mas `ProjectCard` e `TopBar` já existiam, confirmando que a lista é ilustrativa (o tipo de componente necessário), não uma exigência de que todos sejam literalmente novos.
+**Decisão:** `MetricCard` foi implementado reaproveitando o `StatCard` já existente (mesmo propósito: ícone + label + valor); `DashboardCard` não foi criado — o `Card` genérico já cumpre esse papel em todas as seções do dashboard.
+**Motivo:** Evitar componentes paralelos fazendo a mesma coisa (o próprio sprint da Landing já tinha estabelecido esse princípio explicitamente). Menos superfície para manter, mesma capacidade.
+**Impacto:** Nenhum. Se no futuro `StatCard`/`MetricCard` precisarem divergir de verdade (ex.: variação com tendência/delta), aí sim vale desmembrar.
+
+### [2026-07-15] Bug de responsividade: Sidebar não colapsava em mobile
+**Contexto:** Screenshot em 390px de largura revelou a Sidebar renderizando na largura total (`w-56`), espremendo todo o conteúdo do dashboard numa coluna de ~166px — badges cortados, texto sobreposto. Não havia nenhum tratamento para ocultar/recolher a Sidebar abaixo de um breakpoint.
+**Decisão:** Sidebar passa a ser `hidden md:flex` (oculta por padrão em mobile). Um botão hambúrguer no `TopBar` (visível só abaixo de `md`) abre um drawer off-canvas: a mesma `Sidebar`, renderizada como overlay fixo com backdrop (reaproveitando o token `--backdrop` do Dialog/Modal), sempre expandida (colapso não faz sentido dentro de um drawer).
+**Motivo:** Padrão consolidado em produtos SaaS (Linear, Notion, Vercel) — sidebar fixa em desktop/tablet, escondida atrás de um menu em mobile. Reaproveitar o token de overlay já existente evita duplicar lógica de backdrop.
+**Impacto:** `AppShell` agora gerencia um segundo estado (`mobileNavOpen`) além do `collapsed`. `TopBar` ganhou a prop opcional `onMenuClick`.
+
+### [2026-07-15] Bug no método de screenshot: `fullPage` não captura scroll interno do `<main>`
+**Contexto:** A Application Shell mantém header/sidebar fixos e rola apenas o `<main>` interno (`overflow-y-auto`) — o documento (`<body>`) nunca cresce. Como o `page.screenshot({ fullPage: true })` do Playwright se baseia na altura do documento, as primeiras capturas do Dashboard cortavam tudo abaixo de ~900px (Recent Activity, AI Insights e Roadmap ficavam de fora).
+**Decisão:** Para páginas com scroll interno (não no documento), medir `scrollHeight` do `<main>` via `page.evaluate` e redimensionar o viewport (`page.setViewportSize`) antes de capturar, em vez de usar `fullPage: true`.
+**Motivo:** É a segunda vez que uma técnica de captura de screenshot dá um falso resultado incompleto por causa de uma arquitetura de scroll não convencional (a primeira foi o scroll-reveal da Landing, que precisava de scroll programático). Ambos os casos mostram que a técnica de screenshot precisa se adaptar ao padrão de scroll de cada página, não assumir que `fullPage` sempre funciona.
+**Impacto:** Nenhum no código do produto — só no harness de teste. Prática documentada aqui para qualquer página futura que use um layout de shell fixo com conteúdo scrollável internamente (todos os módulos que usarem `AppShell`).

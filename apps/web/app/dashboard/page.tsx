@@ -1,95 +1,97 @@
 "use client";
 
-import { Gamepad2, HardDrive, Rocket, Sparkles } from "lucide-react";
+import { BookOpen, FolderPlus, Gamepad2, Rocket, Upload } from "lucide-react";
 import { ProjectCard, StatCard } from "../../components/dashboard/cards";
-import { Sidebar } from "../../components/layout/sidebar";
-import { TopBar } from "../../components/layout/topbar";
-import { Button } from "../../components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
+  AI_INSIGHTS,
+  QUICK_STATS,
+  RECENT_ACTIVITY,
+  RECENT_PROJECTS,
+  ROADMAP_SNAPSHOT,
+} from "../../components/dashboard/mock-data";
+import {
+  ActivityItem,
+  AiInsightsCard,
+  QuickActionCard,
+  RoadmapSnapshotCard,
+  SectionHeader,
+} from "../../components/dashboard/widgets";
+import { AppShell } from "../../components/layout/app-shell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent } from "../../components/ui/card";
 
-const RECENT_PROJECTS = [
-  {
-    name: "Project Alpha",
-    description: "Puzzle mobile — protótipo em desenvolvimento.",
-    status: "Em desenvolvimento" as const,
-  },
-  {
-    name: "Project Beta",
-    description: "Runner casual — aguardando revisão de arte.",
-    status: "Em revisão" as const,
-  },
-  {
-    name: "Project Gamma",
-    description: "Hyper-casual — publicado nas lojas.",
-    status: "Publicado" as const,
-  },
-];
-
-const STATISTICS = [
-  { label: "Games", value: "3", icon: Gamepad2 },
-  { label: "Assets", value: "128", icon: HardDrive },
-  { label: "AI Credits", value: "4.200", icon: Sparkles },
-  { label: "Publishing", value: "1 ativo", icon: Rocket },
+const QUICK_ACTIONS = [
+  { label: "New Project", icon: FolderPlus },
+  { label: "Create Game", icon: Gamepad2 },
+  { label: "Knowledge", icon: BookOpen },
+  { label: "Publish", icon: Rocket },
+  { label: "Import Assets", icon: Upload },
 ];
 
 export default function DashboardPage() {
   return (
-    <div className="flex h-screen flex-col">
-      <TopBar />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar active="Dashboard" />
+    <AppShell breadcrumbs={[{ label: "Dashboard" }]}>
+      <div className="space-y-lg p-lg">
+        <section>
+          <h1 className="text-2xl font-semibold">Welcome back.</h1>
+          <p className="text-muted-foreground">Let&apos;s build something amazing today.</p>
+        </section>
 
-        <main className="flex-1 space-y-lg overflow-y-auto p-lg">
-          <section className="space-y-md">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold">Recent Projects</h1>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button size="sm">+ New Project</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Novo projeto</DialogTitle>
-                    <DialogDescription>
-                      Tela apenas visual — sem persistência ainda (entra no Incremento 0.8).
-                    </DialogDescription>
-                  </DialogHeader>
-                  <Input placeholder="Nome do projeto" />
-                  <DialogFooter>
-                    <Button variant="outline">Cancelar</Button>
-                    <Button>Criar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+        <section className="space-y-md">
+          <SectionHeader title="Quick Stats" />
+          <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-6">
+            {QUICK_STATS.map((stat) => (
+              <StatCard key={stat.label} {...stat} />
+            ))}
+          </div>
+        </section>
 
-            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-              {RECENT_PROJECTS.map((project) => (
-                <ProjectCard key={project.name} {...project} />
-              ))}
-            </div>
-          </section>
+        <section className="space-y-md">
+          <SectionHeader title="Quick Actions" />
+          <div className="grid grid-cols-2 gap-md sm:grid-cols-3 lg:grid-cols-5">
+            {QUICK_ACTIONS.map((action) => (
+              <QuickActionCard key={action.label} {...action} />
+            ))}
+          </div>
+        </section>
 
-          <section className="space-y-md">
-            <h2 className="text-lg font-semibold">Statistics</h2>
+        <div className="grid grid-cols-1 gap-lg lg:grid-cols-3">
+          <div className="space-y-lg lg:col-span-2">
+            <section className="space-y-md">
+              <SectionHeader
+                title="Recent Projects"
+                action={
+                  <Button size="sm">
+                    <FolderPlus className="mr-sm size-4" aria-hidden="true" />
+                    New Project
+                  </Button>
+                }
+              />
+              <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
+                {RECENT_PROJECTS.map((project) => (
+                  <ProjectCard key={project.name} {...project} />
+                ))}
+              </div>
+            </section>
 
-            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
-              {STATISTICS.map((stat) => (
-                <StatCard key={stat.label} {...stat} />
-              ))}
-            </div>
-          </section>
-        </main>
+            <section className="space-y-md">
+              <SectionHeader title="Recent Activity" />
+              <Card>
+                <CardContent className="space-y-md pt-lg">
+                  {RECENT_ACTIVITY.map((entry) => (
+                    <ActivityItem key={entry.title + entry.timestamp} {...entry} />
+                  ))}
+                </CardContent>
+              </Card>
+            </section>
+          </div>
+
+          <div className="space-y-lg">
+            <AiInsightsCard insights={AI_INSIGHTS} />
+            <RoadmapSnapshotCard snapshot={ROADMAP_SNAPSHOT} />
+          </div>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

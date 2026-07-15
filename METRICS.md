@@ -426,3 +426,65 @@ Playground congelado (0.4c não executado, decisão do usuário). Landing Page p
 | Vercel | ✅ (a validar após push deste incremento) |
 | Supabase | — (ainda não configurado, Incremento 0.7) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 1 — Application Foundation (Incremento 1.1 — Dashboard Premium)
+
+**Data:** 2026-07-15
+
+Application Shell reutilizável (Header + Sidebar + Content) construída e usada em `/dashboard`. Sem Supabase/backend/auth — 100% mock.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0 completo (0.1–0.5) + Sprint 1.1 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 154 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 2728 |
+| Commits totais | 20 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 (sugestão do usuário, ainda pendente) |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 3 (`/`, `/dashboard`, `/playground`) |
+| Rotas | 3 + `robots.txt`/`sitemap.xml` |
+| Componentes UI (design system) | 16 |
+| Componentes de layout (Application Shell) | 5 (AppShell, TopBar, Sidebar, SearchBar, UserMenu) |
+| Componentes de dashboard | 8 (ProjectCard, StatCard, SectionHeader, QuickActionCard, ActivityItem, AiInsightsCard, RoadmapSnapshotCard + mock-data) |
+| Providers | 1 (ThemeProvider) |
+| Hooks | 2 (useTheme, useToast) |
+| Features | 0 |
+| Fluxos completos | 0 (tudo visual, sem backend) |
+| Deploys | 8 (pushes para `main` com deploy validado) |
+| ADRs | 4 (002, 003, 004, 005) |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~43s |
+| Rotas geradas | 8 |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ (a validar após push deste incremento) |
+| Supabase | — (ainda não configurado, Sprint 1.2) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

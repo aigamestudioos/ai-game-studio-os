@@ -325,3 +325,47 @@ Ver `DECISIONS.md` § "Incremento 0.5": reordenação Landing↔Dashboard; Accor
 ### Próximo Sprint / Incremento
 
 Incremento 0.6 — formalizar o Dashboard visual (já commitado localmente como checkpoint), com validação completa, documentação e deploy.
+
+---
+
+## Sprint 1 — Application Foundation
+
+**Status:** Em andamento (Incremento 1.1 concluído)
+**Período:** 2026-07-15 —
+
+### Objetivo
+
+O usuário nomeou este sprint "Sprint 1 — Application Foundation", alinhando de volta com a numeração de sprints de alto nível do roadmap frozen (`AGSOS-PLAN-001.md`: Sprint 0 Fundação, Sprint 1 Application Foundation, Sprint 2 Design System...). O conteúdo real diverge do que `SPEC-004` originalmente descreve para "Application Foundation" (Event Bus, Commands, Queries — backend), mas a numeração volta a coincidir com o documento frozen depois de vários incrementos "0.x" — ver `DECISIONS.md`.
+
+#### Incremento 1.1 — Dashboard Premium (Application Shell)
+
+**Arquivos criados**
+
+`apps/web/components/layout/{app-shell,search-bar,user-menu}.tsx`, `apps/web/components/dashboard/{mock-data,widgets}.tsx`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/{sidebar,topbar}.tsx` (expandidos), `apps/web/components/dashboard/cards.tsx` (progresso no `ProjectCard`), `apps/web/app/dashboard/page.tsx` (reescrito), `apps/web/components/landing/roadmap-faq.tsx` (Dashboard marcado como concluído no roadmap da Landing).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.1": reaproveitamento de `StatCard`/`ProjectCard`/`Card` em vez de "MetricCard"/"DashboardCard" paralelos; `TopBar`/`Sidebar` mantiveram os mesmos nomes (compatibilidade com o uso no Playground); Playground não foi alterado (nenhum componente novo do design system, só de layout/dashboard).
+
+**Bugs encontrados via validação e corrigidos**
+
+1. **Responsividade (mobile)**: Sidebar não colapsava/ocultava em telas estreitas — todo o conteúdo ficava espremido numa coluna de ~166px, com badges e texto sobrepostos. Encontrado no screenshot mobile (390px). Corrigido com drawer off-canvas: Sidebar fica `hidden md:flex` por padrão, e abaixo de `md` um botão hambúrguer no `TopBar` abre um overlay com backdrop (`bg-backdrop`, mesmo token do Dialog/Modal).
+2. **Método de screenshot**: a Application Shell mantém header/sidebar fixos e rola só o `<main>` interno (correto para um SaaS — Linear/Notion funcionam assim), então o `fullPage: true` do Playwright (que se baseia no scroll do documento) capturava só os primeiros 900px, cortando Recent Activity/AI Insights/Roadmap. Corrigido medindo `scrollHeight` do `<main>` e redimensionando o viewport antes de cada captura, em vez de depender de `fullPage`.
+
+**Validações executadas**
+
+`pnpm install`, `pnpm build` (8 rotas), `pnpm typecheck`, `pnpm lint` — todos ✅ (rodados de novo após ambas as correções). Playwright: Dashboard em dark/light (desktop) + 3 breakpoints (desktop/tablet/mobile) — zero overflow horizontal, zero erros de console/página em todos. Drawer mobile testado abrindo de verdade (clique no hambúrguer). Regressão verificada em `/` (Landing) e `/playground` — sem quebras.
+
+**Pendências**
+
+- Sprint 1.2 (Supabase Auth) e 1.3 (Projects) — próximos.
+- CI (GitHub Actions) continua sem posição fixa no roadmap.
+- Favicon/OG image reais — mesma pendência do Sprint 0.5, ainda sem identidade de marca definida.
+
+### Próximo Sprint
+
+Sprint 1.2 — Supabase Auth (login/logout, controle de acesso).

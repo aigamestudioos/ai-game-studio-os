@@ -4,6 +4,14 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.1 — Dashboard
+
+✨ Primeira tela real do produto: o **Dashboard**, em `/dashboard`
+✨ Menu lateral com todos os módulos do sistema (Projects, Games, Knowledge, Publishing, Marketing, Analytics, Finance e mais)
+✨ Visão geral com estatísticas rápidas, ações rápidas, projetos recentes (com progresso), atividade recente e insights de IA
+✨ Menu lateral recolhível, e em celular vira um menu que desliza pela lateral
+🔧 Ainda sem login ou dados reais — tudo o que você vê é uma demonstração visual, pronta para receber funcionalidades de verdade nos próximos sprints
+
 ## Incremento 0.5 — Nova página inicial
 
 ✨ O AI Game Studio OS ganhou uma **página inicial completamente nova** — a primeira impressão real do produto
