@@ -754,3 +754,50 @@ Nenhuma nova. Sprint 1.8a está de fato concluído, incluindo produção.
 ### Próximo Sprint
 
 Sprint 1.8b — Recuperação de senha (forgot/reset password).
+
+---
+
+## Teste de aceitação — Sprint 1.8a (antes de avançar para 1.8b)
+
+**Status:** Concluído (produção)
+**Período:** 2026-07-16
+
+### Objetivo
+
+Recomendação do usuário: antes de construir mais funcionalidade sobre a Auth (forgot/reset password), validar de ponta a ponta o que já existe, com um cenário mais completo do que o golden path original — usuário novo (não o de teste fixo), confirmação de email real, revogação de sessão e troca de senha via painel/Admin API.
+
+### Escopo e autorização
+
+Passos como criar usuário, revogar sessão e trocar senha exigem a Admin API (secret key) contra o projeto Supabase real — o classificador de permissões bloqueou a primeira tentativa por serem escritas privilegiadas em dados de produção sem autorização explícita anterior. Usuário autorizou explicitamente antes da execução.
+
+### Script
+
+Script ad-hoc (`acceptance-test.mjs`, fora do repositório, no scratchpad) usa `@supabase/supabase-js` Admin API diretamente (não `packages/database` — é ferramental de teste, não código da aplicação) + Playwright para os fluxos de browser. Roda contra a URL de produção.
+
+### Passos executados e resultado (13/13 ✅, contra produção)
+
+1. Criar usuário novo (`admin.generateLink({ type: "signup", ... })`) — cria o usuário e retorna o link de confirmação real.
+2. Visitar o link de confirmação com Playwright (equivalente a clicar no email) — confirmado `email_confirmed_at` setado via Admin API depois.
+3. Login com o usuário novo (não o `test@aigamestudioos.com` fixo) — sucesso.
+4. Logout — redireciona a `/login`.
+5. Refresh do navegador (reload) — sessão mantida.
+6-7. Fechar e reabrir o navegador — sessão salva via `storageState` (cookies reais) e restaurada em um novo contexto, exatamente como fechar/abrir um navegador de verdade — sessão continua válida.
+8. Expiração/revogação de sessão — extraído o access token real da sessão a partir do cookie `sb-<ref>-auth-token` e revogado via `admin.signOut(token, "global")`; na navegação seguinte, o middleware bloqueou o acesso e redirecionou para `/login?redirect=%2Fdashboard` — confirma que uma sessão revogada server-side é rejeitada na primeira validação (`getUser()`), não apenas no client.
+9. Troca de senha via Admin API (equivalente ao painel do Supabase) — sucesso.
+10. Login com a senha ANTIGA — corretamente rejeitado.
+11. Login com a senha NOVA — sucesso.
+12. Cleanup — usuário de teste removido ao final, sem deixar dado descartável no projeto `dev`.
+
+Zero erros de console (fora dos 404 de favicon já conhecidos).
+
+### Correções feitas no próprio script (não no app)
+
+Primeira tentativa do passo 8 usou `admin.signOut(userId, "global")` — API incorreta (`signOut` espera o JWT da sessão, não o ID do usuário), gerando erro "token contains an invalid number of segments". Corrigido extraindo o `access_token` real do cookie de sessão salvo via `storageState` antes de chamar a API corretamente. Confirma que o bug era do script de teste, não da aplicação.
+
+### Conclusão
+
+Auth real (Sprint 1.8a) validada de ponta a ponta em produção com um cenário mais adversarial que o golden path original (usuário novo, confirmação real, revogação de sessão, troca de senha). Liberado para avançar ao Sprint 1.8b.
+
+### Próximo Sprint
+
+Sprint 1.8b — Recuperação de senha (forgot/reset password).
