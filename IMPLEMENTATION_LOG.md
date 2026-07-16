@@ -535,3 +535,45 @@ Erro de tipo no build: `subscribe()` retornava `() => boolean` (de `Set.delete`)
 ### Próximo Sprint
 
 Sprint 1.7 — conectar Auth e os quatro módulos de negócio ao Supabase real.
+
+---
+
+#### Sprint 1.7 — Foundation for Supabase (sem conectar)
+
+**Contexto**
+
+Usuário rejeitou pular direto para integração real: "integrar um backend antes de definir bem o modelo de dados pode gerar retrabalho." Pediu uma auditoria completa do domínio primeiro (entregue como `DATA_MODEL.md`, sprint anterior), e só então esta implementação — schema, clientes, seeds, RLS — sem conectar a nenhum projeto real e sem tocar em nenhuma tela.
+
+**Arquivos criados**
+
+`packages/database/src/{browser,server,admin}-client.ts`, `packages/database/src/generated/database.types.ts`, `packages/database/src/repositories/{studios,projects,games,knowledge-documents,submissions}-repository.ts`, `packages/database/src/{queries,mutations}/README.md` (reservados para Sprint 1.8+), `packages/database/README.md`, `supabase/migrations/*.sql` (9 arquivos), `supabase/seed/*.sql` (6 arquivos) + `supabase/seed.sql`, `supabase/config.toml` (via `supabase init`).
+
+**Arquivos alterados**
+
+`packages/database/package.json` (deps `@supabase/ssr`, `@supabase/supabase-js`, `@types/node`), `packages/database/tsconfig.json` (lib `DOM` adicionada, para o guard `typeof window` do admin-client).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.7": as três decisões que `DATA_MODEL.md` tinha deixado em aberto (progress persistido, estimate em story points, histórico de Submission via `store_reviews`) foram resolvidas; `permissions` definida como tabela global (sem `studio_id`); `users.id` = `auth.users.id` com FK explícita; trigger `handle_new_auth_user` criado como no-op proposital (onboarding de Studio é decisão de produto, não de schema, fica para 1.8).
+
+**Bugs encontrados via validação e corrigidos**
+
+1. **Seed quebrado**: `\i` (meta-comando psql) não funciona no mecanismo de seed do Supabase CLI, que aplica via protocolo Postgres direto — `seed.sql` precisou ser concatenado a partir de `seed/*.sql`, não referenciá-los.
+2. **Seed com coluna NOT NULL faltando**: `store_reviews` sem `updated_actor_type` no INSERT — só apareceu ao rodar contra Postgres real, nunca teria sido pego só lendo o SQL.
+3. **Tipos TypeScript incompatíveis com supabase-js**: `database.types.ts` hand-written inicial não tinha `Relationships`/`Views`/`Functions`/`Enums`/`CompositeTypes` no formato exato que `supabase-js` exige (`GenericSchema`) — sem eles, `.insert()`/`.update()` nos repositories inferiam `never` em vez do tipo esperado. Corrigido com um helper `Table<Row, Insert, Update>` incluindo `Relationships: []` e os campos de schema faltantes.
+4. **`users.id` sem FK para `auth.users`**: gap real na primeira versão da migration — corrigido antes mesmo de rodar (`references auth.users(id) on delete cascade`), mas registrado aqui porque era um erro real que passaria despercebido sem o hábito de revisar contra o padrão-ouro do Supabase.
+
+**Validações executadas**
+
+`pnpm build`/`typecheck`/`lint` — verdes no monorepo inteiro (12 workspaces) depois das correções acima. **Migrations e seed testados de verdade**: `supabase db start` (Docker, Postgres real) aplicou as 9 migrations e o seed sem erros; contagem de linhas de cada tabela conferida via `psql` (`studios: 1, users: 1, projects: 3, epics: 10, games: 3, game_versions: 6, builds: 6, releases: 3, submissions: 3, store_reviews: 6, knowledge_documents: 3, knowledge_document_versions: 3`); proteção append-only testada (`INSERT` em `studio_events` seguido de `UPDATE` — 0 linhas afetadas, confirmado via `SELECT`); RLS confirmado habilitado (`pg_class.relrowsecurity = true`) em `studios`, `projects`, `games`, `submissions`, `knowledge_documents`. Stack Docker parada ao final (`supabase stop`).
+
+**Pendências**
+
+- Sprint 1.8 — projeto Supabase real ainda precisa ser criado (credenciais do usuário, ou CLI com login próprio); conectar Auth primeiro.
+- `supabase/tests/` (testes de RLS, 5 cenários por tabela) — vazio ainda, listado como pendência explícita em `packages/database/README.md`.
+- Trigger de recálculo de `projects.progress` — coluna existe, trigger fica para quando Commands existirem de verdade.
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas.
+
+### Próximo Sprint
+
+Sprint 1.8 — conectar Auth ao Supabase real (requer projeto Supabase criado).

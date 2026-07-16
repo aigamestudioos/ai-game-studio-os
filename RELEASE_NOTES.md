@@ -4,6 +4,10 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.7 — Preparação para dados reais (bastidores)
+
+🔧 Nenhuma mudança visível — este sprint preparou toda a estrutura de banco de dados (tabelas, permissões, esquema de acesso) que vai substituir os dados de demonstração atuais pelos dados reais do seu estúdio, nos próximos sprints
+
 ## Sprint 1.6 — Login
 
 ✨ Agora existe uma tela de **login** (`/login`) — obrigatória para acessar Dashboard, Projects, Games, Knowledge e Publishing

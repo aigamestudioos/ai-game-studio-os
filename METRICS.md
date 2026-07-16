@@ -786,6 +786,66 @@ Autenticação simulada (email + senha, `localStorage`) protegendo as 9 páginas
 
 | Métrica | Valor |
 |---|---|
-| Vercel | Pendente (a validar após push deste incremento) |
-| Supabase | — (ainda não configurado, Sprint 1.7) |
+| Vercel | ✅ (Auth mock validado em produção) |
+| Supabase | — (schema/clientes prontos localmente; sem projeto remoto — Sprint 1.8) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 1 — Application Foundation (Sprint 1.7 — Foundation for Supabase)
+
+**Data:** 2026-07-15
+
+`packages/database` real (clientes/tipos/repositories) + 9 migrations + seeds, validados localmente via Docker. Sem conectar a nenhum projeto Supabase remoto — nenhuma tela alterada, nenhum mock removido.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0 completo + Sprint 1.1–1.7 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 (`@agsos/database` agora com implementação real) |
+| Arquivos (git-tracked) | 269 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 6122 |
+| Commits totais | 31 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Migrations validadas contra Postgres real | 9/9 (Docker local) |
+| Testes de RLS (`supabase/tests/`) | 0 — pendência explícita |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 10 (inalterado — nenhuma tela mudou neste incremento) |
+| Tabelas de banco (schema) | 27 (studios, users, roles, permissions, role_permissions, user_roles, environments, ideas, projects, epics, features, tasks, milestones, games, game_versions, builds, releases, game_localizations, certificates, provision_profiles, store_connections, submissions, store_reviews, knowledge_documents, knowledge_document_versions, knowledge_document_relations, platforms + studio_events + user_dashboard_preferences + 5 tabelas globais) |
+| Repositories implementados | 5 (Studio, Project, Game, KnowledgeDocument, Submission) |
+| Clientes Supabase | 3 (browser, server, admin — `ADR-003`) |
+| Migrations | 9 |
+| Fluxos completos (produto) | 5 (inalterado — mock continua sendo a fonte de dados real da UI) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~40s |
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ (nenhuma mudança de UI neste incremento — deploy não necessário para validação) |
+| Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |

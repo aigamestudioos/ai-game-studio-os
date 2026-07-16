@@ -6,6 +6,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.7 (Foundation for Supabase)
+- `packages/database/src/{browser,server,admin}-client.ts` — os três clientes de `ADR-003`.
+- `packages/database/src/generated/database.types.ts` — hand-written (pendente `supabase gen types` real).
+- `packages/database/src/repositories/{studios,projects,games,knowledge-documents,submissions}-repository.ts`.
+- `supabase/migrations/` — 9 migrations (ENUMs, tabelas globais, Studio/Administration, Projects, Games, Publishing, Knowledge, Event Store/preferências, trigger de auth).
+- `supabase/seed/` + `supabase/seed.sql` — dados de desenvolvimento espelhando os stores mock.
+- `DATA_MODEL.md` (na verdade do Sprint anterior, mas é a base direta desta implementação).
+- `packages/database/README.md` — documentação da estrutura e pendências.
+
+### Fixed — Sprint 1.7
+- Seed de `store_reviews` sem `updated_actor_type` (NOT NULL) — só detectado ao validar contra Postgres real via Docker, não por revisão visual do SQL.
+- `database.types.ts` inicial não seguia o formato `GenericSchema` exigido pelo `supabase-js` (faltava `Relationships`/`Views`/`Functions`/`Enums`/`CompositeTypes`), causando `never` nos métodos `.insert()`/`.update()` dos repositories.
+
 ### Added — Sprint 1.6 (Auth mock)
 - `apps/web/lib/auth-store.ts` — store mock (localStorage + pub/sub): `login(email, password)`, `logout()`, `getSession()`, `subscribe()`.
 - `apps/web/hooks/use-auth.ts` — hook `useAuth()` reativo à sessão.

@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games, Knowledge, Publishing e Auth (mock) concluídos |
+| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games, Knowledge, Publishing, Auth (mock) e Foundation for Supabase concluídos |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -33,17 +33,28 @@ Status atual do projeto AI Game Studio OS.
 | **1.4** | **Knowledge** — Dashboard → Knowledge → New Document → Document Details, 100% mock | **Concluído (local)** |
 | **1.5** | **Publishing** — Dashboard → Publishing → New Submission → Submission Details, 100% mock | **Concluído (produção)** |
 | **1.6** | 🔐 **Auth (mock)** — `/login`, rota protegida em toda a Application Shell, sessão via `localStorage` | **Concluído (local)** |
-| 1.7 | 🔄 Conectar Auth e todos os módulos ao Supabase real (substituir mocks por dados reais) | Pending |
+| **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
+| 1.8 | Conectar Auth ao Supabase real (trocar `auth-store.ts` mock) | Pending |
+| 1.9 | Conectar Projects ao Supabase real | Pending |
+| 2.0 | Conectar Games | Pending |
+| 2.1 | Conectar Knowledge | Pending |
+| 2.2 | Conectar Publishing | Pending |
 
 > Reordenação estratégica (2026-07-15): autenticação foi deliberadamente adiada para depois dos módulos de negócio (Projects → Games → Knowledge → Publishing). Motivo: evitar autenticar usuários para chegar a um sistema sem funcionalidade real; validar UX com mocks primeiro reduz retrabalho quando o Supabase for integrado (troca `const data = mockData` por `const data = await supabase...`, sem redesenhar telas). Ver `DECISIONS.md`.
 >
-> Nota adicional (1.6): não existe projeto Supabase configurado ainda (sem credenciais). O usuário optou por simular Auth (email + senha, sessão em `localStorage`, mesmo padrão dos outros stores mock) em vez de criar o projeto Supabase agora — a integração real fica inteiramente para o 1.7, que passa a cobrir Auth real **e** dados reais dos quatro módulos de negócio.
+> Segunda reordenação (2026-07-15): em vez de conectar tudo de uma vez no 1.7, o usuário separou em "Foundation" (schema/clientes/RLS, sem conectar — 1.7) e depois uma conexão incremental módulo por módulo (1.8 Auth → 1.9 Projects → 2.0 Games → 2.1 Knowledge → 2.2 Publishing). Motivo: revisar a arquitetura de dados com a UI já pronta reduz retrabalho comparado a modelar o banco antes de ter a experiência mockada validada — ver `DATA_MODEL.md` (auditoria completa) e `DECISIONS.md`.
+>
+> Nota (1.7): ainda não existe projeto Supabase real conectado (sem credenciais). Todas as migrations e o seed foram validados localmente via Docker (`supabase db start`) — Postgres real, não só revisão visual do SQL. `apps/web` continua 100% nos stores mock; a conexão real começa no 1.8.
 
 > Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
 ## Último Sprint
 
-Sprint 1.6 — Auth (mock): `apps/web/lib/auth-store.ts` (mesmo padrão seed + `localStorage` + pub/sub dos outros stores) e `hooks/use-auth.ts`. Nova página `/login` (email + senha — aceita qualquer combinação não vazia, sem validação real). `AppShell` agora verifica sessão e redireciona para `/login` se não houver uma — como todas as 9 páginas de produto usam `AppShell`, todas ficaram protegidas de uma vez, sem alteração por módulo. `UserMenu` mostra nome/email reais da sessão e o item "Sair" agora funciona (logout + redirecionamento). Botão "Login" da Landing agora aponta para `/login`.
+Sprint 1.7 — Foundation for Supabase: auditoria de dados (`DATA_MODEL.md`) implementada como schema real. `packages/database` com os três clientes de `ADR-003` (browser/server/admin), `database.types.ts` hand-written (pendente `supabase gen types` real), e repositories para os 5 Aggregate Roots em escopo (Studio, Project, Game, Submission, KnowledgeDocument). `supabase/migrations/` com 9 migrations (ENUMs, tabelas globais, Studio/Administration, Projects, Games, Publishing, Knowledge, Event Store/preferências, trigger de auth) e `supabase/seed/` espelhando os dados mock já usados nas telas. **Nenhuma tela mudou, nenhum mock foi removido** — `apps/web` continua 100% nos stores `localStorage`.
+
+Todas as migrations e o seed foram validados de verdade contra Postgres local (Docker, `supabase db start`), não só revisados visualmente: contagem de linhas conferida, proteção append-only testada (`UPDATE` em `studio_events` bloqueado), RLS confirmado habilitado em todas as tabelas de negócio. Um bug real foi encontrado nesse processo (seed de `store_reviews` sem `updated_actor_type`) e corrigido. Três decisões que a auditoria tinha deixado em aberto foram resolvidas e registradas em `DECISIONS.md`: `progress` persistido, `estimate` em story points, histórico de `Submission` via `store_reviews` (não view sobre `studio_events`).
+
+### Sprint 1.6 — Auth (mock): `apps/web/lib/auth-store.ts` (mesmo padrão seed + `localStorage` + pub/sub dos outros stores) e `hooks/use-auth.ts`. Nova página `/login` (email + senha — aceita qualquer combinação não vazia, sem validação real). `AppShell` agora verifica sessão e redireciona para `/login` se não houver uma — como todas as 9 páginas de produto usam `AppShell`, todas ficaram protegidas de uma vez, sem alteração por módulo. `UserMenu` mostra nome/email reais da sessão e o item "Sair" agora funciona (logout + redirecionamento). Botão "Login" da Landing agora aponta para `/login`.
 
 Testado o fluxo completo via Playwright: acessar `/dashboard` sem sessão → redireciona para `/login` → login → volta para `/dashboard` → menu mostra o email correto → logout → volta para `/login` → tentar `/dashboard` de novo → redireciona de novo. Regressão verificada em `/projects`, `/games`, `/knowledge`, `/publishing`, `/playground` e `/` autenticado — sem quebras. Nenhum bug de layout nos 3 breakpoints × 2 temas.
 
@@ -71,8 +82,10 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.7 — conectar Auth e os quatro módulos de negócio ao Supabase real (projeto Supabase precisa ser criado/conectado primeiro — ver `DECISIONS.md`).
+Sprint 1.8 — conectar Auth ao Supabase real. Requer, antes de qualquer coisa, um projeto Supabase de verdade (credenciais do usuário — ver `DECISIONS.md`/`packages/database/README.md`).
 
 ## Observação
 
-`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`) **e proteção de rota** (mock); `components/dashboard/` com cards, widgets e mock data; `app/projects/`, `app/games/`, `app/knowledge/`, `app/publishing/` (lista + detalhes cada) com seus stores mock (`localStorage`); `app/login/` com `lib/auth-store.ts` — cinco stores mock client-side, mesmo padrão. `/dashboard`, `/projects`, `/games`, `/knowledge` e `/publishing` em produção; `/login` local (ainda não deployado), todos 100% visual (sem Supabase/backend real). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados — nenhum projeto Supabase criado. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`) **e proteção de rota** (mock); `components/dashboard/` com cards, widgets e mock data; `app/projects/`, `app/games/`, `app/knowledge/`, `app/publishing/` (lista + detalhes cada) com seus stores mock (`localStorage`); `app/login/` com `lib/auth-store.ts` — cinco stores mock client-side, mesmo padrão, todos ainda em uso. `/dashboard`, `/projects`, `/games`, `/knowledge` e `/publishing` em produção; `/login` local (ainda não deployado), todos 100% visual (sem Supabase/backend real).
+
+`packages/database` agora tem estrutura real (clientes/tipos/repositories) e `supabase/` tem 9 migrations + seeds validados localmente — mas **nenhum projeto Supabase remoto existe ainda**, e nenhuma linha de `apps/web` foi alterada para usá-lo (fase seguinte). Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.

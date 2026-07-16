@@ -268,3 +268,43 @@ Este arquivo (`DECISIONS.md`) é o registro de decisões operacionais do dia a d
 **Decisão:** `apps/web/lib/auth-store.ts` replica o padrão de seed + `localStorage` + pub/sub já usado por `projects-store.ts`/`games-store.ts`/`knowledge-store.ts`/`publishing-store.ts`. `login(email, password)` aceita qualquer combinação não vazia (a senha nem é lida) — assinatura já compatível com a futura chamada real `supabase.auth.signInWithPassword({ email, password })`. `AppShell` passa a verificar a sessão e redirecionar para `/login` quando ausente; como as 9 páginas de produto já usam `AppShell`, todas ficaram protegidas de uma vez.
 **Motivo:** Consistente com a decisão já aprovada em 1.2 (mock com `localStorage` como exceção documentada à proibição de `ARCHITECTURE.md`) e com a escolha explícita do usuário nesta rodada.
 **Impacto:** `lib/auth-store.ts`, `hooks/use-auth.ts` e `app/login/page.tsx` são código descartável — substituídos no Incremento 1.7 por Supabase Auth real (`packages/auth`, `packages/database`, os três clientes de `ADR-003`). A troca do "gate" em `AppShell` deve continuar sendo o único ponto de verificação de sessão — nenhuma página de produto deve implementar sua própria checagem de auth.
+
+## Sprint 1.7 — Foundation for Supabase (sem conectar)
+
+Contexto geral: usuário pediu para não pular direto para a integração real, e sim preparar toda a infraestrutura primeiro (`packages/database`, schema SQL, migrations, seeds, RLS planejada), sem tocar nas telas nem remover nenhum mock — ver `DATA_MODEL.md` para a auditoria completa do modelo de dados que precedeu esta implementação.
+
+### [2026-07-15] `Project.progress` persistido (não calculado em query)
+**Contexto:** `DATA_MODEL.md` §4.3/§8 deixou como decisão em aberto: persistir `progress` como coluna ou calculá-lo a partir de epics/tasks concluídas a cada leitura.
+**Decisão:** Persistido como coluna (`projects.progress smallint`), recalculado por trigger quando epics/tasks mudarem de status — o trigger em si fica para o Sprint 1.8+ (quando Commands existirem de verdade); por ora a coluna só existe e é preenchida manualmente/pelo seed.
+**Motivo:** Listagens de `/projects` são o caminho mais frequente (Dashboard + página própria) — calcular a agregação em toda leitura penalizaria exatamente a página mais visitada. Persistir com recálculo assíncrono (trigger) é o padrão mais comum para esse tipo de métrica derivada.
+**Impacto:** Precisa de um trigger `AFTER UPDATE ON epics/tasks` no Sprint 1.8 para manter `progress` sincronizado — registrado como pendência em `packages/database/README.md`. Até lá, `progress` só é atualizado manualmente (seed) ou via Command explícito.
+
+### [2026-07-15] `Task.estimate` em story points, não horas
+**Contexto:** `DATA_MODEL.md` §8 deixou a unidade de `estimate` como decisão em aberto.
+**Decisão:** Story points (inteiro pequeno, sem unidade de tempo explícita).
+**Motivo:** Evita a falsa precisão de estimativas em horas nesta fase do produto (nenhuma tela ainda usa esse campo para nada além de exibição) — story points são mais tolerantes a incerteza e mais comuns em ferramentas de gestão de projeto de software.
+**Impacto:** Se o produto precisar de estimativas em tempo real no futuro (ex.: para cálculo de custo/Finance), isso é uma decisão nova, não uma migração trivial de unidade.
+
+### [2026-07-15] Histórico de `Submission` via `store_reviews`, não view sobre `studio_events`
+**Contexto:** `DATA_MODEL.md` §7 apresentou duas opções: tabela própria (`store_reviews`, já prevista em `DATA_MODEL.md` §4.5) ou view sobre `studio_events`.
+**Decisão:** `store_reviews` como tabela própria (uma linha por decisão de revisão), não uma view.
+**Motivo:** `store_reviews` já existia como entidade própria do domínio Publishing (`AGSOS-SPEC-002` §8: "Entidades: Submission, StoreReview, Certificate, ProvisionProfile, StoreConnection") — usá-la para o histórico é mais direto do que inventar uma view sobre o Event Store para um caso que já tem tabela dedicada no domínio. `studio_events` continua sendo a fonte de auditoria completa (todas as mudanças, não só decisões de revisão), em paralelo.
+**Impacto:** Nenhum — simplesmente usa a tabela que a SPEC já previa, em vez de criar uma alternativa.
+
+### [2026-07-15] `permissions` como tabela global (sem `studio_id`); `roles` por Studio
+**Contexto:** `DATA_MODEL.md` §4.2 marcou esse split como "ponto em aberto".
+**Decisão:** `permissions` é catálogo fixo do sistema (sem `studio_id`, mesma categoria de `platforms`/`countries`); `roles` tem `studio_id` (cada Studio nomeia suas próprias Roles, vinculando Permissions via `role_permissions`).
+**Motivo:** As capacidades do sistema (`"projects.create"`, `"publishing.approve"`, etc.) são definidas pelo código da aplicação, não pelo usuário final — não faz sentido duplicá-las por Studio. Já os nomes/composição de Roles (quem tem quais Permissions) são uma escolha de cada Studio.
+**Impacto:** `permissions` populada via seed/migration versionada pela aplicação (como as demais tabelas globais), nunca criada pelo usuário final via UI.
+
+### [2026-07-15] `users.id` = `auth.users.id` (FK explícita, sem `gen_random_uuid()` próprio)
+**Contexto:** Padrão-ouro do Supabase para tabela de "profile": a tabela pública de usuário usa o mesmo UUID do `auth.users`, nunca gera um novo.
+**Decisão:** `users.id uuid primary key references auth.users(id) on delete cascade`. `handle_new_auth_user()` trigger criado como *no-op proposital* (não popula `public.users` sozinho ainda) — decisão de onboarding (criar Studio novo vs. aceitar convite a um Studio existente) fica explicitamente pendente para o Sprint 1.8, marcada com TODO no corpo da função, para não inserir um `studio_id` fictício/incorreto silenciosamente.
+**Motivo:** Errar essa FK exigiria migração destrutiva depois. Já a lógica de onboarding é decisão de fluxo de produto, não de schema — não deveria ser resolvida "de brinde" dentro de uma migration.
+**Impacto:** O trigger existe (ponto de extensão pronto) mas está documentado como incompleto — qualquer um que reabrir esse arquivo já sabe que falta essa decisão, em vez de assumir que está pronto.
+
+### [2026-07-15] Migrations e seeds validados localmente via Docker (Supabase CLI), sem projeto remoto
+**Contexto:** Sem credenciais de um projeto Supabase real, mas o Supabase CLI local (`supabase db start`) sobe um Postgres real em Docker, permitindo validar schema/seed de verdade em vez de só revisar o SQL visualmente.
+**Decisão:** Todas as 9 migrations e o seed completo foram aplicados e verificados localmente: contagem de linhas de cada tabela conferida, proteção append-only testada (`UPDATE` em `studio_events` não altera a linha), e RLS confirmado como habilitado (`pg_class.relrowsecurity`) nas tabelas de negócio.
+**Motivo:** Mesmo sem poder conectar a produção, era possível (e mais seguro) testar contra Postgres real em vez de assumir que o SQL escrito à mão estava correto — e encontrou um bug real (`store_reviews` sem `updated_actor_type` no INSERT do seed, corrigido).
+**Impacto:** Stack Docker local foi parada ao final (`supabase stop`) — não fica rodando entre sessões. Quem retomar o Sprint 1.8 pode repetir esse mesmo processo de validação local antes de `supabase link` para um projeto real.
