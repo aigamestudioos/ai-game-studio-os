@@ -711,3 +711,46 @@ Este sub-sprint elimina o Auth mock (`localStorage`, Sprint 1.6) e o substitui p
 ### Próximo Sprint
 
 Sprint 1.8b — Recuperação de senha (forgot/reset password).
+
+---
+
+## Sprint 1.8a — correção de deploy (pós-commit)
+
+**Status:** Concluído (produção)
+**Período:** 2026-07-16
+
+### Objetivo
+
+O commit `a4e96a5` (Sprint 1.8a) quebrou o deploy da Vercel: `Module not found: Can't resolve '@agsos/database'` durante `pnpm --filter web build`. Investigação completa antes de qualquer alteração, causa raiz identificada e corrigida.
+
+### Investigação
+
+Confirmado, nesta ordem: `packages/database/package.json` tem `"name": "@agsos/database"` correto; `apps/web/package.json` tem `"@agsos/database": "workspace:*"` correto; `pnpm-workspace.yaml` inclui `packages/*`; `turbo.json` tem `"build": { "dependsOn": ["^build"] }` correto; `hooks/use-auth.ts` importa `createBrowserClient`/`AuthError`/`Session` de `@agsos/database` — todos exportados de fato por `packages/database/src/index.ts`. Nenhum desses pontos estava errado.
+
+Causa raiz real: `DECISIONS.md` (Incremento 0.6) documenta que o **Root Directory do projeto na Vercel é `apps/web`**, com Build Command padrão `next build` — não `turbo run build` da raiz do monorepo. Até este sprint, `apps/web` nunca importava nenhum pacote do workspace (nem `@agsos/ui` — `components/ui/` são cópias locais), então o `dist/` compilado de `packages/database` nunca precisou existir para o build da Vercel funcionar. Este foi o primeiro commit em que `apps/web` passou a depender de um pacote do workspace — e o build isolado da Vercel (`next build` dentro de `apps/web`, sem rodar o pipeline do turbo) não compila `packages/database` antes, então `dist/index.js` (apontado por `"main"` no `package.json`) não existia no ambiente de build da Vercel.
+
+### Correção (causa raiz, sem solução paliativa)
+
+`apps/web/package.json` ganhou um script `"prebuild": "pnpm --filter @agsos/database build"` — `pnpm run build` executa `prebuild` automaticamente antes de `build` (comportamento padrão de lifecycle scripts do pnpm/npm), garantindo que `packages/database` seja compilado mesmo quando a Vercel só invoca o `build` de `apps/web` isoladamente. Nenhum código foi copiado para `apps/web` — a arquitetura de pacotes/dependências permanece exatamente como estava (`ADR-003`).
+
+Verificado localmente simulando o cenário da Vercel: `rm -rf packages/database/dist` seguido de `pnpm --filter web build` a partir do zero — sucesso, confirmando que o `prebuild` resolve a causa raiz e não é uma suposição.
+
+Corrigido também, no mesmo commit: `apps/web/middleware.ts` passou a importar de `@agsos/database/server-client` (novo subpath export em `packages/database/package.json`) em vez do barrel `@agsos/database`, evitando que `admin-client.ts` (que usa `@supabase/supabase-js` puro, não `@supabase/ssr`) seja arrastado para o bundle do Edge Runtime do Middleware — endurecimento preventivo, não a causa da falha original.
+
+### Validações executadas
+
+`pnpm install` / `pnpm build` / `pnpm lint` / `pnpm typecheck` — verdes no monorepo inteiro (12/12) antes do commit. Commit `9d6f681` — deploy da Vercel confirmado com sucesso (`gh api .../commits/9d6f681/status` → `state: success`).
+
+### Validação em produção
+
+Middleware confirmado ativo: `curl -I /dashboard` sem sessão → `307` para `/login?redirect=%2Fdashboard`; mesmo teste em `/playground` → `307`. Golden path completo (script Playwright ad-hoc) rodado contra `https://ai-game-studio-os-web.vercel.app`: 14/14 checks passaram (guard de rota, login com usuário real, navegação entre módulos, sessão persistente em reload/nova aba, logout, bloqueio pós-logout, novo login, redirecionamento de `/login` autenticado, erro de credencial inválida). 0 overflow em 6 combinações breakpoint × tema. Screenshot de produção do Dashboard autenticado confirmado visualmente, sem regressão.
+
+Os únicos erros de console observados foram 404s de `/favicon.ico` (pendência antiga, não relacionada a este sprint — projeto nunca teve favicon) e o 400 esperado do teste de credencial inválida (resposta HTTP normal do Supabase para login rejeitado, não um bug).
+
+### Pendências
+
+Nenhuma nova. Sprint 1.8a está de fato concluído, incluindo produção.
+
+### Próximo Sprint
+
+Sprint 1.8b — Recuperação de senha (forgot/reset password).
