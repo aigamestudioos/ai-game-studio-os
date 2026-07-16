@@ -6,6 +6,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Ambiente de integração Supabase
+- `apps/web/.env.example` — todas as variáveis necessárias, documentadas, sem valores.
+- `apps/web/.env.local` — credenciais reais do projeto Supabase `dev` (URL + publishable key); `SUPABASE_SECRET_KEY` deixada vazia, sinalizada para preenchimento manual. Não versionado (protegido por `.gitignore` da raiz).
+- `apps/web/lib/env.ts` — módulo centralizado e tipado de acesso a variáveis de ambiente; falha cedo com mensagem clara se uma variável obrigatória faltar, em vez de `undefined` silencioso.
+
+### Changed — Ambiente de integração Supabase
+- `packages/database/src/{browser,server,admin}-client.ts` — migrados de `NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` (nomenclatura antiga do Supabase) para `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_SECRET_KEY` (nomenclatura atual), para bater com as credenciais reais do projeto criado.
+- `SUPABASE_SECRET_KEY` padronizada como nomenclatura oficial do projeto (auditoria confirmou zero referências restantes a `SUPABASE_SERVICE_ROLE_KEY`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` em código-fonte — ver `DECISIONS.md`).
+
 ### Added — Sprint 1.7 (Foundation for Supabase)
 - `packages/database/src/{browser,server,admin}-client.ts` — os três clientes de `ADR-003`.
 - `packages/database/src/generated/database.types.ts` — hand-written (pendente `supabase gen types` real).

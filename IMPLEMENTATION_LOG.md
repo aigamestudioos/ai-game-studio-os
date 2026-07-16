@@ -577,3 +577,73 @@ Ver `DECISIONS.md` § "Sprint 1.7": as três decisões que `DATA_MODEL.md` tinha
 ### Próximo Sprint
 
 Sprint 1.8 — conectar Auth ao Supabase real (requer projeto Supabase criado).
+
+---
+
+## Ambiente de integração Supabase (pré-Sprint 1.8)
+
+**Status:** Concluído (local, não commitado até aprovação do usuário)
+**Período:** 2026-07-16
+
+### Objetivo
+
+Usuário criou o projeto Supabase `dev` (`vkyswyuxitwakjqjteso`) e pediu para configurar o ambiente de `apps/web` seguindo boas práticas: `.env.example` documentado, `.env.local` com as credenciais reais, proteção via `.gitignore`, módulo tipado de acesso a variáveis de ambiente, e validação de que a aplicação lê tudo sem erros — antes de conectar qualquer código de fato (isso continua sendo o Sprint 1.8).
+
+### Arquivos criados
+
+- `apps/web/.env.example` — todas as variáveis (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_VERCEL_URL`), comentadas, sem valores.
+- `apps/web/.env.local` — URL e publishable key reais do projeto `dev`; `SUPABASE_SECRET_KEY` deixada vazia com aviso explícito no próprio arquivo (⚠️) para o usuário colar a chave manualmente — nunca solicitada nem recebida via chat.
+- `apps/web/lib/env.ts` — módulo `env` centralizado; cada variável obrigatória é validada na leitura (`required()`), lançando erro descritivo em vez de deixar `undefined` se propagar silenciosamente. `supabaseSecretKey` é um getter (leitura sob demanda), não uma propriedade eager, para não quebrar em contextos que só precisam das variáveis públicas enquanto a secret key ainda não existe.
+
+### Arquivos alterados
+
+- `packages/database/src/{browser,server,admin}-client.ts` — nomes de variável migrados de `NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` (nomenclatura antiga do Supabase) para `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_SECRET_KEY` (nomenclatura atual), para bater com as credenciais reais do projeto — sem isso, `packages/database` e `apps/web/.env.local` estariam lendo nomes de variável diferentes e a conexão do Sprint 1.8 falharia silenciosamente.
+
+### Decisões tomadas
+
+Ver `DECISIONS.md`: `SUPABASE_SECRET_KEY` nunca é solicitada nem recebida via texto/chat — o `.env.local` foi criado com o campo vazio e um aviso visual, para o usuário colar diretamente no arquivo local.
+
+### Validações executadas
+
+`tsc --noEmit` em `apps/web` — sem erros. `pnpm build` (monorepo completo, 12 workspaces) — verde, incluindo `@agsos/database` (que agora usa os novos nomes de variável) e `web`. Parse manual do `.env.local` confirmado (todos os 5 valores presentes, `SUPABASE_SECRET_KEY` vazio como esperado). Nenhum código em `apps/web` importa `lib/env.ts` ainda — a conexão real de fato é o Sprint 1.8; esta etapa só garante que a leitura de ambiente funciona antes de qualquer código depender dela.
+
+### Pendências
+
+- ~~Usuário precisa colar a `SUPABASE_SECRET_KEY` real em `apps/web/.env.local`~~ — feito pelo usuário diretamente no arquivo local (já cadastrada também na Vercel).
+- Sprint 1.8 — conectar `AppShell`/`auth-store.ts` ao Supabase real usando `packages/database` + este `env.ts`.
+
+### Próximo Sprint
+
+Sprint 1.8 — conectar Auth ao Supabase real.
+
+---
+
+## Padronização: `SUPABASE_SECRET_KEY` (pré-Sprint 1.8)
+
+**Status:** Concluído (commit local, sem push)
+**Período:** 2026-07-16
+
+### Objetivo
+
+Formalizar `SUPABASE_SECRET_KEY` como nomenclatura oficial e definitiva do projeto (substituindo a legada `SUPABASE_SERVICE_ROLE_KEY`), auditar o repositório inteiro por referências remanescentes, e registrar a decisão arquitetural — sem alterar nenhuma funcionalidade nem implementar Auth ainda.
+
+### Auditoria realizada
+
+`grep -rn "SUPABASE_SERVICE_ROLE_KEY\|SUPABASE_ANON_KEY"` em todo o repositório (excluindo `node_modules`): zero ocorrências em código-fonte (`packages/`, `apps/`, `supabase/`). As únicas ocorrências restantes são entradas datadas em `CHANGELOG.md`/`IMPLEMENTATION_LOG.md`/`DECISIONS.md` que descrevem, no passado, a migração já realizada — mantidas como registro histórico, não como configuração viva.
+
+### Arquivos alterados
+
+- `DECISIONS.md` — nova entrada formalizando a padronização como decisão definitiva.
+- `CHANGELOG.md`, `IMPLEMENTATION_LOG.md`, `PROJECT_STATUS.md` — registrada a padronização e a confirmação de que o usuário já colou a Secret Key real em `.env.local` e cadastrou na Vercel.
+
+### Validações executadas
+
+`pnpm build` / `pnpm lint` / `pnpm typecheck` — verdes no monorepo inteiro.
+
+### Pendências
+
+Nenhuma nova. Sprint 1.8 (Auth real) segue como próximo passo.
+
+### Próximo Sprint
+
+Sprint 1.8 — conectar Auth ao Supabase real.

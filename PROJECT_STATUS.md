@@ -34,7 +34,7 @@ Status atual do projeto AI Game Studio OS.
 | **1.5** | **Publishing** — Dashboard → Publishing → New Submission → Submission Details, 100% mock | **Concluído (produção)** |
 | **1.6** | 🔐 **Auth (mock)** — `/login`, rota protegida em toda a Application Shell, sessão via `localStorage` | **Concluído (local)** |
 | **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
-| — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Pending (ação do usuário) |
+| — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
 | 1.8 | Conectar Auth ao Supabase real (trocar `auth-store.ts` mock) — login/logout/refresh token/middleware/sessão persistente | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
