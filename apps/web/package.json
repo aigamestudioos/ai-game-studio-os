@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "pnpm --filter @agsos/database build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app providers hooks lib components",

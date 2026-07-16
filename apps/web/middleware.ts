@@ -1,4 +1,8 @@
-import { createServerClient } from "@agsos/database";
+// Importa direto do subpath `server-client`, não do barrel `@agsos/database` —
+// o barrel também reexporta admin-client.ts, que usa `@supabase/supabase-js`
+// puro (não `@supabase/ssr`) e arrasta dependências de Realtime/WebSocket
+// incompatíveis com o Edge Runtime do Middleware, mesmo sem ser chamado.
+import { createClient as createServerClient } from "@agsos/database/server-client";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Rotas acessíveis sem sessão. Todo o restante é protegido — se uma rota nova
