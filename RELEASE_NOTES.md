@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.6 — Login
+
+✨ Agora existe uma tela de **login** (`/login`) — obrigatória para acessar Dashboard, Projects, Games, Knowledge e Publishing
+✨ Menu do usuário mostra seu nome e email de verdade, e o botão **Sair** agora funciona
+🔧 Ainda é uma demonstração — qualquer email e senha entram, sem conta real ainda. Autenticação de verdade chega com a integração ao Supabase
+
 ## Sprint 1.5 — Publishing
 
 ✨ Novo módulo **Publishing**, em `/publishing` — acompanhe a publicação dos seus jogos nas lojas

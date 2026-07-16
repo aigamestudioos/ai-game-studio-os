@@ -727,6 +727,65 @@ Application Shell reutilizável (Header + Sidebar + Content) construída e usada
 
 | Métrica | Valor |
 |---|---|
+| Vercel | ✅ Publishing validado em produção |
+| Supabase | — (ainda não configurado, Sprint 1.7) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 1 — Application Foundation (Sprint 1.6 — Auth mock)
+
+**Data:** 2026-07-15
+
+Autenticação simulada (email + senha, `localStorage`) protegendo as 9 páginas de produto via `AppShell`. Sem projeto Supabase — ver `DECISIONS.md`.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0 completo + Sprint 1.1–1.6 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 238 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 4477 |
+| Commits totais | 28 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 10 (`/`, `/login`, `/dashboard`, `/projects`(+`[id]`), `/games`(+`[id]`), `/knowledge`(+`[id]`), `/publishing`(+`[id]`), `/playground`) |
+| Rotas | 12 + `robots.txt`/`sitemap.xml` |
+| Componentes UI (design system) | 16 |
+| Componentes de layout | 5 |
+| Fluxos completos | 5 (Projects, Games, Knowledge, Publishing + Login/Logout — todos mock) |
+| Rotas protegidas | 9 (todas as páginas de produto, via `AppShell`) |
+| Deploys | 11 (este incremento ainda não deployado) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~37s |
+| Rotas geradas | 15 |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
 | Vercel | Pendente (a validar após push deste incremento) |
-| Supabase | — (ainda não configurado, Sprint 1.6) |
+| Supabase | — (ainda não configurado, Sprint 1.7) |
 | Ambientes | Production (`main`, deploy automático a cada push) |

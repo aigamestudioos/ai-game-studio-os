@@ -1,6 +1,8 @@
 "use client";
 
 import { LogOut, Settings, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../hooks/use-auth";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import {
   DropdownMenu,
@@ -11,13 +13,23 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-export function UserMenu({ name = "Fundador", email = "founder@aigamestudio.os" }) {
+export function UserMenu() {
+  const { session, logout } = useAuth();
+  const router = useRouter();
+
+  const name = session?.name ?? "Convidado";
+  const email = session?.email ?? "";
   const initials = name
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  function handleLogout() {
+    logout();
+    router.push("/login");
+  }
 
   return (
     <DropdownMenu>
@@ -44,7 +56,7 @@ export function UserMenu({ name = "Fundador", email = "founder@aigamestudio.os" 
           Configurações
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={handleLogout}>
           <LogOut className="mr-sm size-4" aria-hidden="true" />
           Sair
         </DropdownMenuItem>

@@ -497,3 +497,41 @@ Nenhum.
 ### Próximo Sprint
 
 Sprint 1.6 — Supabase Auth (login/logout, controle de acesso).
+
+---
+
+#### Sprint 1.6 — Auth (mock)
+
+**Contexto**
+
+Ao iniciar, não havia projeto Supabase criado/conectado (sem credenciais — mesma limitação da Vercel no Incremento 0.6). Perguntado ao usuário: criar projeto agora (exige login dele, que eu não posso fazer sozinho) ou simular. Escolheu simular, com email + senha.
+
+**Arquivos criados**
+
+`apps/web/lib/auth-store.ts`, `apps/web/hooks/use-auth.ts`, `apps/web/app/login/page.tsx`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/app-shell.tsx` (verificação de sessão + redirecionamento), `apps/web/components/layout/user-menu.tsx` (sessão real, logout funcional), `apps/web/components/landing/header.tsx` (botão Login).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.6": mesmo padrão de store mock (localStorage + pub/sub) já aprovado em 1.2; `AppShell` como único ponto de verificação de sessão (as 9 páginas de produto ficaram protegidas de uma vez, sem alteração por módulo).
+
+**Bugs encontrados via validação e corrigidos**
+
+Erro de tipo no build: `subscribe()` retornava `() => boolean` (de `Set.delete`) em vez de `() => void`, o que `useEffect` não aceita como cleanup. Corrigido envolvendo o `delete` em chaves (`{ listeners.delete(listener); }`) — mesmo padrão já usado nos outros stores, que eu não tinha seguido à risca no primeiro rascunho.
+
+**Validações executadas**
+
+`pnpm build` (12 rotas), `pnpm typecheck`, `pnpm lint` — todos ✅ (após a correção acima). Playwright: fluxo completo testado — acessar `/dashboard` sem sessão → redireciona para `/login` → login → volta para `/dashboard` → menu mostra email correto → logout → volta para `/login` → tentar `/dashboard` de novo → redireciona de novo. `/login` capturado em 2 temas × 3 breakpoints, zero overflow, zero erros de console. Regressão verificada em `/projects`, `/games`, `/knowledge`, `/publishing`, `/playground` e `/` autenticado — sem quebras.
+
+**Pendências**
+
+- Push e deploy deste incremento.
+- Sprint 1.7 — projeto Supabase real precisa ser criado (mesma decisão pendente: usuário cria e compartilha credenciais, ou usa o Supabase CLI com login próprio) antes de substituir os cinco stores mock (`auth`, `projects`, `games`, `knowledge`, `publishing`) por dados reais.
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas.
+
+### Próximo Sprint
+
+Sprint 1.7 — conectar Auth e os quatro módulos de negócio ao Supabase real.

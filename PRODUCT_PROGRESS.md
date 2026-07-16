@@ -12,3 +12,8 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 0.4c | _(congelado por decisão estratégica — Playground não será mais expandido; energia vai para telas reais do produto)_ |
 | 0.5 | A home antiga virou uma **Landing Page completa**: primeira impressão real do produto, com visão geral, como funciona, módulos, benefícios, roadmap e FAQ |
 | 1.1 | Existe um **Dashboard** de verdade em `/dashboard` — menu com todos os módulos, estatísticas, ações rápidas, projetos recentes, atividade e insights de IA (ainda sem login/dados reais) |
+| 1.2 | Agora é possível **criar um projeto de verdade**: `/projects` → New Project → preencher → ver o projeto criado com progresso e epics em `/projects/[id]` |
+| 1.3 | Mesmo fluxo para **jogos**: `/games` → Create Game → escolher plataformas → acompanhar builds no Game Workspace |
+| 1.4 | Mesmo fluxo para a **base de conhecimento**: `/knowledge` → New Document → escolher tipo → ler o documento completo |
+| 1.5 | Mesmo fluxo para **publicação**: `/publishing` → New Submission → escolher loja → acompanhar o histórico de status da submissão |
+| 1.6 | Agora existe **login** (`/login`) — obrigatório para acessar qualquer área do produto; o menu do usuário mostra sua sessão real e "Sair" funciona (ainda uma demonstração, sem conta real) |

@@ -45,8 +45,8 @@ export function Header() {
         <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label="Alternar tema">
           {theme === "dark" ? "☀︎" : "☾"}
         </Button>
-        <Button variant="ghost" size="sm">
-          Login
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/login">Login</Link>
         </Button>
         <Button asChild size="sm">
           <Link href="/dashboard">Dashboard</Link>

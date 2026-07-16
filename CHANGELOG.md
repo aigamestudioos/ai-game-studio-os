@@ -6,6 +6,14 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.6 (Auth mock)
+- `apps/web/lib/auth-store.ts` — store mock (localStorage + pub/sub): `login(email, password)`, `logout()`, `getSession()`, `subscribe()`.
+- `apps/web/hooks/use-auth.ts` — hook `useAuth()` reativo à sessão.
+- `apps/web/app/login/page.tsx` — formulário de login (email + senha, mock).
+- `apps/web/components/layout/app-shell.tsx` — agora redireciona para `/login` quando não há sessão (protege as 9 páginas de produto de uma vez).
+- `apps/web/components/layout/user-menu.tsx` — mostra nome/email reais da sessão; "Sair" agora desloga de verdade.
+- `apps/web/components/landing/header.tsx` — botão "Login" aponta para `/login`.
+
 ### Added — Sprint 1.5 (Publishing)
 - `apps/web/lib/publishing-store.ts` — store mock cliente (localStorage), mesmo padrão dos módulos anteriores: `useSubmissions`/`useSubmission`/`addSubmission`/`getSubmission`, seed com submissões de Nebula Drift/Sprint Runner/Hyper Dash (loja, versão, status, histórico de eventos).
 - `apps/web/components/publishing/cards.tsx` — `SubmissionCard` (status Em análise/Aprovado/Rejeitado/Publicado + loja/versão).

@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games, Knowledge e Publishing concluídos |
+| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games, Knowledge, Publishing e Auth (mock) concluídos |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation
@@ -31,17 +31,23 @@ Status atual do projeto AI Game Studio OS.
 | **1.2** | **Projects** — primeiro fluxo de negócio (Dashboard → Projects → New Project → Project Details), 100% mock | **Concluído (local)** |
 | **1.3** | **Games** (Game Workspace) — Dashboard → Games → Create Game → Game Workspace, 100% mock | **Concluído (local)** |
 | **1.4** | **Knowledge** — Dashboard → Knowledge → New Document → Document Details, 100% mock | **Concluído (local)** |
-| **1.5** | **Publishing** — Dashboard → Publishing → New Submission → Submission Details, 100% mock | **Concluído (local)** |
-| 1.6 | 🔐 Supabase Auth + login/logout + controle de acesso | Pending |
-| 1.7 | 🔄 Conectar todos os módulos ao Supabase (substituir mocks por dados reais) | Pending |
+| **1.5** | **Publishing** — Dashboard → Publishing → New Submission → Submission Details, 100% mock | **Concluído (produção)** |
+| **1.6** | 🔐 **Auth (mock)** — `/login`, rota protegida em toda a Application Shell, sessão via `localStorage` | **Concluído (local)** |
+| 1.7 | 🔄 Conectar Auth e todos os módulos ao Supabase real (substituir mocks por dados reais) | Pending |
 
 > Reordenação estratégica (2026-07-15): autenticação foi deliberadamente adiada para depois dos módulos de negócio (Projects → Games → Knowledge → Publishing). Motivo: evitar autenticar usuários para chegar a um sistema sem funcionalidade real; validar UX com mocks primeiro reduz retrabalho quando o Supabase for integrado (troca `const data = mockData` por `const data = await supabase...`, sem redesenhar telas). Ver `DECISIONS.md`.
+>
+> Nota adicional (1.6): não existe projeto Supabase configurado ainda (sem credenciais). O usuário optou por simular Auth (email + senha, sessão em `localStorage`, mesmo padrão dos outros stores mock) em vez de criar o projeto Supabase agora — a integração real fica inteiramente para o 1.7, que passa a cobrir Auth real **e** dados reais dos quatro módulos de negócio.
 
 > Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
 ## Último Sprint
 
-Sprint 1.5 — Publishing: quarto fluxo de negócio, mesmo padrão dos módulos anteriores (`/publishing` e `/publishing/[id]`), 100% mock. `/publishing` lista as submissões (novo `SubmissionCard`, status Em análise/Aprovado/Rejeitado/Publicado) e tem o botão **New Submission**, que abre um `Dialog` com jogo (texto livre, ver `DECISIONS.md` sobre não acoplar a `games-store.ts`), versão e seleção de loja (App Store/Google Play/Steam) e cria a submissão via `apps/web/lib/publishing-store.ts`. A página de detalhes mostra o histórico de status como timeline; ids inexistentes caem em `notFound()`. Sidebar e o Quick Action "Publish" do Dashboard agora apontam para `/publishing`.
+Sprint 1.6 — Auth (mock): `apps/web/lib/auth-store.ts` (mesmo padrão seed + `localStorage` + pub/sub dos outros stores) e `hooks/use-auth.ts`. Nova página `/login` (email + senha — aceita qualquer combinação não vazia, sem validação real). `AppShell` agora verifica sessão e redireciona para `/login` se não houver uma — como todas as 9 páginas de produto usam `AppShell`, todas ficaram protegidas de uma vez, sem alteração por módulo. `UserMenu` mostra nome/email reais da sessão e o item "Sair" agora funciona (logout + redirecionamento). Botão "Login" da Landing agora aponta para `/login`.
+
+Testado o fluxo completo via Playwright: acessar `/dashboard` sem sessão → redireciona para `/login` → login → volta para `/dashboard` → menu mostra o email correto → logout → volta para `/login` → tentar `/dashboard` de novo → redireciona de novo. Regressão verificada em `/projects`, `/games`, `/knowledge`, `/publishing`, `/playground` e `/` autenticado — sem quebras. Nenhum bug de layout nos 3 breakpoints × 2 temas.
+
+### Sprint 1.5 — Publishing: quarto fluxo de negócio, mesmo padrão dos módulos anteriores (`/publishing` e `/publishing/[id]`), 100% mock. `/publishing` lista as submissões (novo `SubmissionCard`, status Em análise/Aprovado/Rejeitado/Publicado) e tem o botão **New Submission**, que abre um `Dialog` com jogo (texto livre, ver `DECISIONS.md` sobre não acoplar a `games-store.ts`), versão e seleção de loja (App Store/Google Play/Steam) e cria a submissão via `apps/web/lib/publishing-store.ts`. A página de detalhes mostra o histórico de status como timeline; ids inexistentes caem em `notFound()`. Sidebar e o Quick Action "Publish" do Dashboard agora apontam para `/publishing`.
 
 Testado o fluxo completo (golden path) via Playwright: abrir `/publishing` → "New Submission" → preencher jogo/versão → selecionar loja → criar → toast de confirmação → clicar no card criado → chegar em `/publishing/[id]` com os dados corretos. Nenhum bug de layout encontrado nos 3 breakpoints × 2 temas.
 
@@ -65,8 +71,8 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.6 — Supabase Auth (login/logout, controle de acesso), depois dos quatro módulos de negócio (Projects, Games, Knowledge, Publishing) — ver nota de reordenação acima.
+Sprint 1.7 — conectar Auth e os quatro módulos de negócio ao Supabase real (projeto Supabase precisa ser criado/conectado primeiro — ver `DECISIONS.md`).
 
 ## Observação
 
-`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`); `components/dashboard/` com cards, widgets e mock data; `app/projects/` (lista + detalhes) com `lib/projects-store.ts`; `app/games/` (lista + Game Workspace) com `lib/games-store.ts` e `components/games/cards.tsx`; `app/knowledge/` (lista + detalhes) com `lib/knowledge-store.ts` e `components/knowledge/cards.tsx`; `app/publishing/` (lista + histórico) com `lib/publishing-store.ts` e `components/publishing/cards.tsx` — quatro stores mock client-side (localStorage), mesmo padrão. `/dashboard`, `/projects`, `/games` e `/knowledge` em produção; `/publishing` local (ainda não deployado), todos 100% visual (sem Supabase/backend/auth). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
+`apps/web` — `components/ui/` com 16 componentes; `components/landing/` (Landing em produção); `components/layout/` agora com a Application Shell completa (`AppShell`, `TopBar`, `Sidebar`, `SearchBar`, `UserMenu`) **e proteção de rota** (mock); `components/dashboard/` com cards, widgets e mock data; `app/projects/`, `app/games/`, `app/knowledge/`, `app/publishing/` (lista + detalhes cada) com seus stores mock (`localStorage`); `app/login/` com `lib/auth-store.ts` — cinco stores mock client-side, mesmo padrão. `/dashboard`, `/projects`, `/games`, `/knowledge` e `/publishing` em produção; `/login` local (ainda não deployado), todos 100% visual (sem Supabase/backend real). `packages/` (11 packages `@agsos/*`) e `supabase/` existem no repositório, ainda não integrados — nenhum projeto Supabase criado. Processo regido por `AGENT.md`/`CLAUDE.md`/`DEFINITION_OF_DONE.md`/`VISION.md`; evolução de produto rastreada em `PRODUCT_PROGRESS.md`.
