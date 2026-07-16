@@ -4,6 +4,14 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8a — Login de verdade
+
+✨ O login agora é **real** — validado por um servidor (Supabase), não mais uma demonstração que aceitava qualquer senha
+✨ Sua sessão persiste entre recarregar a página, fechar e abrir o navegador, e entre abas — sem precisar entrar de novo enquanto ela for válida
+✨ Mensagens de erro amigáveis quando o login falha (email/senha incorretos, etc.)
+🔧 Recuperação de senha ("Esqueceu a senha?") ainda não está disponível — chega no próximo sprint
+🔧 O Playground agora também exige login, como qualquer outra área do produto
+
 ## Sprint 1.7 — Preparação para dados reais (bastidores)
 
 🔧 Nenhuma mudança visível — este sprint preparou toda a estrutura de banco de dados (tabelas, permissões, esquema de acesso) que vai substituir os dados de demonstração atuais pelos dados reais do seu estúdio, nos próximos sprints

@@ -2,8 +2,9 @@
 
 import { LogOut, Settings, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "../../hooks/use-auth";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +17,13 @@ import {
 export function UserMenu() {
   const { session, logout } = useAuth();
   const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const name = session?.name ?? "Convidado";
-  const email = session?.email ?? "";
+  const user = session?.user;
+  const name: string =
+    (user?.user_metadata?.full_name as string | undefined) ?? user?.email?.split("@")[0] ?? "Convidado";
+  const email = user?.email ?? "";
+  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const initials = name
     .split(" ")
     .map((part) => part[0])
@@ -26,8 +31,9 @@ export function UserMenu() {
     .slice(0, 2)
     .toUpperCase();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    setLoggingOut(true);
+    await logout();
     router.push("/login");
   }
 
@@ -38,6 +44,7 @@ export function UserMenu() {
         aria-label="Menu do usuário"
       >
         <Avatar>
+          {avatarUrl ? <AvatarImage src={avatarUrl} alt={name} /> : null}
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
@@ -56,9 +63,9 @@ export function UserMenu() {
           Configurações
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={handleLogout}>
+        <DropdownMenuItem onSelect={handleLogout} disabled={loggingOut}>
           <LogOut className="mr-sm size-4" aria-hidden="true" />
-          Sair
+          {loggingOut ? "Saindo..." : "Sair"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

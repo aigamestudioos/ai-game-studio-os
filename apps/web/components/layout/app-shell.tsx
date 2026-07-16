@@ -13,8 +13,12 @@ import { TopBar } from "./topbar";
 // Publishing, Marketing, Analytics, Finance e Settings — nenhum desses módulos
 // deve recriar header/sidebar próprios.
 //
-// Rota protegida (mock, Sprint 1.6): redireciona para /login se não houver
-// sessão. Vira verificação real de sessão Supabase no Incremento 1.7.
+// Rota protegida: sessão real do Supabase Auth (via useAuth/onAuthStateChange).
+// O middleware (apps/web/middleware.ts) já bloqueia a navegação no servidor;
+// este redirecionamento client-side é a rede de segurança para quando a sessão
+// expira/é encerrada enquanto a aba já está aberta (ex.: logout em outra aba,
+// token expirado) — sem isso, o usuário ficaria numa tela protegida "morta"
+// até a próxima navegação. Nenhuma página individual deve replicar esta checagem.
 export function AppShell({ breadcrumbs, children }: { breadcrumbs: Breadcrumb[]; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);

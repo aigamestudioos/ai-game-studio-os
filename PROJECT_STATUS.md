@@ -35,7 +35,10 @@ Status atual do projeto AI Game Studio OS.
 | **1.6** | 🔐 **Auth (mock)** — `/login`, rota protegida em toda a Application Shell, sessão via `localStorage` | **Concluído (local)** |
 | **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
 | — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
-| 1.8 | Conectar Auth ao Supabase real (trocar `auth-store.ts` mock) — login/logout/refresh token/middleware/sessão persistente | Pending |
+| 1.8a | Núcleo de Auth real — login/logout/sessão (restore+refresh+listener)/middleware/AppShell+UserMenu reais | **Concluído (local)** |
+| 1.8b | Recuperação de senha — `/forgot-password`, `/reset-password` | Pending |
+| 1.8c | Estados de erro/UX — páginas 401/403, loading elaborado, seção Auth no Playground | Pending |
+| 1.8d | QA completo — Playwright real, regressão, documentação final, validação em produção | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
 | 2.1 | Conectar Games ao Supabase real | Pending |
@@ -49,6 +52,8 @@ Status atual do projeto AI Game Studio OS.
 > Terceira reordenação (2026-07-16): inserido **Studios** entre Auth (1.8) e os CRUDs de negócio (agora 2.0–2.3, renumerados). Motivo: `Studio` é o Aggregate Root do qual todo o resto depende (`studio_id` em quase toda tabela) — conectar Projects/Games antes de Studios existir de verdade forçaria um `studio_id` fictício. Ver `DECISIONS.md`.
 >
 > Nota (1.7): ainda não existe projeto Supabase real conectado (sem credenciais). Todas as migrations e o seed foram validados localmente via Docker (`supabase db start`) — Postgres real, não só revisão visual do SQL. `apps/web` continua 100% nos stores mock; a conexão real começa no 1.8, bloqueada até os ambientes Development/Production serem criados (ver linha acima e `DECISIONS.md`).
+>
+> Quarta reordenação (2026-07-16): Sprint 1.8 dividido em 1.8a–1.8d — o pedido original excedia os limites do `CLAUDE.md` (~10 arquivos novos/50 total antes de parar e propor divisão). Ver `DECISIONS.md`. **1.8a concluído**: Auth mock eliminada, login/logout/sessão/middleware reais via Supabase Auth (`packages/database`). `packages/auth` (`@agsos/auth`) segue como stub vazio — decisão explícita de não populá-lo ainda (Auth continua em `apps/web/hooks/use-auth.ts`).
 
 ## Releases
 
@@ -63,6 +68,10 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 > Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
 ## Último Sprint
+
+Sprint 1.8a — Núcleo de Auth real: Auth mock (`localStorage`, Sprint 1.6) eliminada por completo. `apps/web/hooks/use-auth.ts` reescrito com Supabase Auth real (login/logout via `signInWithPassword`/`signOut`, sessão restaurada com `getSession()` e mantida via `onAuthStateChange` — cobre refresh automático de token e expiração sem polling manual). Novo `apps/web/middleware.ts` protege rotas por allowlist (`/`, `/login`, `/forgot-password`, `/reset-password` públicas — resto protegido por padrão) usando `getUser()` (valida o token no servidor, não só lê o cookie). `AppShell` e `UserMenu` atualizados para a sessão real; `/login` ganhou estados de loading/erro reais e link para recuperação de senha (página ainda não existe). Pedido original do usuário era um sprint de Auth completo (login/logout/sessão/middleware/forgot-reset/401-403/Playground/QA total) — dividido em 1.8a (este) → 1.8b → 1.8c → 1.8d após identificar que excedia os limites do `CLAUDE.md`; usuário aprovou a divisão antes de qualquer código ser escrito.
+
+Golden path completo testado via Playwright (script ad-hoc): guard de rota protegida → login com usuário de teste real (`test@aigamestudioos.com`, criado pelo usuário no Supabase `dev`) → dashboard → projects/games/knowledge/publishing → reload (sessão persiste) → nova aba (sessão compartilhada) → logout → bloqueio pós-logout → novo login (sessão restaurada) → `/login` autenticado redireciona a `/dashboard`. 14/14 checks passaram. Testado credenciais inválidas (mensagem amigável, sem crash). 0 overflow em 6 combinações breakpoint × tema. `/playground` passou a exigir login (antes não usava `AppShell`, não era protegido nem pelo mock) — mudança de comportamento intencional, consistente com a política "todo o restante protegido" do middleware.
 
 Sprint 1.7 — Foundation for Supabase: auditoria de dados (`DATA_MODEL.md`) implementada como schema real. `packages/database` com os três clientes de `ADR-003` (browser/server/admin), `database.types.ts` hand-written (pendente `supabase gen types` real), e repositories para os 5 Aggregate Roots em escopo (Studio, Project, Game, Submission, KnowledgeDocument). `supabase/migrations/` com 9 migrations (ENUMs, tabelas globais, Studio/Administration, Projects, Games, Publishing, Knowledge, Event Store/preferências, trigger de auth) e `supabase/seed/` espelhando os dados mock já usados nas telas. **Nenhuma tela mudou, nenhum mock foi removido** — `apps/web` continua 100% nos stores `localStorage`.
 
@@ -96,7 +105,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Antes do Sprint 1.8: separar ambientes Development/Production no Supabase e na Vercel (ação do usuário — ver `DECISIONS.md`). Depois disso, Sprint 1.8 — conectar Auth ao Supabase real, seguido de Sprint 1.9 (Studios) antes de qualquer CRUD de negócio real.
+Sprint 1.8b — Recuperação de senha (`/forgot-password`, `/reset-password`). Depois, 1.8c (401/403/Playground) e 1.8d (QA completo + regressão + documentação final + validação em produção), fechando o Sprint 1.8 antes de avançar para 1.9 (Studios).
 
 ## Observação
 

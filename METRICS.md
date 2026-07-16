@@ -792,6 +792,63 @@ Autenticação simulada (email + senha, `localStorage`) protegendo as 9 páginas
 
 ---
 
+## Sprint 1.8a — Núcleo de Auth real (login/logout/sessão/middleware)
+
+**Data:** 2026-07-16
+
+Auth mock (`localStorage`) eliminada. Login, logout, sessão (restore + auto refresh + `onAuthStateChange`) e proteção de rotas via middleware agora usam Supabase Auth real, através de `packages/database`. Forgot/reset password, páginas 401/403 e seção de Auth no Playground ficam para os sub-sprints seguintes (1.8b/c/d — sprint dividido por exceder os limites do `CLAUDE.md`).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0 completo + Sprint 1.1–1.7 + 1.8a |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 (`apps/web` agora consome `@agsos/database` diretamente) |
+| Arquivos (git-tracked) | 271 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 6195 |
+| Commits totais | 34 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 (Playwright ad-hoc via script, não suíte configurada) |
+| Cobertura (%) | 0% |
+| Golden path validado (Playwright) | 14/14 checks — login, logout, sessão persistente (reload/nova aba), redirecionamento de rota protegida, redirecionamento de `/login` autenticado, erro de credenciais inválidas |
+| Overflow (6 combinações breakpoint × tema) | 0 |
+| Erros de console (fora do 400 esperado do teste de credencial inválida) | 0 |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 12 (inalterado — nenhuma página nova, `/login` reescrita) |
+| Providers | 1 (`ThemeProvider` — `AuthProvider` dedicado ainda não existe, sessão via hook `useAuth`) |
+| Hooks | 3 (`use-auth` reescrito para Supabase real) |
+| Middleware | 1 (novo — `apps/web/middleware.ts`, proteção de rotas allowlist) |
+| Rotas públicas | 4 (`/`, `/login`, `/forgot-password`*, `/reset-password`*) — *ainda sem página própria, criadas no 1.8b |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Usuário de teste | `test@aigamestudioos.com`, criado manualmente pelo usuário no projeto Supabase `dev` |
+| Clientes Supabase em uso | browser + server (via middleware) — admin ainda não usado por `apps/web` |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | Pendente validação pós-push (ver relatório) |
+| Supabase | `dev` conectado e em uso real pela primeira vez |
+
 ## Sprint 1 — Application Foundation (Sprint 1.7 — Foundation for Supabase)
 
 **Data:** 2026-07-15

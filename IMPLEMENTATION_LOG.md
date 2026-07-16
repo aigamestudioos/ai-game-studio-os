@@ -647,3 +647,67 @@ Nenhuma nova. Sprint 1.8 (Auth real) segue como próximo passo.
 ### Próximo Sprint
 
 Sprint 1.8 — conectar Auth ao Supabase real.
+
+---
+
+## Sprint 1.8a — Núcleo de Auth real (login/logout/sessão/middleware)
+
+**Status:** Concluído (local)
+**Período:** 2026-07-16
+
+### Objetivo
+
+Pedido original do usuário pedia um sprint completo de Auth (login, logout, sessão, middleware, forgot/reset password, páginas 401/403, seção no Playground, Playwright completo em 6 páginas × 3 breakpoints × 2 temas, 7 documentos). Antes de escrever código, isso foi identificado como excedendo os limites do `CLAUDE.md` (máx. ~10 arquivos novos/50 total antes de parar e propor divisão) e dividido, com aprovação do usuário, em 4 sub-sprints: **1.8a Núcleo** (este) → 1.8b Recuperação de senha → 1.8c Estados de erro/UX (401/403/Playground) → 1.8d QA completo + regressão + documentação final.
+
+Este sub-sprint elimina o Auth mock (`localStorage`, Sprint 1.6) e o substitui por Supabase Auth real: login por email/senha, logout, restore de sessão, refresh automático de token, `onAuthStateChange`, e proteção de rotas via middleware.
+
+### Leitura prévia (AGENT.md/DEFINITION_OF_DONE.md)
+
+`ADR-003` (frozen) confirma os três clientes de `packages/database` como única camada de acesso a dados/auth — sem conflito com o pedido do usuário de usar exclusivamente `packages/database` + `apps/web/lib/env.ts`. `ARCHITECTURE.md` (não-frozen) descreve um `@agsos/auth` (`packages/auth`, já existe como stub vazio) e uma stack de Providers (`AuthProvider`, etc.) como visão de longo prazo — decisão explícita de **não** criar/popular esse pacote agora, seguindo a mesma abordagem incremental do Sprint 1.6 (hook simples em `apps/web`, sem pacote dedicado ainda) e o escopo que o próprio usuário definiu para este pedido.
+
+### Arquivos criados
+
+- `apps/web/middleware.ts` — proteção de rotas (allowlist `/`, `/login`, `/forgot-password`, `/reset-password`; resto protegido), usa `supabase.auth.getUser()` (valida token no servidor) via `createServerClient` de `packages/database`.
+
+### Arquivos alterados
+
+- `apps/web/hooks/use-auth.ts` — reescrito por completo: Supabase Auth real, singleton de client no módulo (evita múltiplas instâncias de `GoTrueClient`), `mapAuthError()` para mensagens amigáveis.
+- `apps/web/app/login/page.tsx` — login real, loading/erro, suporte a `?redirect=`.
+- `apps/web/components/layout/app-shell.tsx` — gate de sessão real (mantido como único ponto de proteção client-side).
+- `apps/web/components/layout/user-menu.tsx` — nome/email/avatar reais da sessão.
+- `apps/web/package.json` — dependência `@agsos/database` (workspace) adicionada.
+- `packages/database/src/index.ts` — re-exporta `Session`/`User`/`AuthError`.
+
+### Arquivos removidos
+
+- `apps/web/lib/auth-store.ts` — mock eliminado.
+
+### Decisões tomadas
+
+- Não criar `packages/auth` neste sub-sprint (ver "Leitura prévia" acima).
+- Client Supabase singleton no módulo do hook (não em `packages/database`) para não instanciar múltiplos `GoTrueClient` no browser.
+- Middleware usa `getUser()`, não `getSession()` — valida o token contra o servidor do Supabase em vez de confiar no cookie sem verificação.
+- `AppShell` mantém seu próprio gate client-side (rede de segurança para sessão expirando com a aba já aberta) além do middleware (boundary de segurança real) — os dois não são redundantes, cobrem momentos diferentes.
+
+### Validações executadas
+
+`pnpm install`/`build`/`lint`/`typecheck` — verdes no monorepo inteiro (12/12). Golden path completo testado via Playwright (script ad-hoc, sem suíte permanente ainda): guard de rota protegida sem sessão → login com usuário de teste real (`test@aigamestudioos.com`, criado manualmente pelo usuário no Supabase `dev`) → dashboard → projects/games/knowledge/publishing → reload (sessão persiste) → nova aba (sessão compartilhada) → logout → redirecionado a `/login` → tentativa de acessar rota protegida de novo (bloqueada) → novo login (sessão restaurada) → visitar `/login` autenticado (redireciona a `/dashboard`) — 14/14 checks passaram. Testado também credenciais inválidas (mensagem amigosa, sem crash). Screenshots em 3 breakpoints × 2 temas — 0 overflow em todas as combinações.
+
+### Bugs encontrados e corrigidos (no próprio processo de teste, não no app)
+
+- Script de teste inicial invertia luz/escuro: o tema padrão da aplicação é **claro** (script de anti-FOUC em `layout.tsx` seta `data-theme="light"` antes da hidratação), não escuro como o estado inicial do `ThemeProvider` sugeria à primeira vista — corrigido no script, não é um bug do app.
+
+### Observações / mudança de comportamento intencional
+
+`/playground` passou a exigir login — antes (Sprint 1.6) não usava `AppShell` e por isso não era protegido nem pelo mock. O middleware protege por allowlist (só `/`, `/login`, `/forgot-password`, `/reset-password` são públicas), então `/playground` — e qualquer rota nova futura — fica protegida por padrão, exatamente como o usuário especificou ("todo o restante protegido").
+
+### Pendências
+
+- Sprint 1.8b — `/forgot-password`, `/reset-password` (o link "Esqueceu a senha?" em `/login` já existe, mas a página de destino ainda não).
+- Sprint 1.8c — páginas 401/403, estados de loading mais elaborados (skeletons), seção de Auth no Playground.
+- Sprint 1.8d — Playwright como suíte de verdade (não script ad-hoc), regressão completa, documentação final consolidada, validação em produção (Vercel).
+- `packages/auth` (`@agsos/auth`) segue vazio — decisão explícita de não populá-lo ainda.
+
+### Próximo Sprint
+
+Sprint 1.8b — Recuperação de senha (forgot/reset password).

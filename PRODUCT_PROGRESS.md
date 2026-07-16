@@ -18,3 +18,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 1.5 | Mesmo fluxo para **publicação**: `/publishing` → New Submission → escolher loja → acompanhar o histórico de status da submissão |
 | 1.6 | Agora existe **login** (`/login`) — obrigatório para acessar qualquer área do produto; o menu do usuário mostra sua sessão real e "Sair" funciona (ainda uma demonstração, sem conta real) |
 | 1.7 | _Nenhum — sprint de infraestrutura (banco de dados preparado nos bastidores, sem mudança visível na aplicação)_ |
+| 1.8a | O **login agora é de verdade** — sua conta e senha são validadas por um servidor real (Supabase), não mais uma demonstração. Sua sessão continua válida entre recarregar a página, fechar/abrir o navegador e abrir em outra aba, sem precisar entrar de novo |

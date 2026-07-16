@@ -6,6 +6,20 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8a (Núcleo de Auth real)
+- `apps/web/middleware.ts` — proteção de rotas por allowlist (`/`, `/login`, `/forgot-password`, `/reset-password` públicas; todo o resto protegido), usando `packages/database` (`createServerClient`) e `supabase.auth.getUser()` (valida o token no servidor, não só lê o cookie).
+- `packages/database/src/index.ts` — re-exporta `Session`/`User`/`AuthError` de `@supabase/supabase-js` (único ponto de acesso a esses tipos; `apps/web` não importa `@supabase/supabase-js` diretamente).
+
+### Changed — Sprint 1.8a (Núcleo de Auth real)
+- `apps/web/hooks/use-auth.ts` — reescrito: login/logout reais via Supabase Auth (`signInWithPassword`/`signOut`), sessão restaurada com `getSession()` e mantida sincronizada via `onAuthStateChange` (cobre refresh automático de token e expiração). Client singleton no módulo para evitar múltiplas instâncias de `GoTrueClient`. Inclui `mapAuthError()` — traduz erros do Supabase para mensagens amigáveis em português.
+- `apps/web/app/login/page.tsx` — login real com estados de loading/erro, redireciona para `?redirect=` (setado pelo middleware) ou `/dashboard`, link "Esqueceu a senha?" (página ainda não existe — 1.8b).
+- `apps/web/components/layout/app-shell.tsx` — gate de sessão real (mantém a responsabilidade centralizada; nenhuma página individual verifica auth).
+- `apps/web/components/layout/user-menu.tsx` — nome/email/avatar vêm do `user_metadata`/`email` da sessão real do Supabase; logout com estado de loading.
+- `apps/web/package.json` — adicionada dependência `@agsos/database` (workspace).
+
+### Removed — Sprint 1.8a (Núcleo de Auth real)
+- `apps/web/lib/auth-store.ts` — mock de auth (`localStorage`) eliminado por completo.
+
 ### Added — Ambiente de integração Supabase
 - `apps/web/.env.example` — todas as variáveis necessárias, documentadas, sem valores.
 - `apps/web/.env.local` — credenciais reais do projeto Supabase `dev` (URL + publishable key); `SUPABASE_SECRET_KEY` deixada vazia, sinalizada para preenchimento manual. Não versionado (protegido por `.gitignore` da raiz).
