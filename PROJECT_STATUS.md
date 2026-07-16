@@ -34,17 +34,31 @@ Status atual do projeto AI Game Studio OS.
 | **1.5** | **Publishing** — Dashboard → Publishing → New Submission → Submission Details, 100% mock | **Concluído (produção)** |
 | **1.6** | 🔐 **Auth (mock)** — `/login`, rota protegida em toda a Application Shell, sessão via `localStorage` | **Concluído (local)** |
 | **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
-| 1.8 | Conectar Auth ao Supabase real (trocar `auth-store.ts` mock) | Pending |
-| 1.9 | Conectar Projects ao Supabase real | Pending |
-| 2.0 | Conectar Games | Pending |
-| 2.1 | Conectar Knowledge | Pending |
-| 2.2 | Conectar Publishing | Pending |
+| — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Pending (ação do usuário) |
+| 1.8 | Conectar Auth ao Supabase real (trocar `auth-store.ts` mock) — login/logout/refresh token/middleware/sessão persistente | Pending |
+| 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
+| 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
+| 2.1 | Conectar Games ao Supabase real | Pending |
+| 2.2 | Conectar Knowledge ao Supabase real | Pending |
+| 2.3 | Conectar Publishing ao Supabase real | Pending |
 
 > Reordenação estratégica (2026-07-15): autenticação foi deliberadamente adiada para depois dos módulos de negócio (Projects → Games → Knowledge → Publishing). Motivo: evitar autenticar usuários para chegar a um sistema sem funcionalidade real; validar UX com mocks primeiro reduz retrabalho quando o Supabase for integrado (troca `const data = mockData` por `const data = await supabase...`, sem redesenhar telas). Ver `DECISIONS.md`.
 >
-> Segunda reordenação (2026-07-15): em vez de conectar tudo de uma vez no 1.7, o usuário separou em "Foundation" (schema/clientes/RLS, sem conectar — 1.7) e depois uma conexão incremental módulo por módulo (1.8 Auth → 1.9 Projects → 2.0 Games → 2.1 Knowledge → 2.2 Publishing). Motivo: revisar a arquitetura de dados com a UI já pronta reduz retrabalho comparado a modelar o banco antes de ter a experiência mockada validada — ver `DATA_MODEL.md` (auditoria completa) e `DECISIONS.md`.
+> Segunda reordenação (2026-07-15): em vez de conectar tudo de uma vez no 1.7, o usuário separou em "Foundation" (schema/clientes/RLS, sem conectar — 1.7) e depois uma conexão incremental módulo por módulo. Motivo: revisar a arquitetura de dados com a UI já pronta reduz retrabalho comparado a modelar o banco antes de ter a experiência mockada validada — ver `DATA_MODEL.md` (auditoria completa) e `DECISIONS.md`.
 >
-> Nota (1.7): ainda não existe projeto Supabase real conectado (sem credenciais). Todas as migrations e o seed foram validados localmente via Docker (`supabase db start`) — Postgres real, não só revisão visual do SQL. `apps/web` continua 100% nos stores mock; a conexão real começa no 1.8.
+> Terceira reordenação (2026-07-16): inserido **Studios** entre Auth (1.8) e os CRUDs de negócio (agora 2.0–2.3, renumerados). Motivo: `Studio` é o Aggregate Root do qual todo o resto depende (`studio_id` em quase toda tabela) — conectar Projects/Games antes de Studios existir de verdade forçaria um `studio_id` fictício. Ver `DECISIONS.md`.
+>
+> Nota (1.7): ainda não existe projeto Supabase real conectado (sem credenciais). Todas as migrations e o seed foram validados localmente via Docker (`supabase db start`) — Postgres real, não só revisão visual do SQL. `apps/web` continua 100% nos stores mock; a conexão real começa no 1.8, bloqueada até os ambientes Development/Production serem criados (ver linha acima e `DECISIONS.md`).
+
+## Releases
+
+A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Releases" como agrupamento estável (números de sprint já foram reordenados mais de uma vez — ver `ADR-005-sprint-governance.md`):
+
+| Release | Escopo | Status |
+|---|---|---|
+| **0.1** | Landing, Dashboard, Projects, Games, Knowledge, Publishing, Login (mock), Deploy | **Concluída** (Sprints 0–1.7) |
+| 0.2 | Banco real, Studios, Auth real, CRUDs reais (Sprints 1.8–2.3) | Em andamento |
+| 0.3 | IA (backlog/milestones/tarefas/estimativa/documentação/cronograma gerados por IA), Analytics, Marketing, Finance | Futura |
 
 > Nota: `docs/frozen/roadmap/AGSOS-PLAN-001.md` (frozen, não editado) define uma sequência diferente das tabelas acima. A numeração operacional foi refinada e reordenada mais de uma vez por decisão explícita do usuário — ver `ADR-005-sprint-governance.md` e `DECISIONS.md` para o histórico completo dessas divergências. O que era tratado como "Incremento 0.6" (Dashboard) passou a ser o Sprint 1 formalmente, já que o usuário o descreveu como "Application Foundation" — um sprint novo, não mais um incremento do Sprint 0.
 
@@ -82,7 +96,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8 — conectar Auth ao Supabase real. Requer, antes de qualquer coisa, um projeto Supabase de verdade (credenciais do usuário — ver `DECISIONS.md`/`packages/database/README.md`).
+Antes do Sprint 1.8: separar ambientes Development/Production no Supabase e na Vercel (ação do usuário — ver `DECISIONS.md`). Depois disso, Sprint 1.8 — conectar Auth ao Supabase real, seguido de Sprint 1.9 (Studios) antes de qualquer CRUD de negócio real.
 
 ## Observação
 
