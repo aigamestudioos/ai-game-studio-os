@@ -4,6 +4,13 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.5 — Publishing
+
+✨ Novo módulo **Publishing**, em `/publishing` — acompanhe a publicação dos seus jogos nas lojas
+✨ Botão **New Submission** abre um formulário com jogo, versão e loja (App Store, Google Play ou Steam)
+✨ Cada submissão tem sua própria página com o histórico completo de status
+🔧 Ainda sem login, banco de dados real ou integração com as lojas — as submissões criadas ficam salvas só neste navegador, prontas para virar dados reais quando o Supabase e os adapters externos forem integrados
+
 ## Sprint 1.4 — Knowledge
 
 ✨ Novo módulo **Knowledge**, em `/knowledge` — a base de conhecimento do estúdio

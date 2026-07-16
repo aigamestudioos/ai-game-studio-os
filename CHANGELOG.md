@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.5 (Publishing)
+- `apps/web/lib/publishing-store.ts` — store mock cliente (localStorage), mesmo padrão dos módulos anteriores: `useSubmissions`/`useSubmission`/`addSubmission`/`getSubmission`, seed com submissões de Nebula Drift/Sprint Runner/Hyper Dash (loja, versão, status, histórico de eventos).
+- `apps/web/components/publishing/cards.tsx` — `SubmissionCard` (status Em análise/Aprovado/Rejeitado/Publicado + loja/versão).
+- `apps/web/app/publishing/page.tsx` — lista de submissões + diálogo "New Submission" (jogo, versão, seleção de loja — App Store/Google Play/Steam — via badges alternáveis).
+- `apps/web/app/publishing/[id]/page.tsx` — página de detalhes com histórico de status (timeline com ícone por evento); `notFound()` para ids inexistentes.
+
+### Changed — Sprint 1.5
+- `apps/web/components/layout/sidebar.tsx` — item "Publishing" ganhou `href="/publishing"`.
+- `apps/web/app/dashboard/page.tsx` — Quick Action "Publish" agora navega para `/publishing`.
+
 ### Added — Sprint 1.4 (Knowledge)
 - `apps/web/lib/knowledge-store.ts` — store mock cliente (localStorage), mesmo padrão de `projects-store.ts`/`games-store.ts`: `useDocuments`/`useDocument`/`addDocument`/`getDocument`, seed com Onboarding Playbook/Code Review SOP/Convenções de Nomenclatura (título, resumo, tipo, status, conteúdo).
 - `apps/web/components/knowledge/cards.tsx` — `DocumentCard` (status Rascunho/Publicado + tipo como badge outline).

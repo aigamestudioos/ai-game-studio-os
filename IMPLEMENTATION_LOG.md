@@ -465,3 +465,35 @@ Nenhum.
 ### Próximo Sprint
 
 Sprint 1.5 — Publishing, 100% mockado.
+
+#### Incremento 1.5 — Publishing
+
+**Arquivos criados**
+
+`apps/web/lib/publishing-store.ts`, `apps/web/components/publishing/cards.tsx`, `apps/web/app/publishing/page.tsx`, `apps/web/app/publishing/[id]/page.tsx`, `docs/screenshots/sprint-1.5/*`.
+
+**Arquivos alterados**
+
+`apps/web/components/layout/sidebar.tsx` (item "Publishing" ganhou `href`), `apps/web/app/dashboard/page.tsx` (Quick Action "Publish" agora navega para `/publishing`).
+
+**Decisões tomadas**
+
+Ver `DECISIONS.md` § "Sprint 1.5": quarta réplica do padrão de store mock (Projects → Games → Knowledge → Publishing). Diferente dos anteriores, o diálogo "New Submission" pede o nome do jogo como texto livre em vez de referenciar `games-store.ts` — SPEC-007 define que Publishing consome Games só via Domain Event (`ReleaseReadyForSubmission`), nunca por acesso direto; simular esse acoplamento entre stores mock introduziria uma integração que não reflete a arquitetura real e seria descartada do mesmo jeito no Incremento 1.7.
+
+**Validações executadas**
+
+`pnpm lint`, `pnpm typecheck`, `pnpm build` (11 páginas, incluindo as quatro rotas dinâmicas dos módulos de negócio) — todos ✅. Playwright: `/publishing` e `/publishing/[id]` em dark/light (desktop) + 3 breakpoints, zero overflow horizontal, zero erros de página. Golden path testado de ponta a ponta: abrir `/publishing` → "New Submission" → preencher jogo/versão → selecionar loja (Google Play) → criar → toast "Submissão criada" → clicar no card recém-criado → chegar em `/publishing/[id]` com histórico correto.
+
+**Bugs encontrados via validação**
+
+Nenhum.
+
+**Pendências**
+
+- Push e deploy deste incremento (próximo passo) — `/publishing` ainda não está em produção.
+- Sprint 1.6 (Supabase Auth) é o próximo, agora que os quatro módulos de negócio (Projects, Games, Knowledge, Publishing) estão concluídos — ver reordenação em `DECISIONS.md`.
+- CI (GitHub Actions) e favicon/OG seguem como pendências antigas, sem posição fixa no roadmap atual.
+
+### Próximo Sprint
+
+Sprint 1.6 — Supabase Auth (login/logout, controle de acesso).

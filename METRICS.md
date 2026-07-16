@@ -668,3 +668,65 @@ Application Shell reutilizável (Header + Sidebar + Content) construída e usada
 | Vercel | Pendente (a validar após push deste incremento) |
 | Supabase | — (ainda não configurado, Sprint 1.6) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+## Sprint 1 — Application Foundation (Incremento 1.5 — Publishing)
+
+**Data:** 2026-07-15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0 completo (0.1–0.5) + Sprint 1.1 + Sprint 1.2 + Sprint 1.3 + Sprint 1.4 + Sprint 1.5 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 207 (+18 neste incremento, incluindo screenshots) |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 3881 |
+| Commits totais | 25 (após este incremento) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 (sugestão do usuário, ainda pendente) |
+| Cobertura (%) | 0% |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 11 (`/`, `/dashboard`, `/playground`, `/projects`, `/projects/[id]`, `/games`, `/games/[id]`, `/knowledge`, `/knowledge/[id]`, `/publishing`, `/publishing/[id]`) |
+| Rotas | 11 + `robots.txt`/`sitemap.xml` |
+| Componentes UI (design system) | 16 |
+| Componentes de layout (Application Shell) | 5 (AppShell, TopBar, Sidebar, SearchBar, UserMenu) |
+| Componentes de dashboard | 8 |
+| Componentes de games | 1 (GameCard) |
+| Componentes de knowledge | 1 (DocumentCard) |
+| Componentes de publishing | 1 (SubmissionCard) |
+| Stores mock client-side | 4 (`projects-store.ts`, `games-store.ts`, `knowledge-store.ts`, `publishing-store.ts`, todos localStorage) |
+| Providers | 1 (ThemeProvider) |
+| Hooks | 2 (useTheme, useToast) |
+| Features | 0 |
+| Fluxos completos | 4 (Projects, Games, Knowledge, Publishing — todos Dashboard → Lista → Criar → Detalhes, 100% mock) |
+| Deploys | 11 (pushes para `main` com deploy validado; este incremento ainda não deployado) |
+| ADRs | 4 (002, 003, 004, 005) |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo) | ~42s |
+| Rotas geradas | 14 |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | Pendente (a validar após push deste incremento) |
+| Supabase | — (ainda não configurado, Sprint 1.6) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

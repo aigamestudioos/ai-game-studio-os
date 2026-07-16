@@ -28,7 +28,7 @@ const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Games", href: "/games", icon: Gamepad2 },
   { label: "AI", icon: Sparkles },
-  { label: "Publishing", icon: Rocket },
+  { label: "Publishing", href: "/publishing", icon: Rocket },
   { label: "Marketing", icon: Megaphone },
   { label: "Analytics", icon: BarChart3 },
   { label: "Finance", icon: Wallet },
