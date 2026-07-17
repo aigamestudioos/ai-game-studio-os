@@ -386,3 +386,23 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Usuário adicionou ao Redirect URLs do projeto: `https://ai-game-studio-os-web.vercel.app/reset-password`, `https://aigamestudioos.com/reset-password` e `http://localhost:3000/reset-password` (dashboard-only, fora do meu alcance).
 **Motivo:** Sem essa configuração, nenhuma implementação de código resolveria o problema — é puramente uma configuração de infraestrutura do projeto Supabase.
 **Impacto:** Qualquer nova rota que dependa de redirect de email (convites, magic link, etc. em sprints futuros) vai precisar do mesmo tratamento — adicionar ao Redirect URLs antes de assumir que o fluxo funciona.
+
+## Sprint 1.8c — User Workspace
+
+### [2026-07-17] Perfil/preferências em `auth.users.user_metadata`, não em `public.users` (bloqueio de dependência com Studios)
+**Contexto:** Escopo do sprint (ampliado pelo usuário para "User Workspace": perfil, timezone, idioma, tema persistido, segurança, zona de risco) esbarrou em um conflito arquitetural real: `public.users.studio_id` é `NOT NULL`, Studios ainda não existe (Sprint 1.8d/1.9), `public.users` está vazia, e o trigger de auth é no-op de propósito (Sprint 1.7). Perguntado ao usuário antes de escrever código: usar `user_metadata` (sem depender de Studios) ou antecipar um Studio mínimo automático agora.
+**Decisão:** `user_metadata` do próprio `auth.users` (via `supabase.auth.updateUser({ data: {...} })`) guarda `full_name`, `avatar_url`, `timezone`, `locale` e `theme`. Nenhuma tabela nova criada, nenhuma migration neste sprint.
+**Motivo:** Ainda é uma tabela real do Postgres do projeto (schema `auth`), não `localStorage` — persiste de verdade entre sessões/dispositivos, só não é `public.users` porque essa tabela estruturalmente exige um Studio primeiro. Antecipar um Studio "descartável" só para satisfazer essa FK inverteria a ordem que o próprio usuário definiu (Perfil antes de Studios) e criaria um Studio fake que precisaria ser reconciliado depois.
+**Impacto:** Quando Studios existir, migrar esses 5 campos de `user_metadata` para `public.users` é uma migração pequena e isolada — não deve exigir mudança de UI, só trocar a fonte de leitura/escrita em `use-auth.ts`. Registrado como pendência explícita em `IMPLEMENTATION_LOG.md`.
+
+### [2026-07-17] "Sessões ativas" implementado como botão único ("sair de todos os dispositivos"), não como lista
+**Contexto:** Escopo pedia "Sessões ativas" como parte da Segurança. O SDK client-side do Supabase não expõe uma lista real de sessões (dispositivo, IP, data do login) para o próprio usuário — isso exigiria a Admin API (secret key, server-only) ou rastreamento próprio de sessões (tabela custom), nenhum dos dois no escopo deste sprint.
+**Decisão:** Em vez de simular uma lista com dados fictícios (o que seria enganoso), implementado só `signOutEverywhere()` — `supabase.auth.signOut({ scope: "global" })`, encerra a sessão em todos os dispositivos de uma vez.
+**Motivo:** Mostrar uma "lista de sessões" com dados inventados (nome de dispositivo, localização) seria pior do que não mostrar nada — o usuário confiaria em informação falsa. A ação útil e honesta que dá para entregar agora é o logout global.
+**Impacto:** Se uma lista de sessões de verdade for pedida no futuro, é um recurso novo (rastreamento de sessão customizado ou Admin API via Server Action), não uma extensão trivial deste botão.
+
+### [2026-07-17] Exclusão de conta: placeholder funcional (modal real, ação final não destrutiva)
+**Contexto:** Escopo pedia "Exclusão da conta (placeholder)" explicitamente.
+**Decisão:** O modal de confirmação é real (usa o componente `Modal`/AlertDialog do design system, mesmo padrão de outras ações destrutivas do produto), mas o botão de confirmação final não exclui nada — mostra um toast "Exclusão de conta ainda não disponível, entre em contato com o suporte".
+**Motivo:** Exclusão real de conta exige a Admin API (`auth.admin.deleteUser`, server-only) e uma decisão de produto ainda não tomada sobre o que acontece com o Studio associado ao usuário (transferir posse? excluir o Studio inteiro? bloquear se houver outros membros?) — implementar a exclusão de verdade agora seria resolver essa pergunta de produto às pressas, sem o contexto de Studios que só existe a partir do Sprint 1.8d/1.9.
+**Impacto:** Quando Studios existir e a política de exclusão for decidida, trocar só o `handleConfirm` do `DangerZoneSection` por uma Server Action real — a UI (modal, avisos, confirmação) já está pronta.

@@ -37,7 +37,7 @@ Status atual do projeto AI Game Studio OS.
 | — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
 | 1.8a | Núcleo de Auth real — login/logout/sessão (restore+refresh+listener)/middleware/AppShell+UserMenu reais | **Concluído (produção)** |
 | 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, Playwright, revisão visual, produção | **Concluído (produção)** — template de email personalizado pendente (dashboard-only) |
-| 1.8c | Perfil do usuário — avatar, nome, preferências, tema salvo no banco, configurações da conta | Pending |
+| 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (local)** — falta validar produção |
 | 1.8d | Organização (Studios) — múltiplos estúdios, convites, papéis (Owner/Admin/Member), RLS | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
@@ -69,7 +69,9 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 1.8b — Password Recovery: `/forgot-password` (formulário de email, mensagem de sucesso genérica — não revela se o email existe) e `/reset-password` (nova senha + confirmação, medidor de força via `evaluatePasswordStrength()`). Achado de infraestrutura durante o teste: o Redirect URL do link de recovery caía silenciosamente no domínio raiz em vez de `/reset-password` porque a URL não estava na allowlist do projeto Supabase (Authentication → URL Configuration) — corrigido pelo usuário no dashboard. Segundo achado: o link de recovery pode vir em dois formatos (`?code=` PKCE ou `#access_token=` implicit grant) — `reset-password/page.tsx` trata os dois, já que sem acesso a uma caixa de entrada real não dá para confirmar com certeza qual formato o Supabase entrega no email de produção. Ver `DECISIONS.md`.
+Sprint 1.8c — User Workspace: `/settings/account` com Perfil (nome, avatar via URL, timezone, idioma), Preferências (tema, agora persistido em `user_metadata` — antes só existia em memória por sessão), Segurança (trocar senha, "sair de todos os dispositivos") e Zona de risco (exclusão de conta como placeholder funcional — modal real, ação final não destrutiva). Conflito arquitetural identificado e resolvido antes de codar: `public.users` exige Studio (inexistente ainda), então perfil/preferências vivem em `auth.users.user_metadata` por enquanto — ver `DECISIONS.md`. 13/13 passos de teste Playwright (Admin API) passaram localmente, incluindo confirmação de que o tema persiste entre sessões diferentes via banco (não `localStorage`).
+
+### Sprint 1.8b — Password Recovery: `/forgot-password` (formulário de email, mensagem de sucesso genérica — não revela se o email existe) e `/reset-password` (nova senha + confirmação, medidor de força via `evaluatePasswordStrength()`). Achado de infraestrutura durante o teste: o Redirect URL do link de recovery caía silenciosamente no domínio raiz em vez de `/reset-password` porque a URL não estava na allowlist do projeto Supabase (Authentication → URL Configuration) — corrigido pelo usuário no dashboard. Segundo achado: o link de recovery pode vir em dois formatos (`?code=` PKCE ou `#access_token=` implicit grant) — `reset-password/page.tsx` trata os dois, já que sem acesso a uma caixa de entrada real não dá para confirmar com certeza qual formato o Supabase entrega no email de produção. Ver `DECISIONS.md`.
 
 13/13 passos de um script Playwright ad-hoc (Admin API, autorizado explicitamente pelo usuário) passaram localmente: sucesso em `/forgot-password`, anti-enumeração (mesma mensagem para email inexistente), formulário de nova senha aparece, indicador de força, validação de confirmação, redefinição redireciona a `/login`, login com senha nova funciona, link inválido mostra estado de erro elegante, sem overflow no mobile.
 
@@ -109,7 +111,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8c — Perfil do usuário (avatar, nome, preferências, tema salvo no banco, configurações da conta).
+Validar Sprint 1.8c em produção (commit/push pendente). Depois, Sprint 1.8d — Organização (Studios).
 
 ## Observação
 

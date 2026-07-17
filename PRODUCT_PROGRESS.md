@@ -20,3 +20,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 1.7 | _Nenhum — sprint de infraestrutura (banco de dados preparado nos bastidores, sem mudança visível na aplicação)_ |
 | 1.8a | O **login agora é de verdade** — sua conta e senha são validadas por um servidor real (Supabase), não mais uma demonstração. Sua sessão continua válida entre recarregar a página, fechar/abrir o navegador e abrir em outra aba, sem precisar entrar de novo |
 | 1.8b | Agora é possível **recuperar a senha** — "Esqueceu sua senha?" no login envia um email com link de redefinição, com indicador de força da nova senha |
+| 1.8c | Nova tela de **Configurações da conta** — edite nome, avatar, fuso horário e idioma; sua preferência de **tema** agora é salva de verdade (não reseta em outro dispositivo); troque a senha ou saia de todos os dispositivos sem sair do app |

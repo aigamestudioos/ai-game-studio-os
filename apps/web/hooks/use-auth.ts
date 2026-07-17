@@ -125,6 +125,28 @@ export function useAuth() {
     if (error) throw error;
   }
 
+  // Perfil e preferências (nome, avatar, timezone, locale, tema) vivem em
+  // auth.users.user_metadata — não em public.users, porque essa tabela
+  // exige studio_id (NOT NULL) e Studios ainda não existe (Sprint 1.8d).
+  // Quando Studios for implementado, migrar esses campos para public.users
+  // é uma migração pequena e isolada, não um retrabalho de UI.
+  async function updateProfile(fields: Record<string, unknown>) {
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.updateUser({ data: fields });
+    if (error) throw error;
+  }
+
+  // Encerra a sessão em todos os dispositivos/abas — o SDK do Supabase não
+  // expõe uma lista real de sessões ativas (dispositivo/IP/data) para o
+  // usuário final sem a Admin API (server-only), então "Sessões ativas" vira,
+  // na prática, este botão único em vez de uma lista simulada com dados que
+  // não existem de verdade.
+  async function signOutEverywhere() {
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    if (error) throw error;
+  }
+
   return {
     session,
     login,
@@ -133,5 +155,7 @@ export function useAuth() {
     exchangeRecoveryCode,
     establishSessionFromHash,
     updatePassword,
+    updateProfile,
+    signOutEverywhere,
   };
 }

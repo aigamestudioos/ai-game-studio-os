@@ -4,6 +4,14 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8c — Configurações da conta
+
+✨ Nova tela **Configurações da conta** (acesse pelo menu do seu avatar) — edite nome, avatar, fuso horário e idioma
+✨ Sua **preferência de tema** (claro/escuro) agora é salva de verdade — não muda mais toda vez que você entra em um novo dispositivo
+✨ Troque sua senha a qualquer momento, sem precisar de email, direto nas configurações
+✨ Botão para **sair de todos os dispositivos** de uma vez
+🔧 Exclusão de conta ainda não está disponível (em breve)
+
 ## Sprint 1.8b — Esqueci minha senha
 
 ✨ Nova tela **"Esqueceu sua senha?"** (`/forgot-password`) — informe seu email e receba um link para redefinir a senha

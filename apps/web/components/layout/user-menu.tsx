@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../../hooks/use-auth";
@@ -54,13 +54,9 @@ export function UserMenu() {
           <p className="text-xs font-normal text-text-tertiary">{email}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-sm size-4" aria-hidden="true" />
-          Perfil
-        </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => router.push("/settings/account")}>
           <Settings className="mr-sm size-4" aria-hidden="true" />
-          Configurações
+          Configurações da conta
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleLogout} disabled={loggingOut}>

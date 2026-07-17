@@ -843,3 +843,57 @@ Commit `c343524` deployado com sucesso. Reexecutado o mesmo script Playwright co
 ### Próximo Sprint
 
 Sprint 1.8c — Perfil do usuário.
+
+---
+
+## Sprint 1.8c — User Workspace
+
+**Status:** Concluído (local, aguardando push)
+**Período:** 2026-07-17
+
+### Objetivo
+
+Usuário ampliou o escopo original ("Perfil do usuário") para um módulo mais completo — "User Workspace": perfil (avatar, nome, timezone, idioma), preferências (tema persistido), segurança (trocar senha, encerrar sessões), zona de risco (exclusão de conta, placeholder), tudo em `/settings/account`. Objetivo explícito do usuário: evitar ter que criar um módulo de configurações separado depois.
+
+### Conflito arquitetural identificado antes de codar (Fase 1/2)
+
+`public.users.studio_id` é `NOT NULL` (referencia `studios`), e Studios não existe ainda (Sprint 1.8d/1.9). `public.users` está vazia — nenhum usuário real tem linha lá, e o trigger `handle_new_auth_user()` é no-op de propósito (decisão do Sprint 1.7). Logo, `public.users`/`user_dashboard_preferences` não podiam ser usados para perfil/preferências sem antecipar uma fatia de Studios. Perguntado ao usuário: usar `auth.users.user_metadata` (não depende de Studios) ou antecipar um Studio mínimo agora. Usuário escolheu `user_metadata`. Ver `DECISIONS.md`.
+
+### Arquivos criados
+
+- `apps/web/app/settings/account/page.tsx` — página única com as 4 seções, dentro de `AppShell` (protegida).
+- `apps/web/components/settings/profile-section.tsx` — nome, avatar (URL, não upload — Storage ainda não integrado), timezone (badges, lista curada) e idioma (badges, pt-BR/en-US — só armazena a preferência, `packages/i18n` ainda não existe).
+- `apps/web/components/settings/preferences-section.tsx` — toggle de tema, usa `useTheme()` já existente.
+- `apps/web/components/settings/security-section.tsx` — trocar senha (reaproveita `evaluatePasswordStrength`), "Sair de todos os dispositivos".
+- `apps/web/components/settings/danger-zone-section.tsx` — exclusão de conta como placeholder real (modal de confirmação funcional, mas a ação final mostra toast "ainda não disponível" em vez de excluir — exclusão real exige Admin API/server-side e uma decisão de produto sobre o que fazer com o Studio associado, fora do escopo deste sprint).
+
+### Arquivos alterados
+
+- `apps/web/hooks/use-auth.ts` — `updateProfile(fields)` (grava em `user_metadata` via `updateUser({data})`), `signOutEverywhere()` (`signOut({scope:"global"})`).
+- `apps/web/providers/theme-provider.tsx` — lê `session.user.user_metadata.theme` uma vez por sessão e aplica; `setTheme()` agora persiste via `updateProfile()` quando há sessão (silenciosamente tolera falha de persistência — o tema local já foi aplicado).
+- `apps/web/components/layout/user-menu.tsx` — "Perfil" e "Configurações" (dois itens, nenhum funcional) viraram um único "Configurações da conta", navegando para `/settings/account`.
+
+### Decisão técnica: "Sessões ativas" vira um botão, não uma lista
+
+O SDK do Supabase não expõe ao usuário final uma lista real de sessões (dispositivo/IP/data) sem a Admin API (server-only). Implementado como "Sair de todos os dispositivos" (`signOut({scope:"global"})`) em vez de simular uma lista com dados que não existem de verdade.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` — verdes no monorepo inteiro (12/12). Script Playwright ad-hoc (Admin API, mesma autorização já concedida nesta sprint) — **13/13 passos** após duas rodadas de depuração de falsos-positivos do próprio script (não bugs do app — ver abaixo).
+
+### Falsos-positivos encontrados e descartados durante o teste (não bugs do app)
+
+1. `.isVisible({ timeout })` do Playwright **não espera** — a opção `timeout` é ignorada nesse método (diferente de `.waitFor()`), causando checagens prematuras que retornavam falso negativo. Corrigido usando `.waitFor()`.
+2. Uma rodada de teste pegou "strict mode violation: resolved to 2 elements" para o texto de um toast — causa real: Fast Refresh do Next.js recompilando em paralelo por eu estar editando arquivos durante o teste. Não reproduziu com o servidor "quente" (parado de recompilar).
+3. Segunda ocorrência do mesmo erro de "2 elements", causa DIFERENTE e legítima de se investigar: o Radix Toast renderiza o toast visível E uma região `aria-live="assertive"` para leitores de tela ("Notification Perfil atualizado"), e `getByText` (substring, não exato) casava com as duas — confirma que a acessibilidade do toast está correta; o teste só precisava de `.first()`.
+
+### Pendências
+
+- Upload de avatar real (Supabase Storage) — fora de escopo, aguardando integração de Storage.
+- `packages/i18n` — preferência de idioma armazenada, mas ainda não aplicada (interface continua só em português).
+- Exclusão de conta real — placeholder funcional, implementação real fica para quando houver decisão de produto sobre Studios associados.
+- Migrar `full_name`/`avatar_url`/`timezone`/`locale`/`theme` de `user_metadata` para `public.users` quando Studios existir (Sprint 1.8d/1.9) — migração pequena e isolada, não retrabalho de UI.
+
+### Próximo Sprint
+
+Sprint 1.9 — Studios (multi-tenant).

@@ -6,6 +6,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8c (User Workspace)
+- `apps/web/app/settings/account/page.tsx` — Perfil, Preferências, Segurança e Zona de risco em uma página.
+- `apps/web/components/settings/{profile,preferences,security,danger-zone}-section.tsx`.
+
+### Changed — Sprint 1.8c (User Workspace)
+- `apps/web/hooks/use-auth.ts` — `updateProfile(fields)` (grava em `user_metadata`), `signOutEverywhere()`.
+- `apps/web/providers/theme-provider.tsx` — tema lido de/persistido em `user_metadata.theme` para usuários autenticados.
+- `apps/web/components/layout/user-menu.tsx` — "Perfil"/"Configurações" consolidados em "Configurações da conta", agora navegável.
+
 ### Added — Sprint 1.8b (Password Recovery)
 - `apps/web/app/forgot-password/page.tsx` — formulário de email, mensagem de sucesso genérica (anti-enumeração de usuários).
 - `apps/web/app/reset-password/page.tsx` — trata `?code=` (PKCE) e `#access_token=` (implicit grant); formulário de nova senha com medidor de força, validação de confirmação, toast de sucesso.
