@@ -36,7 +36,7 @@ Status atual do projeto AI Game Studio OS.
 | **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
 | — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
 | 1.8a | Núcleo de Auth real — login/logout/sessão (restore+refresh+listener)/middleware/AppShell+UserMenu reais | **Concluído (produção)** |
-| 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, template de email, Playwright, revisão visual, produção | **Concluído (local)** — falta validar produção |
+| 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, Playwright, revisão visual, produção | **Concluído (produção)** — template de email personalizado pendente (dashboard-only) |
 | 1.8c | Perfil do usuário — avatar, nome, preferências, tema salvo no banco, configurações da conta | Pending |
 | 1.8d | Organização (Studios) — múltiplos estúdios, convites, papéis (Owner/Admin/Member), RLS | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
@@ -109,7 +109,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Validar Sprint 1.8b em produção (commit/push pendente). Depois, Sprint 1.8c — Perfil do usuário (avatar, nome, preferências, tema salvo no banco).
+Sprint 1.8c — Perfil do usuário (avatar, nome, preferências, tema salvo no banco, configurações da conta).
 
 ## Observação
 

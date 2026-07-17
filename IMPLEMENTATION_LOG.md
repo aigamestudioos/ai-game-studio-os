@@ -831,12 +831,15 @@ Ao testar com um link de recuperação real gerado via Admin API, o redirect cai
 
 `pnpm build`/`lint`/`typecheck` — verdes no monorepo inteiro (12/12). Script Playwright ad-hoc (`reset-password-test.mjs`, usa Admin API para gerar usuário/links de teste, autorizado explicitamente pelo usuário) rodado contra `localhost` — **13/13 passos**: mensagem de sucesso em `/forgot-password`, mesma mensagem para email inexistente (anti-enumeração), link de recovery chega em `/reset-password`, formulário aparece, indicador de força mostra "Muito fraca" para senha fraca, validação de senhas não coincidentes, redefinição com sucesso redireciona a `/login`, login com a senha nova funciona, código inválido mostra estado de erro elegante, sem overflow no mobile. Usuário de teste removido ao final.
 
+### Validação em produção
+
+Commit `c343524` deployado com sucesso. Reexecutado o mesmo script Playwright contra `https://ai-game-studio-os-web.vercel.app`: **12/13 passos diretos + 1 comportamento correto sob rate limit** — o passo "mensagem de sucesso em /forgot-password" recebeu um `429` da API do Supabase (esperado, depois de dezenas de chamadas de teste consecutivas durante a sessão) e a UI reagiu exatamente como projetado: `mapAuthError` traduziu para "Muitas tentativas. Aguarde um momento e tente novamente.", sem erro bruto, sem crash, botão reabilitado — confirmado por screenshot. Confirmado também por screenshot o toast "Senha redefinida / Faça login com sua nova senha" disparando em produção com o redirect para `/login`. Nenhum bug de app encontrado nesta rodada.
+
 ### Pendências
 
-- Rodar o mesmo teste contra produção após o push (próximo passo).
 - Revisão visual completa nos demais breakpoints/temas (feita parcialmente — mobile confirmado, falta tablet/dark explícito nas duas telas novas).
 - Template de email personalizado no Supabase (Authentication → Email Templates) — dashboard-only, fora do meu alcance; usuário pode pedir o HTML/copy quando quiser configurar.
 
 ### Próximo Sprint
 
-Validar em produção, depois Sprint 1.8c — Perfil do usuário.
+Sprint 1.8c — Perfil do usuário.
