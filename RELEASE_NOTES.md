@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8b — Esqueci minha senha
+
+✨ Nova tela **"Esqueceu sua senha?"** (`/forgot-password`) — informe seu email e receba um link para redefinir a senha
+✨ Nova tela de **redefinição de senha** (`/reset-password`) — com indicador visual de força da senha
+🔧 Mensagens claras se o link expirou, se as senhas não coincidem, ou se a senha é fraca demais
+
 ## Sprint 1.8a — Login de verdade
 
 ✨ O login agora é **real** — validado por um servidor (Supabase), não mais uma demonstração que aceitava qualquer senha

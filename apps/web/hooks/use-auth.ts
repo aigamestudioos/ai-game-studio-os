@@ -34,6 +34,12 @@ export function mapAuthError(error: AuthError | Error | unknown): string {
   if (code === "weak_password" || /password should be/i.test(message)) {
     return "A senha não atende aos requisitos mínimos de segurança.";
   }
+  if (code === "same_password") {
+    return "A nova senha precisa ser diferente da atual.";
+  }
+  if (code === "otp_expired" || /expired|invalid.*code|code.*invalid/i.test(message)) {
+    return "Este link expirou ou já foi usado. Solicite um novo.";
+  }
   if (/network|fetch failed|failed to fetch/i.test(message)) {
     return "Falha de conexão. Verifique sua internet e tente novamente.";
   }
@@ -76,5 +82,56 @@ export function useAuth() {
     await supabase.auth.signOut();
   }
 
-  return { session, login, logout };
+  // Sempre resolve com sucesso do ponto de vista da UI, mesmo que o email não
+  // exista — evita vazar quais emails têm conta cadastrada (enumeração de
+  // usuários). O Supabase já se comporta assim (não retorna erro para email
+  // inexistente); mantemos a mesma postura na mensagem exibida.
+  async function requestPasswordReset(email: string) {
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }
+
+  // Troca o `code` do link de recuperação (PKCE) por uma sessão real —
+  // necessário antes de poder chamar updatePassword(). Erros aqui (link
+  // expirado/já usado/inválido) são o caso esperado, não uma falha do app.
+  async function exchangeRecoveryCode(code: string) {
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+  }
+
+  // Alguns links de recuperação vêm no formato antigo (implicit grant):
+  // `#access_token=...&refresh_token=...&type=recovery` no fragmento da URL,
+  // em vez de `?code=` (PKCE). O client de @supabase/ssr não detecta esse
+  // formato sozinho (ao contrário do supabase-js "puro"), então lemos o hash
+  // manualmente e estabelecemos a sessão via setSession().
+  async function establishSessionFromHash(hash: string): Promise<boolean> {
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const access_token = params.get("access_token");
+    const refresh_token = params.get("refresh_token");
+    if (!access_token || !refresh_token) return false;
+
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+    return !error;
+  }
+
+  async function updatePassword(newPassword: string) {
+    const supabase = getBrowserClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
+  return {
+    session,
+    login,
+    logout,
+    requestPasswordReset,
+    exchangeRecoveryCode,
+    establishSessionFromHash,
+    updatePassword,
+  };
 }

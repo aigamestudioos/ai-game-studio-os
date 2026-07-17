@@ -36,9 +36,9 @@ Status atual do projeto AI Game Studio OS.
 | **1.7** | 🏗️ **Foundation for Supabase** — `packages/database` (3 clientes, tipos, repositories), schema SQL (9 migrations), seeds, RLS planejada. **Sem conectar** — nenhuma tela mudou, nenhum mock foi removido | **Concluído (local)** |
 | — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
 | 1.8a | Núcleo de Auth real — login/logout/sessão (restore+refresh+listener)/middleware/AppShell+UserMenu reais | **Concluído (produção)** |
-| 1.8b | Recuperação de senha — `/forgot-password`, `/reset-password` | Pending |
-| 1.8c | Estados de erro/UX — páginas 401/403, loading elaborado, seção Auth no Playground | Pending |
-| 1.8d | QA completo — Playwright real, regressão, documentação final, validação em produção | Pending |
+| 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, template de email, Playwright, revisão visual, produção | **Concluído (local)** — falta validar produção |
+| 1.8c | Perfil do usuário — avatar, nome, preferências, tema salvo no banco, configurações da conta | Pending |
+| 1.8d | Organização (Studios) — múltiplos estúdios, convites, papéis (Owner/Admin/Member), RLS | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
 | 2.1 | Conectar Games ao Supabase real | Pending |
@@ -69,7 +69,11 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 1.8a — Núcleo de Auth real: Auth mock (`localStorage`, Sprint 1.6) eliminada por completo. `apps/web/hooks/use-auth.ts` reescrito com Supabase Auth real (login/logout via `signInWithPassword`/`signOut`, sessão restaurada com `getSession()` e mantida via `onAuthStateChange` — cobre refresh automático de token e expiração sem polling manual). Novo `apps/web/middleware.ts` protege rotas por allowlist (`/`, `/login`, `/forgot-password`, `/reset-password` públicas — resto protegido por padrão) usando `getUser()` (valida o token no servidor, não só lê o cookie). `AppShell` e `UserMenu` atualizados para a sessão real; `/login` ganhou estados de loading/erro reais e link para recuperação de senha (página ainda não existe). Pedido original do usuário era um sprint de Auth completo (login/logout/sessão/middleware/forgot-reset/401-403/Playground/QA total) — dividido em 1.8a (este) → 1.8b → 1.8c → 1.8d após identificar que excedia os limites do `CLAUDE.md`; usuário aprovou a divisão antes de qualquer código ser escrito.
+Sprint 1.8b — Password Recovery: `/forgot-password` (formulário de email, mensagem de sucesso genérica — não revela se o email existe) e `/reset-password` (nova senha + confirmação, medidor de força via `evaluatePasswordStrength()`). Achado de infraestrutura durante o teste: o Redirect URL do link de recovery caía silenciosamente no domínio raiz em vez de `/reset-password` porque a URL não estava na allowlist do projeto Supabase (Authentication → URL Configuration) — corrigido pelo usuário no dashboard. Segundo achado: o link de recovery pode vir em dois formatos (`?code=` PKCE ou `#access_token=` implicit grant) — `reset-password/page.tsx` trata os dois, já que sem acesso a uma caixa de entrada real não dá para confirmar com certeza qual formato o Supabase entrega no email de produção. Ver `DECISIONS.md`.
+
+13/13 passos de um script Playwright ad-hoc (Admin API, autorizado explicitamente pelo usuário) passaram localmente: sucesso em `/forgot-password`, anti-enumeração (mesma mensagem para email inexistente), formulário de nova senha aparece, indicador de força, validação de confirmação, redefinição redireciona a `/login`, login com senha nova funciona, link inválido mostra estado de erro elegante, sem overflow no mobile.
+
+### Sprint 1.8a — Núcleo de Auth real: Auth mock (`localStorage`, Sprint 1.6) eliminada por completo. `apps/web/hooks/use-auth.ts` reescrito com Supabase Auth real (login/logout via `signInWithPassword`/`signOut`, sessão restaurada com `getSession()` e mantida via `onAuthStateChange` — cobre refresh automático de token e expiração sem polling manual). Novo `apps/web/middleware.ts` protege rotas por allowlist (`/`, `/login`, `/forgot-password`, `/reset-password` públicas — resto protegido por padrão) usando `getUser()` (valida o token no servidor, não só lê o cookie). `AppShell` e `UserMenu` atualizados para a sessão real; `/login` ganhou estados de loading/erro reais e link para recuperação de senha (página ainda não existe). Pedido original do usuário era um sprint de Auth completo (login/logout/sessão/middleware/forgot-reset/401-403/Playground/QA total) — dividido em 1.8a (este) → 1.8b → 1.8c → 1.8d após identificar que excedia os limites do `CLAUDE.md`; usuário aprovou a divisão antes de qualquer código ser escrito.
 
 Golden path completo testado via Playwright (script ad-hoc): guard de rota protegida → login com usuário de teste real (`test@aigamestudioos.com`, criado pelo usuário no Supabase `dev`) → dashboard → projects/games/knowledge/publishing → reload (sessão persiste) → nova aba (sessão compartilhada) → logout → bloqueio pós-logout → novo login (sessão restaurada) → `/login` autenticado redireciona a `/dashboard`. 14/14 checks passaram. Testado credenciais inválidas (mensagem amigável, sem crash). 0 overflow em 6 combinações breakpoint × tema. `/playground` passou a exigir login (antes não usava `AppShell`, não era protegido nem pelo mock) — mudança de comportamento intencional, consistente com a política "todo o restante protegido" do middleware.
 
@@ -105,7 +109,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8b — Recuperação de senha (`/forgot-password`, `/reset-password`). Depois, 1.8c (401/403/Playground) e 1.8d (QA completo + regressão + documentação final + validação em produção), fechando o Sprint 1.8 antes de avançar para 1.9 (Studios).
+Validar Sprint 1.8b em produção (commit/push pendente). Depois, Sprint 1.8c — Perfil do usuário (avatar, nome, preferências, tema salvo no banco).
 
 ## Observação
 

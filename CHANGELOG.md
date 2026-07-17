@@ -6,6 +6,12 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8b (Password Recovery)
+- `apps/web/app/forgot-password/page.tsx` — formulário de email, mensagem de sucesso genérica (anti-enumeração de usuários).
+- `apps/web/app/reset-password/page.tsx` — trata `?code=` (PKCE) e `#access_token=` (implicit grant); formulário de nova senha com medidor de força, validação de confirmação, toast de sucesso.
+- `apps/web/lib/password-strength.ts` — `evaluatePasswordStrength()`.
+- `apps/web/hooks/use-auth.ts` — `requestPasswordReset()`, `exchangeRecoveryCode()`, `establishSessionFromHash()`, `updatePassword()`.
+
 ### Added — Sprint 1.8a (Núcleo de Auth real)
 - `apps/web/middleware.ts` — proteção de rotas por allowlist (`/`, `/login`, `/forgot-password`, `/reset-password` públicas; todo o resto protegido), usando `packages/database` (`createServerClient`) e `supabase.auth.getUser()` (valida o token no servidor, não só lê o cookie).
 - `packages/database/src/index.ts` — re-exporta `Session`/`User`/`AuthError` de `@supabase/supabase-js` (único ponto de acesso a esses tipos; `apps/web` não importa `@supabase/supabase-js` diretamente).

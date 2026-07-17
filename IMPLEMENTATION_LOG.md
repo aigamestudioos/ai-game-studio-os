@@ -801,3 +801,42 @@ Auth real (Sprint 1.8a) validada de ponta a ponta em produção com um cenário 
 ### Próximo Sprint
 
 Sprint 1.8b — Recuperação de senha (forgot/reset password).
+
+---
+
+## Sprint 1.8b — Password Recovery
+
+**Status:** Concluído (local, aguardando push)
+**Período:** 2026-07-17
+
+### Objetivo
+
+Escopo ampliado pelo usuário além de "Forgot Password" simples: ciclo completo de recuperação de conta — telas `/forgot-password` e `/reset-password`, validação de força de senha, mensagens amigáveis, estados de loading, toasts, redirecionamento, testes Playwright, revisão visual e validação em produção.
+
+### Arquivos criados
+
+- `apps/web/app/forgot-password/page.tsx` — formulário de email; sempre mostra a mesma mensagem de sucesso (anti-enumeração de usuários — não revela se o email existe).
+- `apps/web/app/reset-password/page.tsx` — trata os dois formatos possíveis de link de recuperação do Supabase (ver "Descoberta" abaixo); formulário de nova senha com medidor de força (`Progress` do design system), validação de confirmação, estados de loading/erro, toast de sucesso.
+- `apps/web/lib/password-strength.ts` — `evaluatePasswordStrength()`, função pura (score 0-4, mínimo: 8 caracteres + letra + número).
+
+### Arquivos alterados
+
+- `apps/web/hooks/use-auth.ts` — `requestPasswordReset()`, `exchangeRecoveryCode()`, `establishSessionFromHash()`, `updatePassword()`; `mapAuthError()` ganhou casos para link expirado/senha igual à anterior.
+
+### Descoberta durante o teste (não um bug do app — achado de infraestrutura)
+
+Ao testar com um link de recuperação real gerado via Admin API, o redirect caiu no domínio raiz (`aigamestudioos.com/`) em vez de `/reset-password`, com os tokens no fragmento da URL. Investigação: o `redirect_to` estava corretamente presente na requisição (confirmado inspecionando a própria URL de verificação do Supabase), mas o servidor do Supabase substitui silenciosamente por sua Site URL padrão quando o `redirect_to` solicitado não está na allowlist do projeto (Authentication → URL Configuration → Redirect URLs) — sem essa configuração, **o fluxo de recuperação de senha real teria ficado quebrado em produção, silenciosamente**. Usuário adicionou as 3 URLs necessárias (produção, domínio customizado, localhost) no dashboard. Depois disso, confirmado que o link de recovery gerado via Admin API vem no formato antigo (`#access_token=...&type=recovery`, implicit grant) em vez de `?code=` (PKCE) — o client de `@supabase/ssr` não detecta esse formato automaticamente (ao contrário do supabase-js "puro"). `reset-password/page.tsx` foi implementado para tratar **os dois formatos**: `?code=` via `exchangeCodeForSession()` (esperado do fluxo real via `resetPasswordForEmail` disparado por um client PKCE) e `#access_token=` via `setSession()` manual (formato que o Admin API retorna, e que pode ou não coincidir com o que o email real entrega — sem acesso a uma caixa de entrada real, não dá para confirmar 100% qual formato o usuário final vai receber, então os dois são suportados por robustez).
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` — verdes no monorepo inteiro (12/12). Script Playwright ad-hoc (`reset-password-test.mjs`, usa Admin API para gerar usuário/links de teste, autorizado explicitamente pelo usuário) rodado contra `localhost` — **13/13 passos**: mensagem de sucesso em `/forgot-password`, mesma mensagem para email inexistente (anti-enumeração), link de recovery chega em `/reset-password`, formulário aparece, indicador de força mostra "Muito fraca" para senha fraca, validação de senhas não coincidentes, redefinição com sucesso redireciona a `/login`, login com a senha nova funciona, código inválido mostra estado de erro elegante, sem overflow no mobile. Usuário de teste removido ao final.
+
+### Pendências
+
+- Rodar o mesmo teste contra produção após o push (próximo passo).
+- Revisão visual completa nos demais breakpoints/temas (feita parcialmente — mobile confirmado, falta tablet/dark explícito nas duas telas novas).
+- Template de email personalizado no Supabase (Authentication → Email Templates) — dashboard-only, fora do meu alcance; usuário pode pedir o HTML/copy quando quiser configurar.
+
+### Próximo Sprint
+
+Validar em produção, depois Sprint 1.8c — Perfil do usuário.
