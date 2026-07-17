@@ -37,7 +37,7 @@ Status atual do projeto AI Game Studio OS.
 | — | 🔧 **Separar ambientes Development/Staging/Production** (Supabase + Vercel) — bloqueia o 1.8 | Concluído — projeto Supabase `dev` criado, `apps/web/.env.local` configurado com `SUPABASE_SECRET_KEY` real, variáveis já cadastradas na Vercel. Nomenclatura oficial padronizada: `SUPABASE_SECRET_KEY` (não `SUPABASE_SERVICE_ROLE_KEY`) — ver `DECISIONS.md` |
 | 1.8a | Núcleo de Auth real — login/logout/sessão (restore+refresh+listener)/middleware/AppShell+UserMenu reais | **Concluído (produção)** |
 | 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, Playwright, revisão visual, produção | **Concluído (produção)** — template de email personalizado pendente (dashboard-only) |
-| 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (local)** — falta validar produção |
+| 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (produção)** |
 | 1.8d | Organização (Studios) — múltiplos estúdios, convites, papéis (Owner/Admin/Member), RLS | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
@@ -111,7 +111,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Validar Sprint 1.8c em produção (commit/push pendente). Depois, Sprint 1.8d — Organização (Studios).
+Sprint 1.8d — Organização (Studios): múltiplos estúdios, convites, papéis (Owner/Admin/Member), RLS. Este é o momento de migrar perfil/preferências de `user_metadata` para `public.users` (pendência registrada em `DECISIONS.md`/`IMPLEMENTATION_LOG.md`).
 
 ## Observação
 

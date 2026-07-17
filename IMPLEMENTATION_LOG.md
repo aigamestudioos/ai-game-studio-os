@@ -894,6 +894,10 @@ O SDK do Supabase não expõe ao usuário final uma lista real de sessões (disp
 - Exclusão de conta real — placeholder funcional, implementação real fica para quando houver decisão de produto sobre Studios associados.
 - Migrar `full_name`/`avatar_url`/`timezone`/`locale`/`theme` de `user_metadata` para `public.users` quando Studios existir (Sprint 1.8d/1.9) — migração pequena e isolada, não retrabalho de UI.
 
+### Validação em produção
+
+Commit `25513a2` deployado com sucesso. Reexecutado o mesmo script Playwright contra `https://ai-game-studio-os-web.vercel.app`: **13/13 passos**, incluindo confirmação de que o tema persiste entre sessões diferentes via `user_metadata` (não `localStorage`) e que a troca de senha nas Configurações realmente funciona (login com a nova senha confirmado). Zero erros de console. Screenshot de produção conferido visualmente, sem regressão.
+
 ### Próximo Sprint
 
-Sprint 1.9 — Studios (multi-tenant).
+Sprint 1.8d — Organização (Studios).
