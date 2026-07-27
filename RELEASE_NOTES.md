@@ -4,6 +4,10 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8d-1 — Preparação para múltiplos estúdios (bastidores)
+
+🔧 Nenhuma mudança visível — a partir de agora, cada conta tem automaticamente um Studio próprio nos bastidores, preparando o caminho para convites e times no seu estúdio
+
 ## Sprint 1.8c — Configurações da conta
 
 ✨ Nova tela **Configurações da conta** (acesse pelo menu do seu avatar) — edite nome, avatar, fuso horário e idioma

@@ -792,6 +792,42 @@ Autenticação simulada (email + senha, `localStorage`) protegendo as 9 páginas
 
 ---
 
+## Sprint 1.8d-1 — Studio Bootstrap
+
+**Data:** 2026-07-27
+
+Studio + `public.users` + Role Owner criados automaticamente no primeiro login (função `SECURITY DEFINER`, chamada via RPC). Dois bugs pré-existentes do Sprint 1.7 corrigidos (recursão infinita em 27 políticas de RLS; GRANTs de tabela ausentes para `authenticated`). Projeto Supabase remoto recebeu o schema completo pela primeira vez (12 migrations via `supabase db push`) — até aqui só Auth tinha sido exercitado no remoto.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 279 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 7145 |
+| Commits totais | 41 (após este incremento) |
+| Migrations | 12 (3 novas neste sprint) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Bugs reais encontrados e corrigidos | 2 (recursão RLS, GRANTs ausentes) — pré-existentes do Sprint 1.7, nunca detectados antes |
+| Validação de RLS multi-tenant | 10/10 checks (dois usuários reais, projeto remoto) |
+| Validação end-to-end via app real | 10/10 checks (Playwright + login real) |
+| Erros de console | 0 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Projeto Supabase remoto | Schema completo aplicado pela primeira vez (`supabase db push`, 12 migrations) |
+| Funções `SECURITY DEFINER` | 2 (`bootstrap_studio_for_current_user`, `current_user_studio_id`) |
+
 ## Sprint 1.8a — Núcleo de Auth real (login/logout/sessão/middleware)
 
 **Data:** 2026-07-16

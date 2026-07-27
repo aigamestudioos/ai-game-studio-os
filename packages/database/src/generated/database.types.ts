@@ -273,7 +273,16 @@ export type Database = {
       user_dashboard_preferences: Table<UserDashboardPreferencesRow, Partial<UserDashboardPreferencesRow>, Partial<UserDashboardPreferencesRow>>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      bootstrap_studio_for_current_user: {
+        Args: { p_studio_name: string };
+        Returns: string;
+      };
+      current_user_studio_id: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

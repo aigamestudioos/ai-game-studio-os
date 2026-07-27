@@ -11,5 +11,17 @@ export function createStudiosRepository(client: SupabaseClient<Database>) {
       if (error) throw error;
       return data;
     },
+
+    // Cria o Studio + profile (public.users) + Role Owner do usuário
+    // autenticado atual, se ainda não existir (Sprint 1.8d-1). Idempotente —
+    // seguro de chamar sempre que a app não tiver certeza se já rodou.
+    // Retorna o id do Studio (existente ou recém-criado).
+    async bootstrapForCurrentUser(studioName: string): Promise<string> {
+      const { data, error } = await client.rpc("bootstrap_studio_for_current_user", {
+        p_studio_name: studioName,
+      });
+      if (error) throw error;
+      return data;
+    },
   };
 }

@@ -2,7 +2,7 @@
 
 Clientes Supabase + tipos gerados + repositories, conforme `ADR-003`. Ver [DATA_MODEL.md](../../DATA_MODEL.md) na raiz do repositório para a arquitetura de dados completa (ER, convenções, RLS, riscos).
 
-**Status:** Sprint 1.7 — Foundation for Supabase. Estrutura e schema local prontos; **sem projeto Supabase real conectado ainda** (sem credenciais — ver `DECISIONS.md`). `apps/web` continua usando os stores mock em `lib/*-store.ts` até o Sprint 1.8.
+**Status:** Sprint 1.8d-1. Projeto Supabase remoto (`dev`) conectado e com o schema completo aplicado (12 migrations via `supabase db push`). Auth, Studio bootstrap e User Workspace já usam o banco real; `apps/web/lib/*-store.ts` (Projects/Games/Knowledge/Publishing) ainda são mock — migração fica para os Sprints 2.0+.
 
 ## Estrutura
 
@@ -44,12 +44,12 @@ npx supabase status     # mostra DB_URL local
 npx supabase stop       # encerra os containers
 ```
 
-Todas as 9 migrations e o seed completo (1 Studio, 1 User, 3 Projects, 3 Games, 3 Knowledge Documents, 3 Submissions) foram validados dessa forma durante o Sprint 1.7, incluindo a proteção append-only de `studio_events`/`knowledge_document_versions` e RLS habilitado em todas as tabelas de negócio.
+Todas as 12 migrations e o seed completo foram validados dessa forma antes de aplicar no projeto remoto (`supabase db push`) — foi exatamente esse processo que encontrou os dois bugs reais de RLS corrigidos no Sprint 1.8d-1 (recursão infinita, GRANTs ausentes), documentados em `DECISIONS.md`.
 
-## Pendências (Sprint 1.8+)
+## Pendências
 
-- Conectar a um projeto Supabase real (credenciais do usuário) e rodar `supabase link` + `supabase db push`.
-- Regenerar `database.types.ts` via `supabase gen types typescript` (nunca editar manualmente depois disso).
-- Resolver o fluxo de onboarding (criar Studio novo vs. aceitar convite) — `handle_new_auth_user()` está com TODO explícito, não decide isso sozinho.
-- `supabase/tests/` — testes de RLS obrigatórios por tabela (5 cenários cada, ver `DATA_MODEL.md` §6).
-- Substituir os 5 stores mock de `apps/web/lib/*-store.ts` pelos repositories daqui.
+- Regenerar `database.types.ts` via `supabase gen types typescript` (nunca editar manualmente depois disso) — hand-written por enquanto.
+- Onboarding de Studio: hoje todo novo usuário ganha um Studio próprio automaticamente (`bootstrap_studio_for_current_user`, Sprint 1.8d-1); aceitar convite para um Studio existente fica para o Sprint 1.8d-3.
+- `supabase/tests/` — testes de RLS obrigatórios por tabela (5 cenários cada, ver `DATA_MODEL.md` §6) — ainda vazio.
+- Migrar perfil/preferências de `auth.users.user_metadata` (Sprint 1.8c) para `public.users` agora que a tabela existe de verdade.
+- Substituir os 5 stores mock de `apps/web/lib/*-store.ts` pelos repositories daqui (Sprints 2.0+).

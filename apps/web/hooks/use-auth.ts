@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient, type AuthError, type Session } from "@agsos/database";
+import { createBrowserClient, createStudiosRepository, type AuthError, type Session } from "@agsos/database";
 
 // Singleton no módulo: instanciar o client do Supabase mais de uma vez no
 // browser dispara o aviso "Multiple GoTrueClient instances detected" e pode
@@ -147,6 +147,17 @@ export function useAuth() {
     if (error) throw error;
   }
 
+  // Cria o Studio + profile (public.users) + Role Owner do usuário atual, se
+  // ainda não existir (Sprint 1.8d-1). Idempotente — ver
+  // supabase/migrations/20260717000001_bootstrap_studio.sql. Chamado pelo
+  // AppShell uma única vez por sessão via useEnsureStudio(), não aqui
+  // diretamente, para não disparar em todo componente que usa useAuth().
+  async function ensureStudio(studioName: string): Promise<string> {
+    const supabase = getBrowserClient();
+    const studios = createStudiosRepository(supabase);
+    return studios.bootstrapForCurrentUser(studioName);
+  }
+
   return {
     session,
     login,
@@ -157,5 +168,6 @@ export function useAuth() {
     updatePassword,
     updateProfile,
     signOutEverywhere,
+    ensureStudio,
   };
 }

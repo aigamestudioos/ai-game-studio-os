@@ -6,6 +6,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8d-1 (Studio Bootstrap)
+- `supabase/migrations/20260717000001_bootstrap_studio.sql` — `bootstrap_studio_for_current_user()`, cria Studio + profile + Role Owner no primeiro login.
+- `apps/web/hooks/use-ensure-studio.ts` — dispara o bootstrap uma vez por sessão a partir do `AppShell`.
+
+### Fixed — Sprint 1.8d-1 (bugs pré-existentes do Sprint 1.7, nunca detectados)
+- `supabase/migrations/20260717000002_fix_rls_recursion.sql` — corrige recursão infinita em 27 políticas de RLS (`current_user_studio_id()`).
+- `supabase/migrations/20260717000003_grant_authenticated_privileges.sql` — concede GRANTs de tabela ausentes ao role `authenticated`.
+
+### Changed — Sprint 1.8d-1
+- `packages/database/src/repositories/studios-repository.ts` — `bootstrapForCurrentUser()`.
+- `apps/web/hooks/use-auth.ts` — `ensureStudio()`.
+- `apps/web/components/layout/app-shell.tsx` — dispara o bootstrap; não bloqueia a UI se falhar.
+
 ### Added — Sprint 1.8c (User Workspace)
 - `apps/web/app/settings/account/page.tsx` — Perfil, Preferências, Segurança e Zona de risco em uma página.
 - `apps/web/components/settings/{profile,preferences,security,danger-zone}-section.tsx`.

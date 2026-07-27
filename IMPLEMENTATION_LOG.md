@@ -901,3 +901,56 @@ Commit `25513a2` deployado com sucesso. Reexecutado o mesmo script Playwright co
 ### Próximo Sprint
 
 Sprint 1.8d — Organização (Studios).
+
+---
+
+## Sprint 1.8d-1 — Studio Bootstrap
+
+**Status:** Concluído (validado em produção/projeto real)
+**Período:** 2026-07-17 a 2026-07-27
+
+### Objetivo
+
+Pedido original ("Sprint 1.8d — Organização: múltiplos estúdios, convites, papéis, RLS") dividido em 4 sub-sprints (1.8d-1 a 1.8d-4) antes de codar, por exceder os limites do `CLAUDE.md` — usuário aprovou. Este sub-sprint entrega só o **bootstrap**: criar Studio + profile (`public.users`) + Role Owner automaticamente no primeiro login, resolvendo o bloqueio identificado no Sprint 1.8c (perfil vivia em `user_metadata` porque `public.users` exigia um Studio que não existia).
+
+### Bloqueio arquitetural identificado antes de codar
+
+As políticas RLS de `studios`/`users` (Sprint 1.7) são auto-referenciais (`studio_id = (select studio_id from users where id = auth.uid())`) — impossível inserir a própria primeira linha sujeito a RLS, já que a subquery nunca resolve antes de a linha existir. Resolvido com uma função `SECURITY DEFINER` (`bootstrap_studio_for_current_user`), callable via RPC pelo client normal (`authenticated`), sem precisar da service role key na aplicação.
+
+### Dois bugs reais pré-existentes encontrados ao testar contra Postgres de verdade (não descobertos no Sprint 1.7)
+
+1. **Recursão infinita em RLS**: toda política "*_isolation" (27 no total, em 9 tabelas de negócio + studios/users/roles/etc.) usava a mesma subquery auto-referencial em `users` — isso causa "infinite recursion detected in policy for relation users" em QUALQUER query autenticada real. O Sprint 1.7 só validou `pg_class.relrowsecurity = true` (RLS habilitado), nunca testou uma política de verdade sob um usuário autenticado — por isso passou despercebido. Corrigido com uma função auxiliar `current_user_studio_id()` (`SECURITY DEFINER`), usada por todas as 27 políticas em vez da subquery direta.
+2. **GRANTs de tabela ausentes**: nenhuma migration do Sprint 1.7 concedeu privilégios (`GRANT SELECT/INSERT/UPDATE/DELETE`) ao role `authenticated` — RLS é avaliado *depois* do grant de tabela no Postgres, então toda query autenticada falhava com "permission denied for table X", independente da política estar certa. Corrigido com `grant ... on all tables in schema public to authenticated` + `alter default privileges` (para tabelas futuras).
+
+### Arquivos criados
+
+- `supabase/migrations/20260717000001_bootstrap_studio.sql` — função `bootstrap_studio_for_current_user(p_studio_name)`.
+- `supabase/migrations/20260717000002_fix_rls_recursion.sql` — `current_user_studio_id()` + recriação das 27 políticas.
+- `supabase/migrations/20260717000003_grant_authenticated_privileges.sql` — grants para `authenticated`.
+- `apps/web/hooks/use-ensure-studio.ts` — chama o bootstrap uma única vez por sessão.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/studios-repository.ts` — `bootstrapForCurrentUser()`.
+- `packages/database/src/generated/database.types.ts` — tipos das duas novas funções RPC.
+- `apps/web/hooks/use-auth.ts` — `ensureStudio()` (reaproveita o client singleton).
+- `apps/web/components/layout/app-shell.tsx` — dispara `useEnsureStudio()`; não bloqueia a renderização se falhar (nenhum módulo de produto depende de Studio ainda — todos seguem mock) e mostra toast de aviso em caso de erro.
+
+### Descoberta de infraestrutura: projeto remoto nunca tinha o schema do Sprint 1.7
+
+Ao tentar aplicar as 3 migrations novas via SQL Editor, erro `relation "public.users" does not exist` revelou que **nenhuma das 9 migrations do Sprint 1.7 tinha sido aplicada ao projeto Supabase remoto** — desde a criação do projeto (Sprint 1.8a), ele só foi usado para Auth (recurso nativo do Supabase), nunca para o schema de negócio. Resolvido com o usuário rodando `supabase login` + `supabase link` + `supabase db push` no próprio terminal (12 migrations aplicadas de uma vez, rastreadas pelo CLI). Também descoberto no meio do processo que o projeto estava **pausado** (comum no free tier após inatividade) — usuário reativou via dashboard.
+
+### Validações executadas
+
+Migrations testadas localmente via Docker (`supabase db reset`) antes de pedir para aplicar no remoto — os dois bugs de RLS foram encontrados exatamente nesse processo, simulando `auth.uid()` via `set local request.jwt.claim.sub` em sessões `psql` diretas. Depois de aplicadas no projeto remoto real: script de validação com dois usuários reais (Admin API) confirmou — bootstrap funciona e é idempotente, Studios diferentes por usuário, RLS isola `studios`/`users` corretamente entre os dois, zero erros de "permission denied", Role Owner e `user_roles` criados corretamente (10/10 checks). Teste adicional via Playwright confirmou o fluxo end-to-end pela aplicação real (não só via Admin API): login → `AppShell` dispara o bootstrap silenciosamente → `public.users`/`studios` populados corretamente → nenhum toast de erro → nenhuma regressão em `/projects`, `/games`, `/knowledge`, `/publishing`, `/settings/account`. `pnpm build`/`lint`/`typecheck` verdes (12/12).
+
+### Pendências
+
+- 1.8d-2 — Studio settings (nome/logo, ver membros).
+- 1.8d-3 — Convites (enviar/aceitar).
+- 1.8d-4 — Papéis/permissões (Admin/Member, enforcement testado com múltiplos usuários).
+- Migrar `full_name`/`avatar_url`/`timezone`/`locale`/`theme` de `user_metadata` (Sprint 1.8c) para `public.users` agora que a tabela existe de verdade — pendência antiga, ainda não feita (pode virar parte do 1.8d-2).
+
+### Próximo Sprint
+
+Sprint 1.8d-2 — Studio settings.

@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../../hooks/use-auth";
+import { useEnsureStudio } from "../../hooks/use-ensure-studio";
+import { toast } from "../../hooks/use-toast";
 import { Spinner } from "../ui/spinner";
 import type { Breadcrumb } from "./topbar";
 import { Sidebar } from "./sidebar";
@@ -24,12 +26,24 @@ export function AppShell({ breadcrumbs, children }: { breadcrumbs: Breadcrumb[];
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { session } = useAuth();
   const router = useRouter();
+  const { error: studioError } = useEnsureStudio(session);
 
   useEffect(() => {
     if (session === null) {
       router.replace("/login");
     }
   }, [session, router]);
+
+  // Não bloqueia a renderização se o bootstrap do Studio falhar — nenhum
+  // módulo de produto ainda depende de public.users/studios (todos seguem
+  // 100% mock), então travar a UI aqui seria pior que avisar e deixar
+  // continuar. Vira bloqueio de verdade quando um módulo real passar a
+  // depender do Studio.
+  useEffect(() => {
+    if (studioError) {
+      toast({ title: "Não foi possível preparar seu Studio", description: studioError, variant: "warning" });
+    }
+  }, [studioError]);
 
   if (!session) {
     return (

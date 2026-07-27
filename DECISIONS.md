@@ -406,3 +406,35 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** O modal de confirmação é real (usa o componente `Modal`/AlertDialog do design system, mesmo padrão de outras ações destrutivas do produto), mas o botão de confirmação final não exclui nada — mostra um toast "Exclusão de conta ainda não disponível, entre em contato com o suporte".
 **Motivo:** Exclusão real de conta exige a Admin API (`auth.admin.deleteUser`, server-only) e uma decisão de produto ainda não tomada sobre o que acontece com o Studio associado ao usuário (transferir posse? excluir o Studio inteiro? bloquear se houver outros membros?) — implementar a exclusão de verdade agora seria resolver essa pergunta de produto às pressas, sem o contexto de Studios que só existe a partir do Sprint 1.8d/1.9.
 **Impacto:** Quando Studios existir e a política de exclusão for decidida, trocar só o `handleConfirm` do `DangerZoneSection` por uma Server Action real — a UI (modal, avisos, confirmação) já está pronta.
+
+## Sprint 1.8d — Organização (Studios)
+
+### [2026-07-17] Sprint 1.8d dividido em 4 sub-sprints (1.8d-1 a 1.8d-4)
+**Contexto:** Pedido original ("múltiplos estúdios, convites, papéis, RLS") excedia os limites do `CLAUDE.md`, mesmo padrão já aplicado ao Sprint 1.8.
+**Decisão:** 1.8d-1 Bootstrap (Studio automático no primeiro login) → 1.8d-2 Studio settings (nome/logo, membros) → 1.8d-3 Convites → 1.8d-4 Papéis/permissões (Owner/Admin/Member, enforcement testado). Usuário aprovou antes de qualquer código.
+**Motivo:** Mesmo raciocínio das divisões anteriores — diffs menores, cada etapa validável e commitável isoladamente.
+**Impacto:** Cada sub-sprint tem sua própria entrada em `IMPLEMENTATION_LOG.md`/commit.
+
+### [2026-07-17] Bootstrap de Studio via função `SECURITY DEFINER` (RPC), não via Server Action com admin-client
+**Contexto:** Criar a primeira linha de `studios`/`users` para um usuário nunca pode passar pelas políticas RLS normais — elas são auto-referenciais (`studio_id = (select studio_id from users where id = auth.uid())`), então a subquery nunca resolve antes de a linha existir. Duas opções: (a) uma Server Action em `apps/web` usando `admin-client` (service role, bypassa RLS totalmente), ou (b) uma função Postgres `SECURITY DEFINER`, chamada via RPC pelo client normal.
+**Decisão:** Função `SECURITY DEFINER` (`bootstrap_studio_for_current_user`), definida em `supabase/migrations/20260717000001_bootstrap_studio.sql`, `grant execute` só para `authenticated`.
+**Motivo:** Escopo muito mais estreito e auditável — a função só pode criar a estrutura do PRÓPRIO `auth.uid()` chamador, nunca aceita um `user_id`/`studio_id` arbitrário. Usar `admin-client` em uma Server Action exigiria confiar que o código da action nunca aceita parâmetros que permitam criar/alterar dados de outro usuário — um único bug ali teria alcance total do banco (service role bypassa RLS em qualquer tabela). A função no banco é uma superfície de ataque muito menor.
+**Impacto:** Qualquer operação privilegiada futura semelhante (aceitar convite, transferir posse de Studio) deveria seguir o mesmo padrão — função `SECURITY DEFINER` com escopo mínimo, não Server Action com admin-client, a menos que exista razão concreta para preferir a segunda.
+
+### [2026-07-17] Bug real: recursão infinita nas políticas RLS do Sprint 1.7 (nunca detectado antes)
+**Contexto:** Testando o bootstrap contra Postgres real (Docker local), toda tentativa de `select`/`insert` em `users`/`studios` sob um usuário autenticado de verdade falhava com "infinite recursion detected in policy for relation users". Causa: as 27 políticas `*_isolation` criadas no Sprint 1.7 usam `studio_id = (select studio_id from users where id = auth.uid())` — essa subquery lê da própria tabela `users` (RLS habilitado), reacionando a mesma política recursivamente. A validação do Sprint 1.7 só conferiu `pg_class.relrowsecurity = true` (RLS ligado), nunca testou uma política de verdade sob autenticação real — por isso o bug sobreviveu sem ser notado por um sprint inteiro.
+**Decisão:** `supabase/migrations/20260717000002_fix_rls_recursion.sql` cria `current_user_studio_id()` (função `SECURITY DEFINER`, bypassa RLS internamente) e recria as 27 políticas usando essa função em vez da subquery direta.
+**Motivo:** É o fix padrão documentado pelo próprio Supabase para esse padrão de erro — mover a leitura auto-referencial para uma função que roda com o privilégio do dono, quebrando o ciclo.
+**Impacto:** Qualquer política de RLS futura que precise "olhar para a própria linha do usuário" deve usar `current_user_studio_id()`, nunca repetir a subquery direta em `users`.
+
+### [2026-07-17] Bug real: nenhum GRANT de tabela para o role `authenticated` (Sprint 1.7)
+**Contexto:** Depois de corrigir a recursão, toda query autenticada ainda falhava — agora com "permission denied for table X". Causa: nenhuma migration do Sprint 1.7 concedeu privilégios de tabela (`GRANT SELECT/INSERT/UPDATE/DELETE`) ao role `authenticated`. RLS é avaliado *depois* do GRANT de tabela no Postgres — sem o GRANT, RLS nunca chega a ser considerado.
+**Decisão:** `supabase/migrations/20260717000003_grant_authenticated_privileges.sql` concede `select, insert, update, delete on all tables in schema public to authenticated`, mais `alter default privileges` para que tabelas de migrations futuras herdem o mesmo grant automaticamente.
+**Motivo:** RLS continua sendo o controle de acesso real (`ADR-003`) — o GRANT é só o portão de baixo nível que o Postgres exige antes de RLS entrar em cena; sem ele, nenhuma política (por mais correta que fosse) teria efeito.
+**Impacto:** Nenhuma migration futura de nova tabela precisa lembrar de conceder isso de novo — `alter default privileges` cobre automaticamente.
+
+### [2026-07-17] Projeto Supabase remoto nunca tinha o schema do Sprint 1.7 aplicado
+**Contexto:** Ao tentar aplicar as 3 migrations novas via SQL Editor, erro `relation "public.users" does not exist` revelou que as 9 migrations do Sprint 1.7 nunca foram aplicadas ao projeto remoto — desde sua criação (Sprint 1.8a), ele só serviu para Auth (recurso nativo do Supabase, não depende de migrations), nunca para o schema de negócio. Adicionalmente, o projeto estava pausado (comum no free tier após inatividade), o que inicialmente pareceu um problema de DNS.
+**Decisão:** Usuário rodou `supabase login` + `supabase link --project-ref vkyswyuxitwakjqjteso` + `supabase db push` no próprio terminal — as 12 migrations foram aplicadas de uma vez, rastreadas pelo CLI (mais seguro que colar 12 arquivos SQL manualmente no dashboard, que foi a primeira abordagem tentada antes de perceber a escala real do problema).
+**Motivo:** `db push` aplica migrations em ordem e registra o que já rodou — evita o risco de pular uma migration ou aplicá-la fora de ordem, que colar manualmente no SQL Editor não protege contra.
+**Impacto:** A partir de agora, o projeto remoto tem o schema completo. Qualquer nova migration deve ser aplicada via `supabase db push` (ou equivalente rastreado), não colada manualmente — o SQL Editor manual deve ser reservado para inspeção/debug, não para aplicar schema.
