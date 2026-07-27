@@ -944,6 +944,10 @@ Ao tentar aplicar as 3 migrations novas via SQL Editor, erro `relation "public.u
 
 Migrations testadas localmente via Docker (`supabase db reset`) antes de pedir para aplicar no remoto — os dois bugs de RLS foram encontrados exatamente nesse processo, simulando `auth.uid()` via `set local request.jwt.claim.sub` em sessões `psql` diretas. Depois de aplicadas no projeto remoto real: script de validação com dois usuários reais (Admin API) confirmou — bootstrap funciona e é idempotente, Studios diferentes por usuário, RLS isola `studios`/`users` corretamente entre os dois, zero erros de "permission denied", Role Owner e `user_roles` criados corretamente (10/10 checks). Teste adicional via Playwright confirmou o fluxo end-to-end pela aplicação real (não só via Admin API): login → `AppShell` dispara o bootstrap silenciosamente → `public.users`/`studios` populados corretamente → nenhum toast de erro → nenhuma regressão em `/projects`, `/games`, `/knowledge`, `/publishing`, `/settings/account`. `pnpm build`/`lint`/`typecheck` verdes (12/12).
 
+### Validação em produção
+
+Commit `66cba3f` deployado com sucesso. Reexecutado o script Playwright de bootstrap contra `https://ai-game-studio-os-web.vercel.app`: **10/10 checks** — login funciona, `public.users`/`studios` populados automaticamente pelo `AppShell` (sem UI dedicada), Studio criado com `owner_user_id` correto, nenhum toast de erro, zero regressão em `/projects`, `/games`, `/knowledge`, `/publishing`, `/settings/account`. Zero erros de console.
+
 ### Pendências
 
 - 1.8d-2 — Studio settings (nome/logo, ver membros).
