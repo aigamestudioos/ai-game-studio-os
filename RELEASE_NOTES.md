@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8d-3 — Convide sua equipe
+
+✨ Agora é possível **convidar pessoas por email** para o seu Studio, em Configurações do Studio
+✨ Quem é convidado recebe um email e, ao entrar, já cai direto no Studio para o qual foi convidado
+✨ Acompanhe convites pendentes e cancele se precisar
+
 ## Sprint 1.8d-2 — Configurações do Studio
 
 ✨ Nova tela **Studio** (acesse pelo menu lateral) — edite o nome e o logo do seu estúdio

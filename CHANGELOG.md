@@ -6,6 +6,19 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8d-3 (Convites)
+- `supabase/migrations/20260728000001_invites.sql` — tabela `invites` + `bootstrap_studio_for_current_user` estendido para reconhecer convite pendente.
+- `apps/web/app/settings/studio/actions.ts` — Server Action `inviteMember()` (usa `admin.auth.admin.inviteUserByEmail`).
+- `packages/database/src/repositories/invites-repository.ts`.
+
+### Changed — Sprint 1.8d-3
+- `apps/web/hooks/use-current-studio.ts` — `pendingInvites`, `revokeInvite`.
+- `apps/web/components/settings/studio-members-section.tsx` — formulário de convite, lista de pendentes, badge Owner/Member.
+
+### Fixed — Sprint 1.8d-3
+- Detecção de erro de convite duplicado agora usa `error.code` (SQLSTATE), não substring de `.message`.
+- Rate-limit de envio de email do Supabase (`over_email_send_rate_limit`) não é mais mascarado como sucesso — mensagem amigável + convite revogado (nenhuma conta foi criada).
+
 ### Added — Sprint 1.8d-2 (Studio Settings)
 - `apps/web/app/settings/studio/page.tsx` — nome/logo do Studio + lista de membros.
 - `apps/web/components/settings/{studio-info,studio-members}-section.tsx`.

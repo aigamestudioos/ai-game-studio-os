@@ -40,7 +40,7 @@ Status atual do projeto AI Game Studio OS.
 | 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (produção)** |
 | 1.8d-1 | Studio Bootstrap — Studio+profile+Role Owner automáticos no primeiro login | **Concluído (produção)** |
 | 1.8d-2 | Studio settings (nome/logo, ver membros) | **Concluído (produção)** |
-| 1.8d-3 | Convites (enviar/aceitar) | Pending |
+| 1.8d-3 | Convites (enviar/aceitar) | **Concluído (validado no projeto real)** |
 | 1.8d-4 | Papéis/permissões (Owner/Admin/Member, enforcement) | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
 | 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
@@ -72,7 +72,11 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 1.8d-2 — Studio Settings: nova tela `/settings/studio` — editar nome/logo do Studio (criado automaticamente no 1.8d-1) e ver a lista de membros (hoje sempre 1, o próprio Owner, já que convites ainda não existem). "Studio" e "Settings" na Sidebar, que eram placeholders sem link desde o Sprint 1.1, agora navegam de verdade. Bug visual real encontrado e corrigido: badge "Owner" cortado no mobile (flexbox sem `min-w-0`, não pego pelo teste automatizado de overflow de página). 10/10 passos de teste Playwright (Admin API) — navegação, edição persistindo de verdade em `public.studios`, validação de nome vazio, sem overflow.
+Sprint 1.8d-3 — Convites: convidar por email em `/settings/studio` (Server Action com `admin.auth.admin.inviteUserByEmail`, único uso admin-only fora do bootstrap). `bootstrap_studio_for_current_user` estendido para reconhecer convite pendente por email e entrar no Studio convidante (com papel Member, criado automaticamente) em vez de criar um Studio novo. Dois bugs reais corrigidos durante o teste: detecção de erro por `.code` em vez de texto de `.message`, e um rate-limit real de envio de email do Supabase que a versão inicial mascarava como sucesso silencioso. 10/10 checks via Admin API + 9/9 checks substantivos via UI real, contra o projeto remoto. Ver `DECISIONS.md`.
+
+**Nota operacional:** o projeto Supabase recebeu um aviso de alta taxa de bounce por conta do volume de testes com emails fictícios nesta sessão — metodologia de teste ajustada (usar `generateLink` em vez de disparar envio real repetidamente), registrado em `DECISIONS.md`.
+
+### Sprint 1.8d-2 — Studio Settings: nova tela `/settings/studio` — editar nome/logo do Studio (criado automaticamente no 1.8d-1) e ver a lista de membros (hoje sempre 1, o próprio Owner, já que convites ainda não existem). "Studio" e "Settings" na Sidebar, que eram placeholders sem link desde o Sprint 1.1, agora navegam de verdade. Bug visual real encontrado e corrigido: badge "Owner" cortado no mobile (flexbox sem `min-w-0`, não pego pelo teste automatizado de overflow de página). 10/10 passos de teste Playwright (Admin API) — navegação, edição persistindo de verdade em `public.studios`, validação de nome vazio, sem overflow.
 
 ### Sprint 1.8d-1 — Studio Bootstrap: no primeiro login, `AppShell` dispara automaticamente `bootstrap_studio_for_current_user()` (função `SECURITY DEFINER`, chamada via RPC), criando Studio + `public.users` + Role Owner — sem UI dedicada ainda. Resolve o bloqueio do Sprint 1.8c (perfil vivia em `user_metadata` porque `public.users` exigia um Studio inexistente).
 
@@ -120,7 +124,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8d-3 — Convites (enviar/aceitar).
+Sprint 1.8d-4 — Papéis/permissões (Owner/Admin/Member como escolha real, enforcement testado).
 
 ## Observação
 

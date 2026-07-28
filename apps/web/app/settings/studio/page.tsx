@@ -9,7 +9,7 @@ import { useCurrentStudio } from "../../../hooks/use-current-studio";
 
 export default function StudioSettingsPage() {
   const { session } = useAuth();
-  const { studio, members, updateStudio } = useCurrentStudio(session);
+  const { studio, members, pendingInvites, updateStudio, revokeInvite, refresh } = useCurrentStudio(session);
 
   return (
     <AppShell breadcrumbs={[{ label: "Settings" }, { label: "Studio" }]}>
@@ -26,7 +26,13 @@ export default function StudioSettingsPage() {
         ) : (
           <>
             <StudioInfoSection studio={studio} onUpdate={updateStudio} />
-            <StudioMembersSection members={members} />
+            <StudioMembersSection
+              members={members}
+              pendingInvites={pendingInvites}
+              ownerUserId={studio.owner_user_id}
+              onInvited={refresh}
+              onRevoke={revokeInvite}
+            />
           </>
         )}
       </div>

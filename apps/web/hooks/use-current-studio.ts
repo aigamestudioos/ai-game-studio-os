@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  createInvitesRepository,
   createStudiosRepository,
   createUsersRepository,
+  type InvitesRow,
   type Session,
   type StudiosRow,
   type UsersRow,
@@ -16,6 +18,7 @@ import { getBrowserClient } from "../lib/supabase-client";
 export function useCurrentStudio(session: Session | null | undefined) {
   const [studio, setStudio] = useState<StudiosRow | null | undefined>(undefined);
   const [members, setMembers] = useState<UsersRow[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<InvitesRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -24,6 +27,7 @@ export function useCurrentStudio(session: Session | null | undefined) {
       const client = getBrowserClient();
       const users = createUsersRepository(client);
       const studios = createStudiosRepository(client);
+      const invites = createInvitesRepository(client);
 
       const profile = await users.getById(session.user.id);
       if (!profile) {
@@ -31,12 +35,14 @@ export function useCurrentStudio(session: Session | null | undefined) {
         return;
       }
 
-      const [studioRow, memberRows] = await Promise.all([
+      const [studioRow, memberRows, inviteRows] = await Promise.all([
         studios.getById(profile.studio_id),
         users.listByStudio(profile.studio_id),
+        invites.listPendingByStudio(profile.studio_id),
       ]);
       setStudio(studioRow);
       setMembers(memberRows);
+      setPendingInvites(inviteRows);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar o Studio.");
     }
@@ -54,5 +60,12 @@ export function useCurrentStudio(session: Session | null | undefined) {
     setStudio(updated);
   }
 
-  return { studio, members, error, refresh: load, updateStudio };
+  async function revokeInvite(id: string) {
+    const client = getBrowserClient();
+    const invites = createInvitesRepository(client);
+    await invites.revoke(id);
+    setPendingInvites((prev) => prev.filter((invite) => invite.id !== id));
+  }
+
+  return { studio, members, pendingInvites, error, refresh: load, updateStudio, revokeInvite };
 }

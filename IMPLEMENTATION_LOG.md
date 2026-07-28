@@ -1008,3 +1008,49 @@ Commit `4eb9cbe` deployado com sucesso. Reexecutado o script Playwright contra `
 ### Próximo Sprint
 
 Sprint 1.8d-3 — Convites.
+
+---
+
+## Sprint 1.8d-3 — Convites
+
+**Status:** Concluído (validado em produção real)
+**Período:** 2026-07-28
+
+### Objetivo
+
+Convidar pessoas por email para o Studio, com aceite via login (não uma tela de "aceitar convite" separada — entrar no Studio certo acontece automaticamente no bootstrap já existente do Sprint 1.8d-1).
+
+### Design
+
+Nenhuma entidade de Invite existia em `DATA_MODEL.md`/`AGSOS-SPEC-002`/frozen docs — desenhada do zero seguindo as convenções já estabelecidas. Duas decisões arquiteturais centrais (detalhadas em `DECISIONS.md`): (1) usar `auth.admin.inviteUserByEmail` (nativo do Supabase, admin-only) via uma Server Action em vez de reinventar envio de email; (2) o `bootstrap_studio_for_current_user` (1.8d-1) foi estendido para checar convite pendente por email *antes* de criar um Studio novo — se existir, o usuário entra no Studio convidante com o papel do convite (`Member`, criado automaticamente se ainda não existir) em vez de ganhar um Studio próprio.
+
+### Arquivos criados
+
+- `supabase/migrations/20260728000001_invites.sql` — tabela `invites` (RLS via `current_user_studio_id()`, índice único parcial `where status = 'pending'`) + `bootstrap_studio_for_current_user` atualizado.
+- `apps/web/app/settings/studio/actions.ts` — Server Action `inviteMember()`: lê a sessão real (server-client, RLS) para o `studio_id`, cria o registro do convite, chama `admin.auth.admin.inviteUserByEmail`.
+- `packages/database/src/repositories/invites-repository.ts` — `listPendingByStudio`, `create`, `revoke`.
+
+### Arquivos alterados
+
+- `apps/web/hooks/use-current-studio.ts` — `pendingInvites` + `revokeInvite`.
+- `apps/web/components/settings/studio-members-section.tsx` — formulário de convite, lista de pendentes com cancelar, badge Owner/Member (compara com `studio.owner_user_id`, sem consultar roles/user_roles — não vale a pena antes de existir um terceiro papel real, 1.8d-4).
+- `packages/database/src/generated/database.types.ts`, `src/index.ts` — tipo/tabela `invites`.
+
+### Bugs reais encontrados e corrigidos durante o teste
+
+1. **Detecção de erro por texto de mensagem, não por código estável**: a checagem original de "convite duplicado" usava `err.message.includes("idx_invites_pending_unique")` — `PostgrestError` de fato estende `Error`, mas o formato exato de `.message` não é garantido pelo PostgREST. Corrigido para checar `.code === "23505"` (SQLSTATE de `unique_violation`), conforme a própria documentação do `postgrest-js` recomenda.
+2. **Revogar o convite em qualquer falha de `inviteUserByEmail`, incluindo rate-limit**: a lógica original tratava qualquer erro como motivo para revogar o convite recém-criado. Isso quebra o cenário de reenvio (convite cancelado e recriado para o mesmo email, que já tem um `auth.users` não confirmado — `inviteUserByEmail` retorna `email_exists` de novo). Também descoberto no processo: o projeto Supabase (usado intensamente durante toda esta sessão de testes) está sob **rate-limit real de envio de email** (`over_email_send_rate_limit`, 429) — a versão original do código mascarava esse erro como sucesso silencioso. Corrigido: branch por `error.code` — `over_email_send_rate_limit` vira mensagem amigável e revoga (nenhuma conta foi criada, o convite ficaria órfão); `email_exists` só revoga se existir um profile em `public.users` para o email (conflito real de conta em outro Studio) — senão, mantém o convite pendente sem erro (reenvio para alguém já convidado antes).
+
+### Validações executadas
+
+Migration testada localmente via Docker (`supabase db reset`) antes de aplicar no remoto — confirmado: convidado entra no Studio do convite (não cria um novo), idempotência preservada, `roles`/`user_roles` corretos, e o fluxo normal (sem convite) não regrediu. Aplicada no projeto remoto via `supabase db push` (usuário rodou `supabase login` de novo — token expirado desde a última vez). Script de validação via Admin API contra o projeto remoto real: **10/10 checks** — bootstrap, criação de convite, índice único bloqueando duplicata, `generateLink` simulando o clique no email, convidado entra no Studio certo (não um novo), papel Member correto, convite marcado `accepted`, RLS mostra os dois usuários como membros mútuos, idempotência. Teste adicional via UI real (Playwright, Server Action de verdade): **9/9 checks substantivos** — convite aparece na lista, `invites`/`auth.users` criados de verdade pela Server Action, convite duplicado tratado com mensagem amigável, cancelar remove da lista e marca `revoked` no banco, convidado loga e entra no MESMO Studio do owner com badge "Member". Zero erros de console.
+
+### Pendências
+
+- 1.8d-4 — Papéis/permissões (Admin/Member como escolha real, não só "Member" fixo; enforcement testado).
+- Página de "aceitar convite" dedicada (hoje é implícito no login/bootstrap) — considerar se vale a pena para mensagens mais claras ("Você foi convidado para o Studio X").
+- Projeto Supabase está sob rate-limit de email por uso intenso de teste nesta sessão — pode afetar convites/recuperação de senha reais por um tempo até resetar.
+
+### Próximo Sprint
+
+Sprint 1.8d-4 — Papéis/permissões.

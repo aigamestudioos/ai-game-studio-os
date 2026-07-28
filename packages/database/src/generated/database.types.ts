@@ -63,6 +63,17 @@ export type PermissionsRow = { id: string; key: string; description: string | nu
 export type RolePermissionsRow = { id: string; studio_id: string; role_id: string; permission_id: string; created_at: string };
 export type UserRolesRow = { id: string; studio_id: string; user_id: string; role_id: string; created_at: string };
 
+export type InvitesRow = {
+  id: string;
+  studio_id: string;
+  email: string;
+  invited_by_user_id: string;
+  role_name: string;
+  status: string;
+  created_at: string;
+  accepted_at: string | null;
+};
+
 export type EnvironmentsRow = WithStudio & { type: EnvironmentType; name: string };
 
 export type IdeasRow = WithStudio & {
@@ -271,6 +282,7 @@ export type Database = {
       platforms: Table<PlatformsRow, Partial<PlatformsRow>, Partial<PlatformsRow>>;
       studio_events: Table<StudioEventsRow, Partial<StudioEventsRow>, Partial<StudioEventsRow>>;
       user_dashboard_preferences: Table<UserDashboardPreferencesRow, Partial<UserDashboardPreferencesRow>, Partial<UserDashboardPreferencesRow>>;
+      invites: Table<InvitesRow, Partial<InvitesRow>, Partial<InvitesRow>>;
     };
     Views: Record<string, never>;
     Functions: {
