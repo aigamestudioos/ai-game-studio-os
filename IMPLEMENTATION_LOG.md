@@ -1045,11 +1045,15 @@ Nenhuma entidade de Invite existia em `DATA_MODEL.md`/`AGSOS-SPEC-002`/frozen do
 
 Migration testada localmente via Docker (`supabase db reset`) antes de aplicar no remoto — confirmado: convidado entra no Studio do convite (não cria um novo), idempotência preservada, `roles`/`user_roles` corretos, e o fluxo normal (sem convite) não regrediu. Aplicada no projeto remoto via `supabase db push` (usuário rodou `supabase login` de novo — token expirado desde a última vez). Script de validação via Admin API contra o projeto remoto real: **10/10 checks** — bootstrap, criação de convite, índice único bloqueando duplicata, `generateLink` simulando o clique no email, convidado entra no Studio certo (não um novo), papel Member correto, convite marcado `accepted`, RLS mostra os dois usuários como membros mútuos, idempotência. Teste adicional via UI real (Playwright, Server Action de verdade): **9/9 checks substantivos** — convite aparece na lista, `invites`/`auth.users` criados de verdade pela Server Action, convite duplicado tratado com mensagem amigável, cancelar remove da lista e marca `revoked` no banco, convidado loga e entra no MESMO Studio do owner com badge "Member". Zero erros de console.
 
+### Validação em produção
+
+Commit `7869883` deployado com sucesso. Supabase sinalizou alta taxa de bounce no projeto por volume de emails fictícios enviados durante os testes desta sessão (ver `DECISIONS.md`) — metodologia ajustada: validação de produção feita com `generateLink` (não dispara email real), confirmando login, `/settings/studio` (com o formulário de convite) carregando corretamente e sem regressão. Não repetido o teste de envio real (`inviteUserByEmail`) em produção, já validado 9/9 momentos antes contra o mesmo banco remoto. Zero erros de console.
+
 ### Pendências
 
 - 1.8d-4 — Papéis/permissões (Admin/Member como escolha real, não só "Member" fixo; enforcement testado).
 - Página de "aceitar convite" dedicada (hoje é implícito no login/bootstrap) — considerar se vale a pena para mensagens mais claras ("Você foi convidado para o Studio X").
-- Projeto Supabase está sob rate-limit de email por uso intenso de teste nesta sessão — pode afetar convites/recuperação de senha reais por um tempo até resetar.
+- Configurar um provedor SMTP customizado (recomendação do próprio Supabase) para reduzir risco de bounce/rate-limit em produção de verdade — hoje usa o email transacional padrão do Supabase, com limites baixos.
 
 ### Próximo Sprint
 
