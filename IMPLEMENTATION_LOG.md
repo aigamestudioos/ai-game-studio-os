@@ -1001,6 +1001,10 @@ Screenshot mobile mostrou o badge "Owner" cortado na lista de membros — a `div
 - Badge de papel em Membros precisa ser dinâmico (consultar `roles`/`user_roles`) quando o 1.8d-4 introduzir um segundo papel possível.
 - Migrar perfil/preferências de `user_metadata` (1.8c) para `public.users` segue pendente.
 
+### Validação em produção
+
+Commit `4eb9cbe` deployado com sucesso. Reexecutado o script Playwright contra `https://ai-game-studio-os-web.vercel.app`: **10/10 checks**, zero erros de console.
+
 ### Próximo Sprint
 
 Sprint 1.8d-3 — Convites.

@@ -39,7 +39,7 @@ Status atual do projeto AI Game Studio OS.
 | 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, Playwright, revisão visual, produção | **Concluído (produção)** — template de email personalizado pendente (dashboard-only) |
 | 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (produção)** |
 | 1.8d-1 | Studio Bootstrap — Studio+profile+Role Owner automáticos no primeiro login | **Concluído (produção)** |
-| 1.8d-2 | Studio settings (nome/logo, ver membros) | **Concluído (local)** — falta validar produção |
+| 1.8d-2 | Studio settings (nome/logo, ver membros) | **Concluído (produção)** |
 | 1.8d-3 | Convites (enviar/aceitar) | Pending |
 | 1.8d-4 | Papéis/permissões (Owner/Admin/Member, enforcement) | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
@@ -120,7 +120,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Validar Sprint 1.8d-2 em produção (commit/push pendente). Depois, Sprint 1.8d-3 — Convites (enviar/aceitar).
+Sprint 1.8d-3 — Convites (enviar/aceitar).
 
 ## Observação
 
