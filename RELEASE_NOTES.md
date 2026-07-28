@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8d-2 — Configurações do Studio
+
+✨ Nova tela **Studio** (acesse pelo menu lateral) — edite o nome e o logo do seu estúdio
+✨ Veja quem tem acesso ao seu Studio na seção **Membros**
+🔧 Convidar outras pessoas para o Studio ainda não está disponível (em breve)
+
 ## Sprint 1.8d-1 — Preparação para múltiplos estúdios (bastidores)
 
 🔧 Nenhuma mudança visível — a partir de agora, cada conta tem automaticamente um Studio próprio nos bastidores, preparando o caminho para convites e times no seu estúdio

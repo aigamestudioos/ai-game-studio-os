@@ -24,7 +24,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 // Ordem oficial — SPEC-005 §9 "Layout Padrão"
 const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Studio", icon: Building2 },
+  { label: "Studio", href: "/settings/studio", icon: Building2 },
   { label: "Projects", href: "/projects", icon: FolderKanban },
   { label: "Games", href: "/games", icon: Gamepad2 },
   { label: "AI", icon: Sparkles },
@@ -33,7 +33,7 @@ const NAV_ITEMS: { label: string; href?: string; icon: LucideIcon }[] = [
   { label: "Analytics", icon: BarChart3 },
   { label: "Finance", icon: Wallet },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
-  { label: "Settings", icon: Settings },
+  { label: "Settings", href: "/settings/account", icon: Settings },
 ];
 
 export function SidebarItem({

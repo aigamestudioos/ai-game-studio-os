@@ -12,6 +12,15 @@ export function createStudiosRepository(client: SupabaseClient<Database>) {
       return data;
     },
 
+    // Sprint 1.8d-2 — Studio settings (nome, logo). Só campos editáveis pelo
+    // usuário; colunas de auditoria (created_*, owner_user_id) nunca passam
+    // por aqui.
+    async update(id: string, fields: Partial<Pick<StudiosRow, "name" | "logo_url">>): Promise<StudiosRow> {
+      const { data, error } = await client.from("studios").update(fields).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+
     // Cria o Studio + profile (public.users) + Role Owner do usuário
     // autenticado atual, se ainda não existir (Sprint 1.8d-1). Idempotente —
     // seguro de chamar sempre que a app não tiver certeza se já rodou.

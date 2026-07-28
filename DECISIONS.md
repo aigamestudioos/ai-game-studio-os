@@ -438,3 +438,15 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Usuário rodou `supabase login` + `supabase link --project-ref vkyswyuxitwakjqjteso` + `supabase db push` no próprio terminal — as 12 migrations foram aplicadas de uma vez, rastreadas pelo CLI (mais seguro que colar 12 arquivos SQL manualmente no dashboard, que foi a primeira abordagem tentada antes de perceber a escala real do problema).
 **Motivo:** `db push` aplica migrations em ordem e registra o que já rodou — evita o risco de pular uma migration ou aplicá-la fora de ordem, que colar manualmente no SQL Editor não protege contra.
 **Impacto:** A partir de agora, o projeto remoto tem o schema completo. Qualquer nova migration deve ser aplicada via `supabase db push` (ou equivalente rastreado), não colada manualmente — o SQL Editor manual deve ser reservado para inspeção/debug, não para aplicar schema.
+
+### [2026-07-27] Badge de papel em "Membros" (Studio settings) é fixo em "Owner", não consulta roles/user_roles
+**Contexto:** `Sprint 1.8d-2` (Studio settings) precisa mostrar os membros do Studio. Hoje, todo Studio tem exatamente 1 membro (criado no bootstrap do 1.8d-1), e esse membro é sempre Owner — convites (1.8d-3) e outros papéis (Admin/Member, 1.8d-4) ainda não existem.
+**Decisão:** `StudioMembersSection` mostra o badge "Owner" como texto fixo, sem fazer join com `roles`/`user_roles` para descobrir o papel de verdade.
+**Motivo:** Consultar `roles`/`user_roles` agora seria construir a UI de exibição de papéis antes de existir um segundo papel possível — nenhum cenário real ainda produziria um resultado diferente de "Owner". Fazer isso corretamente (com o join) é trabalho do Sprint 1.8d-4, quando Admin/Member passarem a existir de fato.
+**Impacto:** `StudioMembersSection` precisa ser atualizado no Sprint 1.8d-4 para consultar o papel real de cada membro — documentado como pendência explícita, não uma lacuna esquecida.
+
+### [2026-07-27] Singleton do browser client extraído para `apps/web/lib/supabase-client.ts`
+**Contexto:** `use-current-studio.ts` (Studio settings) precisa do mesmo client Supabase que `use-auth.ts` já mantém como singleton em módulo — duplicar a declaração criaria uma segunda instância de `GoTrueClient` (aviso "Multiple GoTrueClient instances detected", já evitado desde o Sprint 1.8a).
+**Decisão:** Singleton movido para `apps/web/lib/supabase-client.ts` (`getBrowserClient()`); `use-auth.ts` e `use-current-studio.ts` importam do mesmo lugar.
+**Motivo:** Pequena refatoração necessária — melhor extrair a única instância compartilhada para um módulo dedicado do que crescer `use-auth.ts` com responsabilidades de outros hooks, ou duplicar a lógica de singleton em cada hook novo.
+**Impacto:** Qualquer hook futuro que precise do client Supabase deve importar `getBrowserClient()` de `lib/supabase-client.ts`, nunca chamar `createBrowserClient()` diretamente.

@@ -6,6 +6,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8d-2 (Studio Settings)
+- `apps/web/app/settings/studio/page.tsx` — nome/logo do Studio + lista de membros.
+- `apps/web/components/settings/{studio-info,studio-members}-section.tsx`.
+- `apps/web/hooks/use-current-studio.ts`.
+- `packages/database/src/repositories/users-repository.ts` — `getById()`, `listByStudio()`.
+- `apps/web/lib/supabase-client.ts` — singleton do browser client (extraído de `use-auth.ts`).
+
+### Changed — Sprint 1.8d-2
+- `packages/database/src/repositories/studios-repository.ts` — `update()`.
+- `apps/web/components/layout/sidebar.tsx` — "Studio"/"Settings" agora navegam (eram placeholders sem `href`).
+
 ### Added — Sprint 1.8d-1 (Studio Bootstrap)
 - `supabase/migrations/20260717000001_bootstrap_studio.sql` — `bootstrap_studio_for_current_user()`, cria Studio + profile + Role Owner no primeiro login.
 - `apps/web/hooks/use-ensure-studio.ts` — dispara o bootstrap uma vez por sessão a partir do `AppShell`.

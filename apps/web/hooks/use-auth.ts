@@ -1,17 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient, createStudiosRepository, type AuthError, type Session } from "@agsos/database";
-
-// Singleton no módulo: instanciar o client do Supabase mais de uma vez no
-// browser dispara o aviso "Multiple GoTrueClient instances detected" e pode
-// gerar sessões dessincronizadas entre si. Todo hook/componente que usa
-// useAuth() compartilha a mesma instância e reage ao mesmo onAuthStateChange.
-let browserClient: ReturnType<typeof createBrowserClient> | null = null;
-function getBrowserClient() {
-  browserClient ??= createBrowserClient();
-  return browserClient;
-}
+import { createStudiosRepository, type AuthError, type Session } from "@agsos/database";
+import { getBrowserClient } from "../lib/supabase-client";
 
 // Traduz os erros mais comuns do Supabase Auth para mensagens amigáveis em
 // português — nunca expor `error.message` bruto da API na UI.

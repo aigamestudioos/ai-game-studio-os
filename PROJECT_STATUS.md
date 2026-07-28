@@ -39,7 +39,7 @@ Status atual do projeto AI Game Studio OS.
 | 1.8b | Password Recovery — `/forgot-password`, `/reset-password`, força de senha, Playwright, revisão visual, produção | **Concluído (produção)** — template de email personalizado pendente (dashboard-only) |
 | 1.8c | User Workspace — perfil (avatar/nome/timezone/idioma), preferências (tema salvo no banco), segurança (trocar senha, sessões), zona de risco (exclusão placeholder) | **Concluído (produção)** |
 | 1.8d-1 | Studio Bootstrap — Studio+profile+Role Owner automáticos no primeiro login | **Concluído (produção)** |
-| 1.8d-2 | Studio settings (nome/logo, ver membros) | Pending |
+| 1.8d-2 | Studio settings (nome/logo, ver membros) | **Concluído (local)** — falta validar produção |
 | 1.8d-3 | Convites (enviar/aceitar) | Pending |
 | 1.8d-4 | Papéis/permissões (Owner/Admin/Member, enforcement) | Pending |
 | 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
@@ -72,7 +72,9 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 1.8d-1 — Studio Bootstrap: no primeiro login, `AppShell` dispara automaticamente `bootstrap_studio_for_current_user()` (função `SECURITY DEFINER`, chamada via RPC), criando Studio + `public.users` + Role Owner — sem UI dedicada ainda. Resolve o bloqueio do Sprint 1.8c (perfil vivia em `user_metadata` porque `public.users` exigia um Studio inexistente).
+Sprint 1.8d-2 — Studio Settings: nova tela `/settings/studio` — editar nome/logo do Studio (criado automaticamente no 1.8d-1) e ver a lista de membros (hoje sempre 1, o próprio Owner, já que convites ainda não existem). "Studio" e "Settings" na Sidebar, que eram placeholders sem link desde o Sprint 1.1, agora navegam de verdade. Bug visual real encontrado e corrigido: badge "Owner" cortado no mobile (flexbox sem `min-w-0`, não pego pelo teste automatizado de overflow de página). 10/10 passos de teste Playwright (Admin API) — navegação, edição persistindo de verdade em `public.studios`, validação de nome vazio, sem overflow.
+
+### Sprint 1.8d-1 — Studio Bootstrap: no primeiro login, `AppShell` dispara automaticamente `bootstrap_studio_for_current_user()` (função `SECURITY DEFINER`, chamada via RPC), criando Studio + `public.users` + Role Owner — sem UI dedicada ainda. Resolve o bloqueio do Sprint 1.8c (perfil vivia em `user_metadata` porque `public.users` exigia um Studio inexistente).
 
 Dois bugs reais pré-existentes do Sprint 1.7 encontrados e corrigidos ao testar contra Postgres de verdade: **recursão infinita em 27 políticas de RLS** (subquery auto-referencial em `users`) e **GRANTs de tabela ausentes** para o role `authenticated` (RLS nunca chegava a ser avaliado). Nenhum dos dois tinha sido detectado antes porque a validação do Sprint 1.7 só conferiu `relrowsecurity = true`, nunca testou uma política sob autenticação real. Também descoberto: o projeto Supabase remoto nunca tinha recebido o schema do Sprint 1.7 (só Auth foi usado até agora) — resolvido com o usuário rodando `supabase db push` (12 migrations aplicadas de uma vez). Validado com dois usuários reais: bootstrap idempotente, RLS isola Studios/users corretamente entre eles, zero "permission denied", fluxo completo confirmado também via login real na aplicação (não só Admin API). Ver `DECISIONS.md` para os detalhes de cada bug.
 
@@ -118,7 +120,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8d-2 — Studio settings (nome/logo, ver membros). Bom momento para também migrar perfil/preferências de `user_metadata` para `public.users`, agora que a tabela existe de verdade em produção.
+Validar Sprint 1.8d-2 em produção (commit/push pendente). Depois, Sprint 1.8d-3 — Convites (enviar/aceitar).
 
 ## Observação
 

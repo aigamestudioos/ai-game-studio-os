@@ -10,6 +10,7 @@ export type { Session, User, AuthError } from "@supabase/supabase-js";
 export * from "./generated/database.types";
 
 export { createStudiosRepository } from "./repositories/studios-repository";
+export { createUsersRepository } from "./repositories/users-repository";
 export { createProjectsRepository } from "./repositories/projects-repository";
 export { createGamesRepository } from "./repositories/games-repository";
 export { createKnowledgeDocumentsRepository } from "./repositories/knowledge-documents-repository";

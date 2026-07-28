@@ -958,3 +958,49 @@ Commit `66cba3f` deployado com sucesso. Reexecutado o script Playwright de boots
 ### Próximo Sprint
 
 Sprint 1.8d-2 — Studio settings.
+
+---
+
+## Sprint 1.8d-2 — Studio Settings
+
+**Status:** Concluído (local, aguardando push)
+**Período:** 2026-07-27
+
+### Objetivo
+
+Tela `/settings/studio`: editar nome/logo do Studio criado automaticamente no 1.8d-1, e ver a lista de membros (hoje sempre 1 — o próprio Owner, já que convites são o 1.8d-3).
+
+### Arquivos criados
+
+- `apps/web/app/settings/studio/page.tsx`.
+- `apps/web/components/settings/studio-info-section.tsx` — nome + logo (URL, mesmo padrão do avatar em 1.8c).
+- `apps/web/components/settings/studio-members-section.tsx` — lista de membros; badge "Owner" fixo (não consulta `roles`/`user_roles` ainda — só existe um papel possível até o 1.8d-4, seria over-engineering antecipar isso agora).
+- `apps/web/hooks/use-current-studio.ts` — busca `public.users` (perfil) → `public.studios`, expõe `updateStudio()`.
+- `packages/database/src/repositories/users-repository.ts` — `getById()`, `listByStudio()`.
+- `apps/web/lib/supabase-client.ts` — singleton do browser client extraído de `use-auth.ts` (refatoração pequena, para `use-current-studio.ts` reusar a mesma instância sem duplicar `createBrowserClient()`).
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/studios-repository.ts` — `update()`.
+- `packages/database/src/index.ts` — exporta `createUsersRepository`.
+- `apps/web/hooks/use-auth.ts` — importa o singleton de `lib/supabase-client.ts` em vez de declarar o seu próprio.
+- `apps/web/components/layout/sidebar.tsx` — "Studio" → `/settings/studio`, "Settings" → `/settings/account` (os dois itens existiam na sidebar desde o Sprint 1.1 sem `href`, como placeholders desabilitados).
+
+### Bug real encontrado e corrigido durante o teste (visual, não funcional)
+
+Screenshot mobile mostrou o badge "Owner" cortado na lista de membros — a `div` com nome/email não tinha `min-w-0` (problema clássico de flexbox: conteúdo longo recusa encolher abaixo da largura intrínseca, empurrando o badge para fora visualmente, mesmo sem overflow de página). O teste automatizado de overflow (`scrollWidth > clientWidth`) não pegou isso porque não é overflow de página, é conteúdo visualmente cortado dentro do próprio card. Corrigido com `min-w-0` + `truncate` no texto e `shrink-0` no badge/avatar.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Script Playwright ad-hoc (Admin API): **10/10 passos** — navegação via Sidebar, nome default do bootstrap preenchido, membros mostra o próprio usuário com badge Owner, salvar mostra toast e persiste de verdade em `public.studios` (confirmado via Admin API), validação de nome vazio, Sidebar "Settings" navega corretamente, sem overflow no mobile. Zero erros de console.
+
+### Pendências
+
+- 1.8d-3 — Convites (enviar/aceitar).
+- 1.8d-4 — Papéis/permissões (Admin/Member, enforcement testado).
+- Badge de papel em Membros precisa ser dinâmico (consultar `roles`/`user_roles`) quando o 1.8d-4 introduzir um segundo papel possível.
+- Migrar perfil/preferências de `user_metadata` (1.8c) para `public.users` segue pendente.
+
+### Próximo Sprint
+
+Sprint 1.8d-3 — Convites.
