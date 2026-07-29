@@ -2,24 +2,40 @@
 
 import { CheckCircle2, Circle } from "lucide-react";
 import { notFound, useParams } from "next/navigation";
-import type { ProjectStatus } from "../../../components/dashboard/cards";
 import { AppShell } from "../../../components/layout/app-shell";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Progress } from "../../../components/ui/progress";
-import { useProject } from "../../../lib/projects-store";
+import { Spinner } from "../../../components/ui/spinner";
+import { useProject } from "../../../hooks/use-project";
+import { projectStatusLabel } from "../../../lib/project-status";
 
-const STATUS_VARIANT: Record<ProjectStatus, "default" | "warning" | "success"> = {
+const STATUS_VARIANT: Record<string, "default" | "warning" | "success" | "outline" | "secondary"> = {
+  Rascunho: "outline",
+  Planejamento: "secondary",
   "Em desenvolvimento": "default",
-  "Em revisão": "warning",
-  Publicado: "success",
+  "Em pausa": "warning",
+  Concluído: "success",
+  Arquivado: "outline",
 };
 
 export default function ProjectDetailsPage() {
   const params = useParams<{ id: string }>();
-  const project = useProject(params.id);
+  const { project, epics, error } = useProject(params.id);
 
-  if (!project) notFound();
+  if (project === null) notFound();
+
+  if (project === undefined) {
+    return (
+      <AppShell breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Projects", href: "/projects" }]}>
+        <div className="flex justify-center py-2xl">
+          <Spinner size="lg" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const statusLabel = projectStatusLabel(project.status);
 
   return (
     <AppShell
@@ -30,11 +46,13 @@ export default function ProjectDetailsPage() {
           <div className="space-y-sm">
             <div className="flex items-center gap-sm">
               <h1 className="text-2xl font-semibold">{project.name}</h1>
-              <Badge variant={STATUS_VARIANT[project.status]}>{project.status}</Badge>
+              <Badge variant={STATUS_VARIANT[statusLabel] ?? "outline"}>{statusLabel}</Badge>
             </div>
             <p className="text-muted-foreground">{project.description}</p>
           </div>
         </section>
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
         <div className="grid grid-cols-1 gap-lg lg:grid-cols-3">
           <div className="space-y-lg lg:col-span-2">
@@ -43,21 +61,22 @@ export default function ProjectDetailsPage() {
                 <CardTitle className="text-base">Epics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-sm">
-                {project.epics.length === 0 ? (
+                {epics.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum epic cadastrado ainda.</p>
                 ) : (
-                  project.epics.map((epic) => (
-                    <div key={epic.id} className="flex items-center gap-sm text-sm">
-                      {epic.done ? (
-                        <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden="true" />
-                      ) : (
-                        <Circle className="size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
-                      )}
-                      <span className={epic.done ? "text-muted-foreground line-through" : undefined}>
-                        {epic.title}
-                      </span>
-                    </div>
-                  ))
+                  epics.map((epic) => {
+                    const done = epic.status === "COMPLETED";
+                    return (
+                      <div key={epic.id} className="flex items-center gap-sm text-sm">
+                        {done ? (
+                          <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden="true" />
+                        ) : (
+                          <Circle className="size-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+                        )}
+                        <span className={done ? "text-muted-foreground line-through" : undefined}>{epic.title}</span>
+                      </div>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
@@ -72,7 +91,7 @@ export default function ProjectDetailsPage() {
                 <Progress value={project.progress} />
                 <div className="flex items-center justify-between text-xs text-text-tertiary">
                   <span>{project.progress}%</span>
-                  <span>Atualizado {project.updatedAt}</span>
+                  <span>Atualizado {new Date(project.updated_at).toLocaleDateString("pt-BR")}</span>
                 </div>
               </CardContent>
             </Card>

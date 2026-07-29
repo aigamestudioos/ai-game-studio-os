@@ -4,6 +4,11 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.0 — Projects de verdade
+
+✨ Seus **projetos agora são salvos de verdade** — não são mais uma demonstração local do seu navegador
+✨ Cada projeto criado fica disponível para todos com acesso ao seu Studio, e continua lá se você fechar e abrir o navegador de novo
+
 ## Sprint 1.8d-4 — Papéis de verdade no seu time
 
 ✨ Ao convidar alguém, escolha se a pessoa entra como **Admin** (pode convidar e gerenciar membros) ou **Member** (acesso básico)

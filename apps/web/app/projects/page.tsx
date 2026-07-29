@@ -16,25 +16,41 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
+import { Spinner } from "../../components/ui/spinner";
 import { Textarea } from "../../components/ui/textarea";
+import { useAuth } from "../../hooks/use-auth";
+import { useCurrentStudio } from "../../hooks/use-current-studio";
+import { useProjects } from "../../hooks/use-projects";
 import { toast } from "../../hooks/use-toast";
-import { addProject, useProjects } from "../../lib/projects-store";
+import { projectStatusLabel } from "../../lib/project-status";
 
 export default function ProjectsPage() {
-  const projects = useProjects();
+  const { session } = useAuth();
+  const { studio } = useCurrentStudio(session);
+  const { projects, error, createProject } = useProjects(session, studio?.id);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(null);
     if (!name.trim()) return;
 
-    const project = addProject({ name: name.trim(), description: description.trim() });
-    toast({ title: "Projeto criado", description: `${project.name} foi adicionado.`, variant: "success" });
-    setName("");
-    setDescription("");
-    setOpen(false);
+    setLoading(true);
+    try {
+      const project = await createProject({ name: name.trim(), description: description.trim() });
+      toast({ title: "Projeto criado", description: `${project.name} foi adicionado.`, variant: "success" });
+      setName("");
+      setDescription("");
+      setOpen(false);
+    } catch {
+      setFormError("Não foi possível criar o projeto. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -48,7 +64,7 @@ export default function ProjectsPage() {
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled={!studio}>
                 <FolderPlus className="mr-sm size-4" aria-hidden="true" />
                 New Project
               </Button>
@@ -73,6 +89,7 @@ export default function ProjectsPage() {
                       onChange={(event) => setName(event.target.value)}
                       placeholder="Ex.: Project Delta"
                       required
+                      disabled={loading}
                     />
                   </div>
                   <div className="space-y-sm">
@@ -84,31 +101,44 @@ export default function ProjectsPage() {
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
                       placeholder="Do que se trata este projeto?"
+                      disabled={loading}
                     />
                   </div>
+                  {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
                 </div>
 
                 <DialogFooter>
-                  <Button type="submit">Criar Project</Button>
+                  <Button type="submit" loading={loading} disabled={loading}>
+                    Criar Project
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </section>
 
-        <section className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
-            <Link key={project.id} href={`/projects/${project.id}`} className="block">
-              <ProjectCard
-                name={project.name}
-                description={project.description}
-                status={project.status}
-                progress={project.progress}
-                updatedAt={project.updatedAt}
-              />
-            </Link>
-          ))}
-        </section>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        {!projects ? (
+          <div className="flex justify-center py-2xl">
+            <Spinner size="lg" />
+          </div>
+        ) : projects.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum projeto ainda — crie o primeiro acima.</p>
+        ) : (
+          <section className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Link key={project.id} href={`/projects/${project.id}`} className="block">
+                <ProjectCard
+                  name={project.name}
+                  description={project.description ?? ""}
+                  status={projectStatusLabel(project.status)}
+                  progress={project.progress}
+                />
+              </Link>
+            ))}
+          </section>
+        )}
       </div>
     </AppShell>
   );

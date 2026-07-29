@@ -6,6 +6,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.0 (Projects real)
+- `packages/database/src/repositories/epics-repository.ts` — `listByProject()`.
+- `apps/web/hooks/use-projects.ts`, `apps/web/hooks/use-project.ts`.
+- `apps/web/lib/project-status.ts` — mapeia `project_status` (enum do banco) para rótulos em português.
+
+### Changed — Sprint 2.0
+- `apps/web/app/projects/page.tsx` / `app/projects/[id]/page.tsx` — dados reais via `packages/database`, com estados de loading/vazio/erro.
+- `apps/web/components/dashboard/cards.tsx` — `ProjectStatus` relaxado para `string` (fallback de variant), sem quebrar Dashboard/Playground.
+
+### Removed — Sprint 2.0
+- `apps/web/lib/projects-store.ts` — mock (`localStorage`) eliminado.
+
 ### Added — Sprint 1.8d-4 (Papéis e permissões reais)
 - `supabase/migrations/20260729000001_roles_and_permissions.sql` — catálogo `permissions`, `current_user_has_permission()`, RLS de `invites`/`studios` reforçada por permissão, 3 papéis (Owner/Admin/Member) com grants corretos criados junto com o Studio.
 - `packages/database/src/repositories/users-repository.ts` — `listByStudioWithRoles()`.

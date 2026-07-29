@@ -496,3 +496,17 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Só 3 permissões: `studio.edit`, `studio.invite_members`, `studio.manage_members` — exatamente as 2 ações que existem hoje na UI (editar Studio, convidar/cancelar convite).
 **Motivo:** Permissões sem nenhuma política de RLS as consultando são só entradas mortas na tabela — pior que não ter nada, porque parecem implementadas sem estar. Adicionar antecipadamente também arrisca errar o nome/granularidade antes de saber como a funcionalidade real vai precisar checar isso.
 **Impacto:** Quando Projects/Games/etc. ganharem controle de acesso por papel (Sprint 2.0+), adicionar a permissão específica + a política de RLS correspondente na mesma migration — nunca uma sem a outra.
+
+## Sprint 2.0 — Projects real
+
+### [2026-07-29] `ProjectStatus` relaxado para `string` em vez de expandir a união literal
+**Contexto:** `components/dashboard/cards.tsx` tinha `ProjectStatus` como união fechada de 3 rótulos mock ("Em desenvolvimento"/"Em revisão"/"Publicado"). O enum real `project_status` do banco tem 6 valores (`DRAFT`/`PLANNING`/`ACTIVE`/`ON_HOLD`/`COMPLETED`/`ARCHIVED`), mapeados para rótulos em português diferentes dos 3 originais.
+**Decisão:** Tipo relaxado para `string`, com fallback de variant (`"outline"`) para qualquer rótulo não mapeado em `STATUS_VARIANT`, em vez de expandir a união para os 3 antigos + 6 novos.
+**Motivo:** Uma união fechada exigiria decidir antecipadamente todos os rótulos possíveis (inclusive os que Dashboard/Playground ainda usam, mock, sem relação com o enum real) — `string` com fallback é mais simples e não quebra nenhum uso existente; o pior caso de um rótulo não mapeado é um badge cinza (`outline`), não um erro de tipo.
+**Impacto:** `apps/web/lib/project-status.ts` é a única fonte de verdade para o mapeamento enum→rótulo real; `STATUS_VARIANT` em `cards.tsx` só faz estilização visual, não validação de domínio.
+
+### [2026-07-29] Dashboard "Recent Projects" continua mock — não conectado a Projects real
+**Contexto:** Com Projects real existindo, o widget "Recent Projects" do Dashboard (`components/dashboard/mock-data.ts`) poderia ser conectado aos mesmos dados.
+**Decisão:** Fora de escopo deste sprint — o widget continua 100% mock.
+**Motivo:** O Dashboard nunca esteve de fato acoplado a `projects-store.ts` (é um mock próprio, independente, desde o Sprint 1.1) — conectá-lo agora seria expandir escopo além de "substituir o mock de Projects por dados reais", e exigiria decidir regras de "recência" (últimos N projetos atualizados) que não foram pedidas.
+**Impacto:** Quando o Dashboard for revisado para consumir dados reais (fora de escopo até ser pedido), o padrão de `useProjects`/`useCurrentStudio` já está pronto para ser reaproveitado ali.

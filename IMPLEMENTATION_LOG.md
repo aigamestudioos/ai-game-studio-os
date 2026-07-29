@@ -1108,3 +1108,51 @@ Commit `30c1baf` deployado com sucesso. Smoke test em produção sem disparar en
 ### Próximo Sprint
 
 A definir com o usuário — Studios (1.8d) está completo; próximo passo natural é 2.0 (Projects real) ou reforços pontuais (SMTP, testes de RLS formalizados em `supabase/tests/`).
+
+---
+
+## Sprint 2.0 — Projects real
+
+**Status:** Concluído (validado contra o banco real)
+**Período:** 2026-07-29
+
+### Objetivo
+
+Substituir `apps/web/lib/projects-store.ts` (mock, `localStorage`) por dados reais via `packages/database`, usando o `studio_id` real do usuário (Studios/Sprint 1.8d) em vez de dados fictícios por navegador. Primeiro módulo de negócio a fazer essa transição — Games/Knowledge/Publishing seguem mock, migração planejada para sprints seguintes seguindo o mesmo padrão.
+
+### Arquivos criados
+
+- `packages/database/src/repositories/epics-repository.ts` — `listByProject()` (só leitura; criar/editar epics fica para uma tela de backlog dedicada, fora de escopo).
+- `apps/web/hooks/use-projects.ts` — lista + cria projetos, precisa do `studio_id` (via `useCurrentStudio`).
+- `apps/web/hooks/use-project.ts` — projeto único + epics, para a página de detalhes.
+- `apps/web/lib/project-status.ts` — mapeia o enum `project_status` do banco (`DRAFT`/`PLANNING`/`ACTIVE`/`ON_HOLD`/`COMPLETED`/`ARCHIVED`) para rótulos em português.
+
+### Arquivos alterados
+
+- `apps/web/app/projects/page.tsx` / `app/projects/[id]/page.tsx` — reescritos para consumir dados reais em vez do mock; estados de loading/vazio/erro adicionados (o mock nunca precisou disso, já vinha populado de `localStorage`).
+- `apps/web/components/dashboard/cards.tsx` — `ProjectStatus` relaxado de união literal fechada (3 valores) para `string`, com fallback de variant — Dashboard/Playground continuam passando os rótulos mock antigos sem quebrar, Projects real passa os 6 rótulos novos pelo mesmo componente.
+- `packages/database/src/index.ts` — export de `createEpicsRepository`.
+
+### Arquivos removidos
+
+- `apps/web/lib/projects-store.ts` — mock eliminado.
+
+### Decisões
+
+- Progress e status continuam sendo os únicos campos de agregação exibidos — nenhuma UI de criar/editar epics (o mock também não tinha isso; ver `DATA_MODEL.md` sobre `progress` persistido, não recalculado).
+- Dashboard ("Recent Projects") permanece com seu próprio mock (`components/dashboard/mock-data.ts`) — nunca esteve de fato conectado ao `projects-store`, fora de escopo conectar agora.
+- Criação de projeto não exige nenhuma permissão especial (qualquer membro do Studio, incluindo Member) — nenhuma ação de `studio.*` cobre isso; se precisar restringir no futuro, é a mesma extensão de RLS já usada para Studio settings/convites (Sprint 1.8d-4).
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local dev + Supabase remoto real, sem mock): estado vazio real (zero projetos até criar o primeiro — diferença notável do mock, que sempre vinha com 3 projetos seed), criar projeto persiste de verdade em `public.projects` (`status: DRAFT`, `progress: 0`), toast de sucesso, card aparece sem reload, rótulo "Rascunho" exibido corretamente, projeto **continua visível depois de um reload de verdade** (prova de que não é mais `localStorage` por aba/navegador), navegação para detalhes mostra epics vazios sem crash, ID inexistente cai em not-found, e — o teste mais importante — **um segundo usuário, dono de um Studio diferente, não vê o projeto do primeiro** (RLS confirmada em produção real de dados de negócio, não só Auth/Studio). 10/10 checks confirmados (2 primeiro reportados como falha por ambiguidade do próprio script de teste — toast e card continham o mesmo texto — confirmados corretos por depuração direta).
+
+### Pendências
+
+- Games/Knowledge/Publishing seguem mock — mesma migração pendente, mesmo padrão a seguir.
+- Editar/arquivar projeto (repository já tem `archive()`, sem UI ainda).
+- Gestão de epics/tasks (criar, marcar concluído pela UI).
+
+### Próximo Sprint
+
+A definir com o usuário — Games real (mesmo padrão do 2.0) é o próximo candidato natural, ou reforços pendentes (SMTP, testes de RLS).

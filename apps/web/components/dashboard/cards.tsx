@@ -3,12 +3,22 @@ import { Badge } from "../ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Progress } from "../ui/progress";
 
-export type ProjectStatus = "Em desenvolvimento" | "Em revisão" | "Publicado";
+// Solto para `string` (não uma união literal fechada) desde o Sprint 2.0 —
+// Dashboard/Playground continuam passando os 3 rótulos mock originais, mas
+// Projects (dados reais) agora passa rótulos derivados do enum `project_status`
+// do banco (ver apps/web/lib/project-status.ts). Fallback "outline" para
+// qualquer rótulo não mapeado, em vez de travar o tipo numa lista fechada.
+export type ProjectStatus = string;
 
-const STATUS_VARIANT: Record<ProjectStatus, "default" | "warning" | "success"> = {
+const STATUS_VARIANT: Record<string, "default" | "warning" | "success" | "outline" | "secondary"> = {
   "Em desenvolvimento": "default",
   "Em revisão": "warning",
   Publicado: "success",
+  Rascunho: "outline",
+  Planejamento: "secondary",
+  "Em pausa": "warning",
+  Concluído: "success",
+  Arquivado: "outline",
 };
 
 export function ProjectCard({
@@ -29,7 +39,7 @@ export function ProjectCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-sm">
           <CardTitle className="text-base">{name}</CardTitle>
-          <Badge variant={STATUS_VARIANT[status]}>{status}</Badge>
+          <Badge variant={STATUS_VARIANT[status] ?? "outline"}>{status}</Badge>
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>

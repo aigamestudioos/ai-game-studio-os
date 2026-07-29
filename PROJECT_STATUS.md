@@ -42,8 +42,8 @@ Status atual do projeto AI Game Studio OS.
 | 1.8d-2 | Studio settings (nome/logo, ver membros) | **Concluído (produção)** |
 | 1.8d-3 | Convites (enviar/aceitar) | **Concluído (validado no projeto real)** |
 | 1.8d-4 | Papéis/permissões (Owner/Admin/Member, enforcement) | **Concluído (validado no projeto real)** |
-| 1.9 | **Studios** — entidade raiz do domínio (Studio → Projects → Games → Publishing → Knowledge → Finance → Marketing) | Pending |
-| 2.0 | Conectar Projects ao Supabase real — CRUD completo (criar/editar/excluir/arquivar/favoritar) | Pending |
+| ~~1.9~~ | ~~Studios~~ — absorvido pelos Sprints 1.8d-1 a 1.8d-4 (mesmo trabalho, nomes diferentes — ver `DECISIONS.md`) | Absorvido |
+| 2.0 | Conectar Projects ao Supabase real — criar/listar (editar/excluir/arquivar/favoritar ficam para depois) | **Concluído (validado contra o banco real)** |
 | 2.1 | Conectar Games ao Supabase real | Pending |
 | 2.2 | Conectar Knowledge ao Supabase real | Pending |
 | 2.3 | Conectar Publishing ao Supabase real | Pending |
@@ -72,7 +72,9 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 1.8d-4 — Papéis e permissões reais: "Owner"/"Member" eram só rótulos até aqui — agora existem 3 papéis por Studio (Owner/Admin/Member) com permissões reais (`studio.edit`, `studio.invite_members`, `studio.manage_members`) e **enforcement de verdade via RLS** (`WITH CHECK` usando `current_user_has_permission()`), não só checagem client-side. Convite ganhou seletor de papel (Admin/Member); lista de membros mostra o papel real de cada um (não mais um atalho comparando com `owner_user_id`). Confirmado por teste direto: um Member tentando convidar ou editar o Studio via `supabase-js` diretamente (não pela UI) é bloqueado pelo próprio Postgres — a segurança não depende de esconder botões. 12/12 checks via Admin API + 6/6 via UI real, contra o projeto remoto. Com isso, o Sprint 1.8d (Organização/Studios) está completo. Ver `DECISIONS.md`.
+Sprint 2.0 — Projects real: `apps/web/lib/projects-store.ts` (mock, `localStorage`) eliminado — `/projects` e `/projects/[id]` agora usam `packages/database` de verdade, com o `studio_id` real do usuário (Studios, Sprint 1.8d). Primeiro módulo de negócio a fazer essa transição (Games/Knowledge/Publishing seguem mock, mesmo padrão pendente). Testado contra o banco real: estado vazio genuíno (zero projetos até criar o primeiro — diferente do mock, que sempre vinha com 3 projetos seed), projeto criado persiste de verdade e continua visível após um reload real, e — o teste mais importante — **um usuário de um Studio diferente não vê o projeto do primeiro** (RLS confirmada em dados de negócio reais, não só Auth/Studio). 10/10 checks. Ver `DECISIONS.md`.
+
+### Sprint 1.8d-4 — Papéis e permissões reais: "Owner"/"Member" eram só rótulos até aqui — agora existem 3 papéis por Studio (Owner/Admin/Member) com permissões reais (`studio.edit`, `studio.invite_members`, `studio.manage_members`) e **enforcement de verdade via RLS** (`WITH CHECK` usando `current_user_has_permission()`), não só checagem client-side. Convite ganhou seletor de papel (Admin/Member); lista de membros mostra o papel real de cada um (não mais um atalho comparando com `owner_user_id`). Confirmado por teste direto: um Member tentando convidar ou editar o Studio via `supabase-js` diretamente (não pela UI) é bloqueado pelo próprio Postgres — a segurança não depende de esconder botões. 12/12 checks via Admin API + 6/6 via UI real, contra o projeto remoto. Com isso, o Sprint 1.8d (Organização/Studios) está completo. Ver `DECISIONS.md`.
 
 ### Sprint 1.8d-3 — Convites: convidar por email em `/settings/studio` (Server Action com `admin.auth.admin.inviteUserByEmail`, único uso admin-only fora do bootstrap). `bootstrap_studio_for_current_user` estendido para reconhecer convite pendente por email e entrar no Studio convidante (com papel Member, criado automaticamente) em vez de criar um Studio novo. Dois bugs reais corrigidos durante o teste: detecção de erro por `.code` em vez de texto de `.message`, e um rate-limit real de envio de email do Supabase que a versão inicial mascarava como sucesso silencioso. 10/10 checks via Admin API + 9/9 checks substantivos via UI real, contra o projeto remoto. Ver `DECISIONS.md`.
 
@@ -126,7 +128,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-Sprint 1.8d (Organização/Studios) está completo. Próximo passo a definir com o usuário: Sprint 2.0 (conectar Projects a dados reais) ou reforços de infraestrutura pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`).
+A definir com o usuário — Games real (mesmo padrão do 2.0) é o candidato natural, ou reforços pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`, editar/arquivar Project pela UI).
 
 ## Observação
 
