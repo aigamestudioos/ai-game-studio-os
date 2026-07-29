@@ -4,6 +4,11 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.2 — Knowledge de verdade
+
+✨ Seus **documentos da base de conhecimento agora são salvos de verdade**
+✨ Mais opções de tipo de documento (Guia, Política, Lição Aprendida, e outras)
+
 ## Sprint 2.1 — Games de verdade
 
 ✨ Seus **jogos agora são salvos de verdade** — não são mais uma demonstração local

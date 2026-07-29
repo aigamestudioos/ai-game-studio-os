@@ -524,3 +524,17 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Três consultas separadas (versions do game → builds dessas versions → platforms desses builds), montadas em memória com `Map`.
 **Motivo:** Joins aninhados do PostgREST com filtro em coluna de tabela embutida têm sintaxe menos óbvia e mais fácil de errar sem um projeto linkado para testar interativamente; três consultas simples são mais fáceis de verificar corretas na primeira tentativa. Como não há nenhuma UI de criação de build/version ainda, este caminho é pouco exercitado — não há pressão de performance para otimizar para uma única query agora.
 **Impacto:** Se builds passarem a ser um caminho quente (muitas builds por Game, listagem frequente), reavaliar para uma única query com embed do PostgREST.
+
+## Sprint 2.2 — Knowledge real
+
+### [2026-07-29] Bug real: `createVersion()` omitia campos de auditoria obrigatórios (encontrado antes de testar)
+**Contexto:** `packages/database/src/repositories/knowledge-documents-repository.ts`'s `createVersion()` existia desde o Sprint 1.7, com assinatura `Pick<KnowledgeDocumentVersionsRow, "studio_id"|"document_id"|"version_number"|"content">`. `created_actor_type` é `NOT NULL` sem default na tabela `knowledge_document_versions` — a assinatura do repository nunca exigia esse campo, então qualquer chamador seguindo o tipo TypeScript literalmente teria uma inserção falhando por violação de NOT NULL.
+**Decisão:** Assinatura corrigida para incluir `created_actor_type`/`created_actor_id` como obrigatórios, antes de qualquer teste real (pego na revisão do próprio código ao integrar o hook, não em produção).
+**Motivo:** Um repository cujo tipo TypeScript não reflete as constraints reais do banco é pior que não ter tipos — engana o chamador. Corrigido na fonte assim que percebido, em vez de contornar no hook (que teria escondido o problema para o próximo consumidor deste repository).
+**Impacto:** Reforça a prática de sempre conferir o tipo do repository contra a migration real (`NOT NULL`/defaults) ao integrar um repository escrito num sprint anterior, não assumir que a assinatura já está correta só porque compila.
+
+### [2026-07-29] `summary`/`content` só existem depois da primeira versão — criar documento cria a versão 1 junto, atomicamente do ponto de vista da UI
+**Contexto:** `summary`/`content` vivem em `knowledge_document_versions` (imutável), não em `knowledge_documents`. O formulário "New Document" só pede título/resumo/tipo — o mock guardava `content: input.summary` (resumo vira o conteúdo inicial).
+**Decisão:** `useKnowledgeDocuments.createDocument()` faz duas chamadas em sequência (criar o documento, depois criar a versão 1 com o resumo como conteúdo) — não uma transação de banco (Postgres não tem transação client-side via PostgREST), mas do ponto de vista da UI é uma única ação.
+**Motivo:** Mantém paridade com o comportamento do mock sem exigir uma segunda tela ("agora escreva o conteúdo completo") que o usuário não pediu.
+**Impacto:** Se a segunda chamada (`createVersion`) falhar depois da primeira (`create`) ter sucedido, fica um documento sem nenhuma versão — cenário não tratado neste sprint (raro, mas real); a página de detalhes já trata isso mostrando "Nenhuma versão publicada ainda." em vez de crashar.

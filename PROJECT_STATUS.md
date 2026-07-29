@@ -45,7 +45,7 @@ Status atual do projeto AI Game Studio OS.
 | ~~1.9~~ | ~~Studios~~ — absorvido pelos Sprints 1.8d-1 a 1.8d-4 (mesmo trabalho, nomes diferentes — ver `DECISIONS.md`) | Absorvido |
 | 2.0 | Conectar Projects ao Supabase real — criar/listar (editar/excluir/arquivar/favoritar ficam para depois) | **Concluído (validado contra o banco real)** |
 | 2.1 | Conectar Games ao Supabase real — criar/listar (project_id obrigatório, requer Project prévio) | **Concluído (validado contra o banco real)** |
-| 2.2 | Conectar Knowledge ao Supabase real | Pending |
+| 2.2 | Conectar Knowledge ao Supabase real — criar/listar (documento + versão 1) | **Concluído (validado contra o banco real)** |
 | 2.3 | Conectar Publishing ao Supabase real | Pending |
 
 > Reordenação estratégica (2026-07-15): autenticação foi deliberadamente adiada para depois dos módulos de negócio (Projects → Games → Knowledge → Publishing). Motivo: evitar autenticar usuários para chegar a um sistema sem funcionalidade real; validar UX com mocks primeiro reduz retrabalho quando o Supabase for integrado (troca `const data = mockData` por `const data = await supabase...`, sem redesenhar telas). Ver `DECISIONS.md`.
@@ -72,7 +72,9 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 2.1 — Games real: `apps/web/lib/games-store.ts` (mock) eliminado — `/games` e `/games/[id]` usam `packages/database` de verdade. Descoberta de schema que mudou a UI: `games.project_id` é `NOT NULL` (todo Game pertence a um Project, diferença do mock) — "Create Game" agora exige escolher um Project existente, com botão desabilitado e mensagem orientando a criar um Project primeiro se o Studio ainda não tiver nenhum. `Game.platforms` do mock não existe como coluna real — é derivado de `builds` (vazio para todo Game novo, já que não há UI de criação de build ainda). 12/12 checks confirmados contra o banco real, incluindo o fluxo de dependência Project→Game funcionando de ponta a ponta. Ver `DECISIONS.md`.
+Sprint 2.2 — Knowledge real: `apps/web/lib/knowledge-store.ts` (mock) eliminado — `/knowledge` e `/knowledge/[id]` usam `packages/database` de verdade. Descoberta de schema: `summary`/`content` vivem em `knowledge_document_versions` (imutável), não no documento — criar um documento agora cria a versão 1 junto (resumo vira o conteúdo inicial, mesma paridade do mock). Bug real encontrado e corrigido antes de qualquer teste: `createVersion()` (repository do Sprint 1.7) omitia campos de auditoria `NOT NULL` na sua assinatura de tipo. 11/11 checks confirmados contra o banco real, testado com acentuação em português para garantir encoding correto. Ver `DECISIONS.md`.
+
+### Sprint 2.1 — Games real: `apps/web/lib/games-store.ts` (mock) eliminado — `/games` e `/games/[id]` usam `packages/database` de verdade. Descoberta de schema que mudou a UI: `games.project_id` é `NOT NULL` (todo Game pertence a um Project, diferença do mock) — "Create Game" agora exige escolher um Project existente, com botão desabilitado e mensagem orientando a criar um Project primeiro se o Studio ainda não tiver nenhum. `Game.platforms` do mock não existe como coluna real — é derivado de `builds` (vazio para todo Game novo, já que não há UI de criação de build ainda). 12/12 checks confirmados contra o banco real, incluindo o fluxo de dependência Project→Game funcionando de ponta a ponta. Ver `DECISIONS.md`.
 
 ### Sprint 2.0 — Projects real: `apps/web/lib/projects-store.ts` (mock, `localStorage`) eliminado — `/projects` e `/projects/[id]` agora usam `packages/database` de verdade, com o `studio_id` real do usuário (Studios, Sprint 1.8d). Primeiro módulo de negócio a fazer essa transição (Games/Knowledge/Publishing seguem mock, mesmo padrão pendente). Testado contra o banco real: estado vazio genuíno (zero projetos até criar o primeiro — diferente do mock, que sempre vinha com 3 projetos seed), projeto criado persiste de verdade e continua visível após um reload real, e — o teste mais importante — **um usuário de um Studio diferente não vê o projeto do primeiro** (RLS confirmada em dados de negócio reais, não só Auth/Studio). 10/10 checks. Ver `DECISIONS.md`.
 
@@ -130,7 +132,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-A definir com o usuário — Knowledge ou Publishing real (mesmo padrão) são candidatos naturais, ou reforços pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`, editar/arquivar Project/Game pela UI).
+A definir com o usuário — Publishing real (mesmo padrão) fecha a migração mock→real de todos os módulos de negócio do MVP original, ou reforços pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`, editar/arquivar Project/Game/Knowledge pela UI).
 
 ## Observação
 

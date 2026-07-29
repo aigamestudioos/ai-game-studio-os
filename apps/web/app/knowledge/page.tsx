@@ -3,6 +3,7 @@
 import { BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import type { KnowledgeDocumentType } from "@agsos/database";
 import { DocumentCard } from "../../components/knowledge/cards";
 import { AppShell } from "../../components/layout/app-shell";
 import { Badge } from "../../components/ui/badge";
@@ -17,30 +18,45 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
+import { Spinner } from "../../components/ui/spinner";
 import { Textarea } from "../../components/ui/textarea";
+import { useAuth } from "../../hooks/use-auth";
+import { useCurrentStudio } from "../../hooks/use-current-studio";
+import { useKnowledgeDocuments } from "../../hooks/use-knowledge-documents";
 import { toast } from "../../hooks/use-toast";
-import { addDocument, useDocuments, type DocumentType } from "../../lib/knowledge-store";
+import { KNOWLEDGE_TYPES, knowledgeTypeLabel } from "../../lib/knowledge-type";
+import { knowledgeStatusLabel } from "../../lib/knowledge-status";
 import { cn } from "../../lib/utils";
 
-const ALL_TYPES: DocumentType[] = ["Documento", "Template", "Playbook", "SOP", "ADR", "SPEC"];
-
 export default function KnowledgePage() {
-  const documents = useDocuments();
+  const { session } = useAuth();
+  const { studio } = useCurrentStudio(session);
+  const { documents, error, createDocument } = useKnowledgeDocuments(session, studio?.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
-  const [type, setType] = useState<DocumentType>("Documento");
+  const [type, setType] = useState<KnowledgeDocumentType>("TECHNICAL_DOCUMENT");
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(null);
     if (!title.trim()) return;
 
-    const document = addDocument({ title: title.trim(), summary: summary.trim(), type });
-    toast({ title: "Documento criado", description: `${document.title} foi adicionado.`, variant: "success" });
-    setTitle("");
-    setSummary("");
-    setType("Documento");
-    setOpen(false);
+    setLoading(true);
+    try {
+      const document = await createDocument({ title: title.trim(), summary: summary.trim(), type });
+      toast({ title: "Documento criado", description: `${document.title} foi adicionado.`, variant: "success" });
+      setTitle("");
+      setSummary("");
+      setType("TECHNICAL_DOCUMENT");
+      setOpen(false);
+    } catch {
+      setFormError("Não foi possível criar o documento. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -54,7 +70,7 @@ export default function KnowledgePage() {
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled={!studio}>
                 <BookOpen className="mr-sm size-4" aria-hidden="true" />
                 New Document
               </Button>
@@ -79,6 +95,7 @@ export default function KnowledgePage() {
                       onChange={(event) => setTitle(event.target.value)}
                       placeholder="Ex.: Guia de Publicação"
                       required
+                      disabled={loading}
                     />
                   </div>
                   <div className="space-y-sm">
@@ -90,12 +107,13 @@ export default function KnowledgePage() {
                       value={summary}
                       onChange={(event) => setSummary(event.target.value)}
                       placeholder="Do que se trata este documento?"
+                      disabled={loading}
                     />
                   </div>
                   <div className="space-y-sm">
                     <span className="text-sm font-medium">Tipo</span>
                     <div className="flex flex-wrap gap-sm">
-                      {ALL_TYPES.map((option) => {
+                      {KNOWLEDGE_TYPES.map((option) => {
                         const selected = option === type;
                         return (
                           <button key={option} type="button" onClick={() => setType(option)} aria-pressed={selected}>
@@ -103,36 +121,48 @@ export default function KnowledgePage() {
                               variant={selected ? "default" : "outline"}
                               className={cn("cursor-pointer select-none", !selected && "text-muted-foreground")}
                             >
-                              {option}
+                              {knowledgeTypeLabel(option)}
                             </Badge>
                           </button>
                         );
                       })}
                     </div>
                   </div>
+                  {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
                 </div>
 
                 <DialogFooter>
-                  <Button type="submit">Criar Documento</Button>
+                  <Button type="submit" loading={loading} disabled={loading}>
+                    Criar Documento
+                  </Button>
                 </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
         </section>
 
-        <section className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-          {documents.map((document) => (
-            <Link key={document.id} href={`/knowledge/${document.id}`} className="block">
-              <DocumentCard
-                title={document.title}
-                summary={document.summary}
-                type={document.type}
-                status={document.status}
-                updatedAt={document.updatedAt}
-              />
-            </Link>
-          ))}
-        </section>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        {!documents ? (
+          <div className="flex justify-center py-2xl">
+            <Spinner size="lg" />
+          </div>
+        ) : documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum documento ainda — crie o primeiro acima.</p>
+        ) : (
+          <section className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+            {documents.map(({ document, summary: docSummary }) => (
+              <Link key={document.id} href={`/knowledge/${document.id}`} className="block">
+                <DocumentCard
+                  title={document.title}
+                  summary={docSummary ?? ""}
+                  type={knowledgeTypeLabel(document.type)}
+                  status={knowledgeStatusLabel(document.status)}
+                />
+              </Link>
+            ))}
+          </section>
+        )}
       </div>
     </AppShell>
   );

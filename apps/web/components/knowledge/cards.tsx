@@ -1,10 +1,14 @@
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import type { DocumentStatus, DocumentType } from "../../lib/knowledge-store";
 
-const STATUS_VARIANT: Record<DocumentStatus, "warning" | "success"> = {
+// Solto para `string` desde o Sprint 2.2 — mesmo padrão de ProjectCard/GameCard.
+const STATUS_VARIANT: Record<string, "default" | "warning" | "success" | "outline" | "secondary" | "destructive"> = {
   Rascunho: "warning",
+  "Em revisão": "secondary",
+  Aprovado: "default",
   Publicado: "success",
+  Obsoleto: "destructive",
+  Arquivado: "outline",
 };
 
 export function DocumentCard({
@@ -16,8 +20,8 @@ export function DocumentCard({
 }: {
   title: string;
   summary: string;
-  type: DocumentType;
-  status: DocumentStatus;
+  type: string;
+  status: string;
   updatedAt?: string;
 }) {
   return (
@@ -25,7 +29,7 @@ export function DocumentCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-sm">
           <CardTitle className="text-base">{title}</CardTitle>
-          <Badge variant={STATUS_VARIANT[status]}>{status}</Badge>
+          <Badge variant={STATUS_VARIANT[status] ?? "outline"}>{status}</Badge>
         </div>
         <CardDescription>{summary}</CardDescription>
       </CardHeader>

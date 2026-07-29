@@ -6,6 +6,21 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.2 (Knowledge real)
+- `apps/web/hooks/use-knowledge-documents.ts`, `use-knowledge-document.ts`.
+- `apps/web/lib/knowledge-status.ts`, `knowledge-type.ts`.
+- `packages/database/src/repositories/knowledge-documents-repository.ts` — `listWithLatestSummary()`, `getLatestVersion()`.
+
+### Fixed — Sprint 2.2
+- `knowledge-documents-repository.ts`'s `createVersion()` omitia `created_actor_type`/`created_actor_id` (NOT NULL na tabela) — corrigido antes de qualquer teste real.
+
+### Changed — Sprint 2.2
+- `apps/web/app/knowledge/page.tsx` / `app/knowledge/[id]/page.tsx` — dados reais; criar documento cria a versão 1 junto.
+- `apps/web/components/knowledge/cards.tsx` — status/tipo soltos (`string`).
+
+### Removed — Sprint 2.2
+- `apps/web/lib/knowledge-store.ts` — mock eliminado.
+
 ### Added — Sprint 2.1 (Games real)
 - `packages/database/src/repositories/builds-repository.ts` — `listByGame()`.
 - `apps/web/hooks/use-games.ts`, `apps/web/hooks/use-game.ts`.

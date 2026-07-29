@@ -27,3 +27,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 1.8d-4 | Convites agora escolhem o **papel** (Admin ou Member) — e as permissões de cada papel são reais, aplicadas pelo próprio banco de dados |
 | 2.0 | Seus **projetos agora são dados reais** — persistem de verdade e são compartilhados por todos no seu Studio, não mais uma demonstração local |
 | 2.1 | Seus **jogos agora são dados reais** também — e todo jogo pertence a um Project, refletindo como um estúdio de verdade organiza o trabalho |
+| 2.2 | Sua **base de conhecimento agora é real** também — documentos persistem de verdade, com mais tipos disponíveis |

@@ -1209,3 +1209,51 @@ Commit `d428be1` deployado com sucesso. Reexecutado o mesmo script Playwright co
 ### Próximo Sprint
 
 A definir com o usuário.
+
+---
+
+## Sprint 2.2 — Knowledge real
+
+**Status:** Concluído (validado contra o banco real)
+**Período:** 2026-07-29
+
+### Objetivo
+
+Mesmo padrão dos Sprints 2.0/2.1: substituir `apps/web/lib/knowledge-store.ts` (mock) por dados reais via `packages/database`. Sem dependência de Project (diferente de Games) — mais simples de conectar.
+
+### Descoberta de schema
+
+`summary`/`content` vivem em `knowledge_document_versions` (imutável, `AGSOS-SPEC-003` §9: "documentos publicados não são sobrescritos — uma alteração cria nova versão"), não no próprio `knowledge_documents` — diferença do mock, que tinha tudo achatado no documento. Criar um documento agora cria a versão 1 junto (conteúdo = resumo, mesmo comportamento do mock: `content: input.summary`). O enum `knowledge_document_type` real tem 9 valores (sem um genérico "Documento") — `TECHNICAL_DOCUMENT` virou o mais próximo/default do formulário; `knowledge_document_status` tem 6 valores (mock só tinha 2).
+
+### Bug real corrigido antes de testar (achado na revisão do próprio código, não em produção)
+
+`knowledge-documents-repository.ts`'s `createVersion()` já existia desde o Sprint 1.7, mas seu tipo de parâmetro (`Pick<..., "studio_id"|"document_id"|"version_number"|"content">`) **omitia `created_actor_type`/`created_actor_id`**, que são `NOT NULL` na tabela (sem default) — chamar `createVersion()` como a assinatura sugeria teria falhado com violação de NOT NULL. Corrigido o tipo do parâmetro para incluir os campos de auditoria obrigatórios antes de qualquer teste real.
+
+### Arquivos criados
+
+- `apps/web/hooks/use-knowledge-documents.ts`, `use-knowledge-document.ts`.
+- `apps/web/lib/knowledge-status.ts`, `knowledge-type.ts` — mapeiam os enums para português.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/knowledge-documents-repository.ts` — `createVersion()` corrigido (ver acima); `listWithLatestSummary()`/`getLatestVersion()` novos (resolvem o resumo/conteúdo a partir da versão mais recente, mesmo padrão de consultas separadas de `builds-repository.listByGame()`).
+- `apps/web/app/knowledge/page.tsx` / `app/knowledge/[id]/page.tsx` — dados reais.
+- `apps/web/components/knowledge/cards.tsx` — status/tipo soltos (`string`).
+
+### Arquivos removidos
+
+- `apps/web/lib/knowledge-store.ts` — mock eliminado.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local): **11/11 checks** — estado vazio real, criar documento cria a linha em `knowledge_documents` (type=ADR, status=DRAFT) **e** a versão 1 em `knowledge_document_versions` com o conteúdo correto (testado com acentuação em português — "acentuação", "ç", "ã" — para garantir que não há problema de encoding), resumo aparece no card da lista (derivado da versão), rótulos "Rascunho"/"ADR" corretos, documento continua visível após reload real, detalhes carregam com o conteúdo real da versão, ID inexistente cai em not-found. Zero erros de console.
+
+### Pendências
+
+- Publishing é o último módulo ainda em mock.
+- Nenhuma UI para criar uma segunda versão de um documento existente (edição sempre cria versão nova, por design — só não há UI para isso ainda).
+- Editar/arquivar documento.
+
+### Próximo Sprint
+
+A definir com o usuário — Publishing real fecha a migração mock→real de todos os módulos de negócio do MVP original.
