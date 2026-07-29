@@ -1196,6 +1196,10 @@ Mesmo padrão do Sprint 2.0 (Projects): substituir `apps/web/lib/games-store.ts`
 
 `pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local): **12/12 checks** — botão "Create Game" corretamente desabilitado (com mensagem orientando) quando o Studio ainda não tem nenhum Project, habilita depois de criar um, seletor de Project mostra o Project real, jogo persiste com `project_id` vinculado corretamente, rótulo "Rascunho" exibido, jogo continua visível após reload real, detalhes carregam sem builds/plataformas (mensagens apropriadas, sem crash), ID inexistente cai em not-found. Zero erros de console.
 
+### Validação em produção
+
+Commit `d428be1` deployado com sucesso. Reexecutado o mesmo script Playwright contra `https://ai-game-studio-os-web.vercel.app`: **12/12 checks**, zero erros de console — incluindo o fluxo de dependência Project→Game funcionando corretamente em produção.
+
 ### Pendências
 
 - Knowledge/Publishing seguem mock — mesma migração pendente.
