@@ -1160,3 +1160,48 @@ Commit `71dc4e6` deployado com sucesso (deploy um pouco mais lento que o normal 
 ### Próximo Sprint
 
 A definir com o usuário — Games real (mesmo padrão do 2.0) é o próximo candidato natural, ou reforços pendentes (SMTP, testes de RLS).
+
+---
+
+## Sprint 2.1 — Games real
+
+**Status:** Concluído (validado contra o banco real)
+**Período:** 2026-07-29
+
+### Objetivo
+
+Mesmo padrão do Sprint 2.0 (Projects): substituir `apps/web/lib/games-store.ts` (mock) por dados reais via `packages/database`.
+
+### Descoberta de schema que mudou o escopo da UI
+
+`games.project_id` é `NOT NULL` — todo Game pertence a um Project no schema real (`AGSOS-SPEC-002`), diferença que o mock não tinha (Games eram standalone). Além disso, `Game.platforms` do mock não existe como coluna em `games` — é derivado de `builds.platform_id` (via `game_versions`), já documentado em `DATA_MODEL.md` §7 desde a auditoria original. Isso exigiu: (1) um seletor de Project obrigatório na tela "Create Game", com o botão desabilitado e uma mensagem orientando a criar um Project primeiro quando o Studio ainda não tem nenhum; (2) `platforms` no `GameCard`/detalhe passou a ser derivado dos `builds` do jogo (vazio para todo Game novo, já que não há UI de criação de build/version neste sprint — mesma decisão já tomada para epics no Sprint 2.0).
+
+### Arquivos criados
+
+- `packages/database/src/repositories/builds-repository.ts` — `listByGame()`, resolve os joins `builds → game_versions (version_number)` e `builds → platforms (name)` em consultas separadas (mais simples de validar que embutir joins aninhados do PostgREST).
+- `apps/web/hooks/use-games.ts`, `apps/web/hooks/use-game.ts`.
+- `apps/web/lib/game-status.ts`, `apps/web/lib/build-status.ts` — mapeiam os enums `game_status` (7 valores) e `build_status` (5 valores) para rótulos em português.
+
+### Arquivos alterados
+
+- `apps/web/app/games/page.tsx` / `app/games/[id]/page.tsx` — dados reais; seletor de Project obrigatório na criação.
+- `apps/web/components/games/cards.tsx` — `GameCard` com status solto (`string`, mesmo padrão de `ProjectCard`) e `platforms` opcional (só `GameCard`/detalhe usam este componente, sem consumidores externos tipo Dashboard/Playground para se preocupar com compatibilidade).
+- `packages/database/src/index.ts` — export de `createBuildsRepository`/`BuildWithDetails`.
+
+### Arquivos removidos
+
+- `apps/web/lib/games-store.ts` — mock eliminado.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local): **12/12 checks** — botão "Create Game" corretamente desabilitado (com mensagem orientando) quando o Studio ainda não tem nenhum Project, habilita depois de criar um, seletor de Project mostra o Project real, jogo persiste com `project_id` vinculado corretamente, rótulo "Rascunho" exibido, jogo continua visível após reload real, detalhes carregam sem builds/plataformas (mensagens apropriadas, sem crash), ID inexistente cai em not-found. Zero erros de console.
+
+### Pendências
+
+- Knowledge/Publishing seguem mock — mesma migração pendente.
+- Nenhuma UI para criar `game_versions`/`builds` (fica para quando houver integração real de CI/build, fora de escopo).
+- Editar/arquivar Game.
+
+### Próximo Sprint
+
+A definir com o usuário.

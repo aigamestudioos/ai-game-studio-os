@@ -44,7 +44,7 @@ Status atual do projeto AI Game Studio OS.
 | 1.8d-4 | Papéis/permissões (Owner/Admin/Member, enforcement) | **Concluído (validado no projeto real)** |
 | ~~1.9~~ | ~~Studios~~ — absorvido pelos Sprints 1.8d-1 a 1.8d-4 (mesmo trabalho, nomes diferentes — ver `DECISIONS.md`) | Absorvido |
 | 2.0 | Conectar Projects ao Supabase real — criar/listar (editar/excluir/arquivar/favoritar ficam para depois) | **Concluído (validado contra o banco real)** |
-| 2.1 | Conectar Games ao Supabase real | Pending |
+| 2.1 | Conectar Games ao Supabase real — criar/listar (project_id obrigatório, requer Project prévio) | **Concluído (validado contra o banco real)** |
 | 2.2 | Conectar Knowledge ao Supabase real | Pending |
 | 2.3 | Conectar Publishing ao Supabase real | Pending |
 
@@ -72,7 +72,9 @@ A partir do Sprint 1.7, a comunicação de progresso passa a também usar "Relea
 
 ## Último Sprint
 
-Sprint 2.0 — Projects real: `apps/web/lib/projects-store.ts` (mock, `localStorage`) eliminado — `/projects` e `/projects/[id]` agora usam `packages/database` de verdade, com o `studio_id` real do usuário (Studios, Sprint 1.8d). Primeiro módulo de negócio a fazer essa transição (Games/Knowledge/Publishing seguem mock, mesmo padrão pendente). Testado contra o banco real: estado vazio genuíno (zero projetos até criar o primeiro — diferente do mock, que sempre vinha com 3 projetos seed), projeto criado persiste de verdade e continua visível após um reload real, e — o teste mais importante — **um usuário de um Studio diferente não vê o projeto do primeiro** (RLS confirmada em dados de negócio reais, não só Auth/Studio). 10/10 checks. Ver `DECISIONS.md`.
+Sprint 2.1 — Games real: `apps/web/lib/games-store.ts` (mock) eliminado — `/games` e `/games/[id]` usam `packages/database` de verdade. Descoberta de schema que mudou a UI: `games.project_id` é `NOT NULL` (todo Game pertence a um Project, diferença do mock) — "Create Game" agora exige escolher um Project existente, com botão desabilitado e mensagem orientando a criar um Project primeiro se o Studio ainda não tiver nenhum. `Game.platforms` do mock não existe como coluna real — é derivado de `builds` (vazio para todo Game novo, já que não há UI de criação de build ainda). 12/12 checks confirmados contra o banco real, incluindo o fluxo de dependência Project→Game funcionando de ponta a ponta. Ver `DECISIONS.md`.
+
+### Sprint 2.0 — Projects real: `apps/web/lib/projects-store.ts` (mock, `localStorage`) eliminado — `/projects` e `/projects/[id]` agora usam `packages/database` de verdade, com o `studio_id` real do usuário (Studios, Sprint 1.8d). Primeiro módulo de negócio a fazer essa transição (Games/Knowledge/Publishing seguem mock, mesmo padrão pendente). Testado contra o banco real: estado vazio genuíno (zero projetos até criar o primeiro — diferente do mock, que sempre vinha com 3 projetos seed), projeto criado persiste de verdade e continua visível após um reload real, e — o teste mais importante — **um usuário de um Studio diferente não vê o projeto do primeiro** (RLS confirmada em dados de negócio reais, não só Auth/Studio). 10/10 checks. Ver `DECISIONS.md`.
 
 ### Sprint 1.8d-4 — Papéis e permissões reais: "Owner"/"Member" eram só rótulos até aqui — agora existem 3 papéis por Studio (Owner/Admin/Member) com permissões reais (`studio.edit`, `studio.invite_members`, `studio.manage_members`) e **enforcement de verdade via RLS** (`WITH CHECK` usando `current_user_has_permission()`), não só checagem client-side. Convite ganhou seletor de papel (Admin/Member); lista de membros mostra o papel real de cada um (não mais um atalho comparando com `owner_user_id`). Confirmado por teste direto: um Member tentando convidar ou editar o Studio via `supabase-js` diretamente (não pela UI) é bloqueado pelo próprio Postgres — a segurança não depende de esconder botões. 12/12 checks via Admin API + 6/6 via UI real, contra o projeto remoto. Com isso, o Sprint 1.8d (Organização/Studios) está completo. Ver `DECISIONS.md`.
 
@@ -128,7 +130,7 @@ Um bug real de responsividade foi encontrado via screenshot mobile e corrigido: 
 
 ## Próxima Etapa
 
-A definir com o usuário — Games real (mesmo padrão do 2.0) é o candidato natural, ou reforços pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`, editar/arquivar Project pela UI).
+A definir com o usuário — Knowledge ou Publishing real (mesmo padrão) são candidatos naturais, ou reforços pendentes (SMTP customizado, testes de RLS formalizados em `supabase/tests/`, editar/arquivar Project/Game pela UI).
 
 ## Observação
 

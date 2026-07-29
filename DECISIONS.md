@@ -510,3 +510,17 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Fora de escopo deste sprint — o widget continua 100% mock.
 **Motivo:** O Dashboard nunca esteve de fato acoplado a `projects-store.ts` (é um mock próprio, independente, desde o Sprint 1.1) — conectá-lo agora seria expandir escopo além de "substituir o mock de Projects por dados reais", e exigiria decidir regras de "recência" (últimos N projetos atualizados) que não foram pedidas.
 **Impacto:** Quando o Dashboard for revisado para consumir dados reais (fora de escopo até ser pedido), o padrão de `useProjects`/`useCurrentStudio` já está pronto para ser reaproveitado ali.
+
+## Sprint 2.1 — Games real
+
+### [2026-07-29] Seletor de Project obrigatório na criação de Game (não um Project "implícito"/automático)
+**Contexto:** `games.project_id` é `NOT NULL` no schema real — diferença do mock, que não tinha esse vínculo. Uma alternativa seria criar um Project "padrão" automaticamente para o Game, sem pedir para o usuário escolher.
+**Decisão:** A UI exige que o Studio já tenha pelo menos um Project antes de permitir criar um Game — botão desabilitado + mensagem explicando o porquê, em vez de criar um Project invisível/automático.
+**Motivo:** Criar um Project "de brinde" silenciosamente esconderia do usuário um relacionamento real do domínio (Game pertence a Project) e poluiria a lista de Projects com entradas que ele não pediu. É mais honesto exigir a escolha explícita, mesmo que isso signifique um passo extra na primeira vez.
+**Impacto:** Qualquer fluxo futuro de "criar X que depende de Y" deve seguir o mesmo princípio — pedir para o usuário resolver a dependência real, não mascarar com um registro automático.
+
+### [2026-07-29] `builds-repository.listByGame()` resolve joins em consultas separadas, não aninhadas no PostgREST
+**Contexto:** `builds` não tem `game_id` direto (só `game_version_id` → `game_versions.game_id`) nem texto de versão/plataforma (`game_version_id` → `game_versions.version_number`, `platform_id` → `platforms.name`). Dava para tentar resolver isso com um único `select` aninhado do PostgREST (`builds.select("*, game_versions!inner(...), platforms(...)")`).
+**Decisão:** Três consultas separadas (versions do game → builds dessas versions → platforms desses builds), montadas em memória com `Map`.
+**Motivo:** Joins aninhados do PostgREST com filtro em coluna de tabela embutida têm sintaxe menos óbvia e mais fácil de errar sem um projeto linkado para testar interativamente; três consultas simples são mais fáceis de verificar corretas na primeira tentativa. Como não há nenhuma UI de criação de build/version ainda, este caminho é pouco exercitado — não há pressão de performance para otimizar para uma única query agora.
+**Impacto:** Se builds passarem a ser um caminho quente (muitas builds por Game, listagem frequente), reavaliar para uma única query com embed do PostgREST.

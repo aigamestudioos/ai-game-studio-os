@@ -4,6 +4,11 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.1 — Games de verdade
+
+✨ Seus **jogos agora são salvos de verdade** — não são mais uma demonstração local
+🔧 Todo jogo precisa estar vinculado a um Project — crie um Project antes do seu primeiro Game
+
 ## Sprint 2.0 — Projects de verdade
 
 ✨ Seus **projetos agora são salvos de verdade** — não são mais uma demonstração local do seu navegador

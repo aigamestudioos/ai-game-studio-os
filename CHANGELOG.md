@@ -6,6 +6,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.1 (Games real)
+- `packages/database/src/repositories/builds-repository.ts` — `listByGame()`.
+- `apps/web/hooks/use-games.ts`, `apps/web/hooks/use-game.ts`.
+- `apps/web/lib/game-status.ts`, `apps/web/lib/build-status.ts`.
+
+### Changed — Sprint 2.1
+- `apps/web/app/games/page.tsx` / `app/games/[id]/page.tsx` — dados reais; seletor de Project obrigatório na criação (Game exige `project_id`).
+- `apps/web/components/games/cards.tsx` — status solto (`string`), `platforms` opcional (derivado de builds).
+
+### Removed — Sprint 2.1
+- `apps/web/lib/games-store.ts` — mock eliminado.
+
 ### Added — Sprint 2.0 (Projects real)
 - `packages/database/src/repositories/epics-repository.ts` — `listByProject()`.
 - `apps/web/hooks/use-projects.ts`, `apps/web/hooks/use-project.ts`.
