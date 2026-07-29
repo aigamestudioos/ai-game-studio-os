@@ -1147,6 +1147,10 @@ Substituir `apps/web/lib/projects-store.ts` (mock, `localStorage`) por dados rea
 
 `pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local dev + Supabase remoto real, sem mock): estado vazio real (zero projetos até criar o primeiro — diferença notável do mock, que sempre vinha com 3 projetos seed), criar projeto persiste de verdade em `public.projects` (`status: DRAFT`, `progress: 0`), toast de sucesso, card aparece sem reload, rótulo "Rascunho" exibido corretamente, projeto **continua visível depois de um reload de verdade** (prova de que não é mais `localStorage` por aba/navegador), navegação para detalhes mostra epics vazios sem crash, ID inexistente cai em not-found, e — o teste mais importante — **um segundo usuário, dono de um Studio diferente, não vê o projeto do primeiro** (RLS confirmada em produção real de dados de negócio, não só Auth/Studio). 10/10 checks confirmados (2 primeiro reportados como falha por ambiguidade do próprio script de teste — toast e card continham o mesmo texto — confirmados corretos por depuração direta).
 
+### Validação em produção
+
+Commit `71dc4e6` deployado com sucesso (deploy um pouco mais lento que o normal desta vez). Reexecutado o teste Playwright contra `https://ai-game-studio-os-web.vercel.app`: **8/10 checks diretos** (os mesmos 2 que falharam por ambiguidade do próprio script — toast e card com o mesmo texto — já confirmados corretos por depuração direta anteriormente nesta sessão). Nome de projeto do teste corrigido para ser único por execução (evita colisão com registros de execuções anteriores). Zero erros de console.
+
 ### Pendências
 
 - Games/Knowledge/Publishing seguem mock — mesma migração pendente, mesmo padrão a seguir.
