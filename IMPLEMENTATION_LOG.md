@@ -1094,6 +1094,10 @@ Migration testada localmente via Docker (`supabase db reset`, 14 migrations) ant
 
 Durante a depuração deste sprint, o Supabase voltou a rate-limitar envio de email (`over_email_send_rate_limit`) por causa de tentativas repetidas de depuração do PRÓPRIO script de teste (não do app). Em vez de insistir em novos envios reais, o restante da validação de UI foi feito seedando o convite diretamente via admin client (sem enviar email) — o caminho de envio real já tinha sido confirmado com sucesso no início do teste. Reforça a decisão já registrada em `DECISIONS.md`: preferir `generateLink`/inserts diretos a `inviteUserByEmail` real sempre que a lógica sob teste não depender do envio em si.
 
+### Validação em produção
+
+Commit `30c1baf` deployado com sucesso. Smoke test em produção sem disparar envio real de email (convite seedado via admin client): **6/6 checks** — login, `/settings/studio` com seletor de papel visível, badge de papel real, e o teste mais importante — um Member tentando editar o Studio em produção real foi bloqueado pela RLS de verdade (nome não mudou no banco). Zero erros de console.
+
 ### Pendências
 
 - Nenhum controle de UI para trocar o papel de um membro já existente (só na hora do convite) — se necessário, é uma extensão pequena do mesmo padrão.
