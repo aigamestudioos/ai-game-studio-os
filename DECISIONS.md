@@ -476,3 +476,23 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Testes automatizados passam a usar `admin.generateLink()` (gera o link de ação sem despachar email de verdade) como caminho padrão de validação. Os caminhos que enviam email real (`inviteUserByEmail`, `resetPasswordForEmail`) só são exercitados no máximo uma vez por sprint, para confirmar que a integração funciona — nunca em loop de depuração.
 **Motivo:** `generateLink` valida exatamente a mesma lógica de backend (criação de `auth.users`, geração do link, formato do redirect) sem o efeito colateral de enviar/bouncing emails reais. Repetir o envio real dezenas de vezes durante depuração não agrega validação adicional proporcional ao risco à reputação de envio do projeto.
 **Impacto:** Scripts de teste futuros (`*-test.mjs` no scratchpad) devem preferir `generateLink` por padrão; qualquer teste que precise do envio real deve ser sinalizado explicitamente como tal e executado com moderação.
+
+## Sprint 1.8d-4 — Papéis e permissões reais
+
+### [2026-07-29] Enforcement via RLS (WITH CHECK), não checagem client-side/Server Action
+**Contexto:** Precisava decidir onde impor "só Owner/Admin pode convidar, só Owner pode editar Studio": (a) só na UI (esconder botões) + checagem na Server Action; ou (b) na própria política de RLS da tabela, via `WITH CHECK`.
+**Decisão:** RLS é a camada real de enforcement (`invites_insert`/`invites_update`/`studios_update` com `current_user_has_permission(...)` no `WITH CHECK`). A Server Action e a UI também checam (mensagem amigável antecipada), mas são conveniência de UX, não a proteção real.
+**Motivo:** Qualquer checagem só em código de aplicação pode ser contornada por quem chama a API do Supabase diretamente (a `anon`/`publishable` key é pública no bundle do cliente). RLS é reforçado pelo próprio Postgres, não tem como contornar sem a service role key. Confirmado por teste direto: um Member tentando `insert`/`update` diretamente via `supabase-js` (não pela UI) é bloqueado do mesmo jeito.
+**Impacto:** Qualquer novo recurso que precise de controle de acesso por papel deve seguir o mesmo padrão — política de RLS com `current_user_has_permission()`, não só lógica de aplicação. A UI/Server Action ficam livres para dar mensagens mais amigáveis, mas nunca são a única barreira.
+
+### [2026-07-29] Três papéis pré-criados na criação do Studio (Owner/Admin/Member), não só sob demanda
+**Contexto:** Convites (1.8d-3) já criavam uma Role sob demanda se ela não existisse ainda para o Studio (só "Member" até então). Com permissões reais, criar uma Role "Admin" sob demanda no momento do aceite exigiria decidir ali, na hora, quais permissões ela deveria ter — lógica espalhada em dois lugares (criação do Studio vs. aceite de convite).
+**Decisão:** Os 3 papéis (Owner, Admin, Member) e seus `role_permissions` são criados de uma vez na criação do Studio (dentro de `bootstrap_studio_for_current_user`, ramo "sem convite"). O aceite de convite só faz `select` do papel já existente pelo nome — o fallback de criar sob demanda (sem nenhuma permissão) só cobre Studios criados *antes* desta migration.
+**Motivo:** Centralizar "o que cada papel pode fazer" em um único lugar (a criação do Studio) evita que a resposta mude dependendo de quando/como o papel foi criado.
+**Impacto:** Qualquer novo papel padrão (se houver um dia) deve ser adicionado no mesmo bloco do bootstrap, não em um novo ponto de criação sob demanda.
+
+### [2026-07-29] Catálogo de permissões pequeno e ligado a ações que já existem, não especulativo
+**Contexto:** Poderia ter sido tentador popular `permissions` com um catálogo amplo antecipando funcionalidades futuras (Projects, Games, Billing, etc.).
+**Decisão:** Só 3 permissões: `studio.edit`, `studio.invite_members`, `studio.manage_members` — exatamente as 2 ações que existem hoje na UI (editar Studio, convidar/cancelar convite).
+**Motivo:** Permissões sem nenhuma política de RLS as consultando são só entradas mortas na tabela — pior que não ter nada, porque parecem implementadas sem estar. Adicionar antecipadamente também arrisca errar o nome/granularidade antes de saber como a funcionalidade real vai precisar checar isso.
+**Impacto:** Quando Projects/Games/etc. ganharem controle de acesso por papel (Sprint 2.0+), adicionar a permissão específica + a política de RLS correspondente na mesma migration — nunca uma sem a outra.

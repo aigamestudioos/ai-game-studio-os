@@ -13,7 +13,7 @@ export function StudioInfoSection({
   onUpdate,
 }: {
   studio: StudiosRow;
-  onUpdate: (fields: Partial<Pick<StudiosRow, "name" | "logo_url">>) => Promise<void>;
+  onUpdate: (fields: Partial<Pick<StudiosRow, "name" | "logo_url">>) => Promise<{ error?: string }>;
 }) {
   const [name, setName] = useState(studio.name);
   const [logoUrl, setLogoUrl] = useState(studio.logo_url ?? "");
@@ -37,14 +37,13 @@ export function StudioInfoSection({
     }
 
     setLoading(true);
-    try {
-      await onUpdate({ name: name.trim(), logo_url: logoUrl || null });
+    const result = await onUpdate({ name: name.trim(), logo_url: logoUrl || null });
+    if (result.error) {
+      setError(result.error);
+    } else {
       toast({ title: "Studio atualizado", variant: "success" });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível salvar. Tente novamente.");
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   return (

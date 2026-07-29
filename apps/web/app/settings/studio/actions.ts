@@ -7,13 +7,24 @@ import {
   createServerClient,
 } from "@agsos/database";
 
-// Convida alguém por email para o Studio do usuário atual (Sprint 1.8d-3).
+const INVITABLE_ROLES = ["Admin", "Member"] as const;
+type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+// Convida alguém por email para o Studio do usuário atual (Sprint 1.8d-3),
+// com o papel Admin ou Member (Sprint 1.8d-4 — nunca "Owner" por convite).
 // Server Action porque `auth.admin.inviteUserByEmail` é admin-only (envia o
 // email nativo do Supabase Auth com o link mágico) — não existe equivalente
 // client-side. O studio_id vem da sessão real do chamador (server-client,
 // sujeito a RLS), nunca de um parâmetro recebido do client, para não permitir
-// convidar alguém para um Studio que não é o do chamador.
-export async function inviteMember(email: string): Promise<{ error?: string }> {
+// convidar alguém para um Studio que não é o do chamador. A permissão de
+// convidar (`studio.invite_members`) é reforçada de verdade pela RLS de
+// `invites` (Sprint 1.8d-4) — o catch abaixo só traduz essa recusa em
+// mensagem amigável, não é a camada real de segurança.
+export async function inviteMember(email: string, roleName: InvitableRole): Promise<{ error?: string }> {
+  if (!INVITABLE_ROLES.includes(roleName)) {
+    return { error: "Papel inválido." };
+  }
+
   const cookieStore = await cookies();
   const supabase = createServerClient({
     getAll: () => cookieStore.getAll(),
@@ -40,16 +51,21 @@ export async function inviteMember(email: string): Promise<{ error?: string }> {
       studio_id: profile.studio_id,
       email,
       invited_by_user_id: user.id,
-      role_name: "Member",
+      role_name: roleName,
     });
     inviteId = invite.id;
   } catch (err) {
     // PostgrestError.code é o SQLSTATE — mais confiável que casar texto de
     // `.message`, que o PostgREST não formata de forma garantida (unique_violation
     // = 23505; ver node_modules/@supabase/postgrest-js/src/PostgrestError.ts).
+    // 42501 = insufficient_privilege — RLS bloqueou por falta de
+    // studio.invite_members (usuário sem permissão, não um bug).
     const code = (err as { code?: string })?.code;
     if (code === "23505") {
       return { error: "Já existe um convite pendente para este email." };
+    }
+    if (code === "42501") {
+      return { error: "Você não tem permissão para convidar membros." };
     }
     return { error: "Não foi possível criar o convite." };
   }

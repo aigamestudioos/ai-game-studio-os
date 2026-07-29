@@ -294,6 +294,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: string;
       };
+      current_user_has_permission: {
+        Args: { p_key: string };
+        Returns: boolean;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

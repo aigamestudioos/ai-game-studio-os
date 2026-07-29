@@ -29,7 +29,6 @@ export default function StudioSettingsPage() {
             <StudioMembersSection
               members={members}
               pendingInvites={pendingInvites}
-              ownerUserId={studio.owner_user_id}
               onInvited={refresh}
               onRevoke={revokeInvite}
             />

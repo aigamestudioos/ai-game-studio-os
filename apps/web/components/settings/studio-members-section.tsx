@@ -1,33 +1,32 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { InvitesRow, UsersRow } from "@agsos/database";
+import type { InvitesRow } from "@agsos/database";
 import { inviteMember } from "../../app/settings/studio/actions";
+import type { MemberWithRole } from "../../hooks/use-current-studio";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
+import { cn } from "../../lib/utils";
 import { toast } from "../../hooks/use-toast";
 
-// O papel exibido compara com `ownerUserId` em vez de consultar
-// roles/user_roles — é o suficiente para distinguir Owner de Member sem
-// antecipar a UI de papéis granulares (Admin, etc.) do Sprint 1.8d-4, que
-// ainda não tem um terceiro papel possível para justificar o join.
+const INVITABLE_ROLES = ["Member", "Admin"] as const;
+
 export function StudioMembersSection({
   members,
   pendingInvites,
-  ownerUserId,
   onInvited,
   onRevoke,
 }: {
-  members: UsersRow[];
+  members: MemberWithRole[];
   pendingInvites: InvitesRow[];
-  ownerUserId: string;
   onInvited: () => void;
-  onRevoke: (id: string) => void;
+  onRevoke: (id: string) => Promise<{ error?: string }>;
 }) {
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<(typeof INVITABLE_ROLES)[number]>("Member");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +41,7 @@ export function StudioMembersSection({
 
     setLoading(true);
     try {
-      const result = await inviteMember(email.trim());
+      const result = await inviteMember(email.trim(), role);
       if (result.error) {
         setError(result.error);
         return;
@@ -57,6 +56,13 @@ export function StudioMembersSection({
     }
   }
 
+  async function handleRevoke(id: string) {
+    const result = await onRevoke(id);
+    if (result.error) {
+      toast({ title: "Não foi possível cancelar", description: result.error, variant: "destructive" });
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -65,7 +71,7 @@ export function StudioMembersSection({
       </CardHeader>
       <CardContent className="space-y-lg">
         <ul className="space-y-sm">
-          {members.map((member) => {
+          {members.map(({ user: member, roleName }) => {
             const initials = member.name
               .split(" ")
               .map((part) => part[0])
@@ -83,7 +89,7 @@ export function StudioMembersSection({
                   <p className="truncate text-xs text-text-tertiary">{member.email}</p>
                 </div>
                 <Badge variant="outline" className="shrink-0">
-                  {member.id === ownerUserId ? "Owner" : "Member"}
+                  {roleName}
                 </Badge>
               </li>
             );
@@ -99,7 +105,10 @@ export function StudioMembersSection({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-foreground">{invite.email}</p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => onRevoke(invite.id)}>
+                  <Badge variant="outline" className="shrink-0 text-muted-foreground">
+                    {invite.role_name}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={() => handleRevoke(invite.id)}>
                     Cancelar
                   </Button>
                 </li>
@@ -125,6 +134,18 @@ export function StudioMembersSection({
             <Button type="submit" loading={loading} disabled={loading}>
               Convidar
             </Button>
+          </div>
+          <div className="flex flex-wrap gap-sm">
+            {INVITABLE_ROLES.map((r) => (
+              <button key={r} type="button" onClick={() => setRole(r)} aria-pressed={role === r}>
+                <Badge
+                  variant={role === r ? "default" : "outline"}
+                  className={cn("cursor-pointer select-none", role !== r && "text-muted-foreground")}
+                >
+                  {r}
+                </Badge>
+              </button>
+            ))}
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </form>

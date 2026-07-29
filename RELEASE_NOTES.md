@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 1.8d-4 — Papéis de verdade no seu time
+
+✨ Ao convidar alguém, escolha se a pessoa entra como **Admin** (pode convidar e gerenciar membros) ou **Member** (acesso básico)
+✨ A lista de membros agora mostra o papel real de cada pessoa
+🔧 Segurança reforçada: as permissões de cada papel agora são checadas pelo próprio banco de dados, não só escondidas na tela
+
 ## Sprint 1.8d-3 — Convide sua equipe
 
 ✨ Agora é possível **convidar pessoas por email** para o seu Studio, em Configurações do Studio

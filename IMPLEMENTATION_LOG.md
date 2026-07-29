@@ -1051,10 +1051,56 @@ Commit `7869883` deployado com sucesso. Supabase sinalizou alta taxa de bounce n
 
 ### Pendências
 
-- 1.8d-4 — Papéis/permissões (Admin/Member como escolha real, não só "Member" fixo; enforcement testado).
 - Página de "aceitar convite" dedicada (hoje é implícito no login/bootstrap) — considerar se vale a pena para mensagens mais claras ("Você foi convidado para o Studio X").
-- Configurar um provedor SMTP customizado (recomendação do próprio Supabase) para reduzir risco de bounce/rate-limit em produção de verdade — hoje usa o email transacional padrão do Supabase, com limites baixos.
+- Configurar um provedor SMTP customizado (recomendação do próprio Supabase) para reduzir risco de bounce/rate-limit em produção de verdade — hoje usa o email transacional padrão do Supabase, com limites baixos. Usuário pediu para ser lembrado disso quando fizer sentido (registrado em memória).
 
 ### Próximo Sprint
 
 Sprint 1.8d-4 — Papéis/permissões.
+
+---
+
+## Sprint 1.8d-4 — Papéis e permissões reais
+
+**Status:** Concluído (validado no projeto real)
+**Período:** 2026-07-29
+
+### Objetivo
+
+Até aqui, "Owner"/"Member" eram só rótulos exibidos na UI — `permissions`/`role_permissions` existiam desde o Sprint 1.7, mas vazios, sem nenhum enforcement de verdade. Este sprint torna os papéis reais: catálogo de permissões, três papéis por Studio (Owner/Admin/Member) com grants corretos, seletor de papel no convite, e — o mais importante — **enforcement de verdade via RLS**, não só esconder botões na UI.
+
+### Arquivos criados
+
+- `supabase/migrations/20260729000001_roles_and_permissions.sql` — catálogo `permissions` (`studio.edit`, `studio.invite_members`, `studio.manage_members`), função `current_user_has_permission(key)` (`SECURITY DEFINER`, mesmo padrão de `current_user_studio_id()`), RLS de `invites`/`studios` reescrita para exigir a permissão certa (não só isolamento por Studio), e `bootstrap_studio_for_current_user` atualizado para criar os 3 papéis com os grants corretos na criação do Studio (Owner: todas; Admin: `invite_members`+`manage_members`; Member: nenhuma).
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/users-repository.ts` — `listByStudioWithRoles()` (join `user_roles`→`roles`, papel real por membro).
+- `packages/database/src/generated/database.types.ts` — tipo da função `current_user_has_permission`.
+- `apps/web/app/settings/studio/actions.ts` — `inviteMember()` recebe o papel (`Admin`|`Member`, nunca `Owner`), valida contra uma lista fechada; erro `42501` (RLS negou por falta de permissão) vira mensagem amigável.
+- `apps/web/hooks/use-current-studio.ts` — `updateStudio`/`revokeInvite` passam a retornar `{ error? }` em vez de lançar, com mensagem amigável para `42501`.
+- `apps/web/components/settings/studio-info-section.tsx` — usa o novo formato de retorno de `updateStudio`.
+- `apps/web/components/settings/studio-members-section.tsx` — seletor de papel (badges Member/Admin) no convite, badge de papel real por membro (não mais o atalho "compara com owner_user_id"), `onRevoke` tratado com toast de erro em vez de exception não capturada.
+
+### Bug real encontrado durante a escrita da migration (antes de aplicar)
+
+Erro de ordem de colunas em `insert into role_permissions (studio_id, role_id, permission_id) select v_owner_role_id, v_studio_id, id from permissions` — os dois primeiros valores estavam trocados. Pego durante a revisão antes mesmo de testar no Docker local — exatamente o tipo de erro que a disciplina de sempre testar migrations contra Postgres real (não só revisar visualmente) existe para capturar.
+
+### Validações executadas
+
+Migration testada localmente via Docker (`supabase db reset`, 14 migrations) antes de aplicar no remoto: confirmado que os 3 papéis são criados com a contagem de permissões certa (Owner 3, Admin 2, Member 0), e — o teste mais importante — que um **Member é genuinely bloqueado pela RLS** ao tentar inserir um convite ou editar o Studio (`ERROR: new row violates row-level security policy`), enquanto um Admin consegue convidar mas não editar, e o Owner consegue tudo. Aplicada no remoto via `supabase db push`. Script de validação via Admin API contra o projeto real: **12/12 checks** — criação de papéis com grants corretos, aceite de convite com o papel certo, `current_user_has_permission` por papel, e o enforcement real (Member bloqueado em ambas as ações, Admin bloqueado só na edição, Owner livre, nome do Studio realmente não mudou no banco quando deveria ser bloqueado). Teste adicional via UI real: **6/6 checks** — seletor de papel grava o `role_name` certo, badge de papel real aparece na lista de membros, e a UI mostra "Você não tem permissão para editar este Studio." quando um Admin tenta editar (confirmado visualmente por screenshot, e que o nome no banco realmente não mudou). Zero erros de console. `pnpm build`/`lint`/`typecheck` verdes.
+
+### Nota operacional: gestão de volume de teste
+
+Durante a depuração deste sprint, o Supabase voltou a rate-limitar envio de email (`over_email_send_rate_limit`) por causa de tentativas repetidas de depuração do PRÓPRIO script de teste (não do app). Em vez de insistir em novos envios reais, o restante da validação de UI foi feito seedando o convite diretamente via admin client (sem enviar email) — o caminho de envio real já tinha sido confirmado com sucesso no início do teste. Reforça a decisão já registrada em `DECISIONS.md`: preferir `generateLink`/inserts diretos a `inviteUserByEmail` real sempre que a lógica sob teste não depender do envio em si.
+
+### Pendências
+
+- Nenhum controle de UI para trocar o papel de um membro já existente (só na hora do convite) — se necessário, é uma extensão pequena do mesmo padrão.
+- Página de "aceitar convite" dedicada (mesma pendência do 1.8d-3).
+- SMTP customizado (mesma pendência do 1.8d-3 — usuário pediu lembrete futuro).
+- Com Studios/papéis/convites completos, o próximo grande passo é migrar os módulos de negócio (Projects/Games/Knowledge/Publishing) de mock para dados reais (Sprint 2.0+), agora que o modelo multi-tenant existe de verdade.
+
+### Próximo Sprint
+
+A definir com o usuário — Studios (1.8d) está completo; próximo passo natural é 2.0 (Projects real) ou reforços pontuais (SMTP, testes de RLS formalizados em `supabase/tests/`).

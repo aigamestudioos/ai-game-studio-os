@@ -12,12 +12,14 @@ import {
 } from "@agsos/database";
 import { getBrowserClient } from "../lib/supabase-client";
 
+export type MemberWithRole = { user: UsersRow; roleName: string };
+
 // `studio === undefined` → carregando. `studio === null` → carregado, sem
 // Studio (não deveria acontecer para um usuário autenticado depois do
 // Sprint 1.8d-1, mas o tipo reflete a possibilidade honestamente).
 export function useCurrentStudio(session: Session | null | undefined) {
   const [studio, setStudio] = useState<StudiosRow | null | undefined>(undefined);
-  const [members, setMembers] = useState<UsersRow[]>([]);
+  const [members, setMembers] = useState<MemberWithRole[]>([]);
   const [pendingInvites, setPendingInvites] = useState<InvitesRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export function useCurrentStudio(session: Session | null | undefined) {
 
       const [studioRow, memberRows, inviteRows] = await Promise.all([
         studios.getById(profile.studio_id),
-        users.listByStudio(profile.studio_id),
+        users.listByStudioWithRoles(profile.studio_id),
         invites.listPendingByStudio(profile.studio_id),
       ]);
       setStudio(studioRow);
@@ -52,19 +54,40 @@ export function useCurrentStudio(session: Session | null | undefined) {
     load();
   }, [load]);
 
-  async function updateStudio(fields: Partial<Pick<StudiosRow, "name" | "logo_url">>) {
-    if (!studio) return;
-    const client = getBrowserClient();
-    const studios = createStudiosRepository(client);
-    const updated = await studios.update(studio.id, fields);
-    setStudio(updated);
+  // A permissão de verdade é reforçada pela RLS (Sprint 1.8d-4) — erros aqui
+  // (`42501`) são o caso esperado quando quem chama não tem `studio.edit`,
+  // não um bug.
+  async function updateStudio(fields: Partial<Pick<StudiosRow, "name" | "logo_url">>): Promise<{ error?: string }> {
+    if (!studio) return {};
+    try {
+      const client = getBrowserClient();
+      const studios = createStudiosRepository(client);
+      const updated = await studios.update(studio.id, fields);
+      setStudio(updated);
+      return {};
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === "42501") {
+        return { error: "Você não tem permissão para editar este Studio." };
+      }
+      return { error: "Não foi possível salvar. Tente novamente." };
+    }
   }
 
-  async function revokeInvite(id: string) {
-    const client = getBrowserClient();
-    const invites = createInvitesRepository(client);
-    await invites.revoke(id);
-    setPendingInvites((prev) => prev.filter((invite) => invite.id !== id));
+  async function revokeInvite(id: string): Promise<{ error?: string }> {
+    try {
+      const client = getBrowserClient();
+      const invites = createInvitesRepository(client);
+      await invites.revoke(id);
+      setPendingInvites((prev) => prev.filter((invite) => invite.id !== id));
+      return {};
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === "42501") {
+        return { error: "Você não tem permissão para gerenciar membros." };
+      }
+      return { error: "Não foi possível cancelar o convite." };
+    }
   }
 
   return { studio, members, pendingInvites, error, refresh: load, updateStudio, revokeInvite };

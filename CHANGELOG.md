@@ -6,6 +6,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 1.8d-4 (Papéis e permissões reais)
+- `supabase/migrations/20260729000001_roles_and_permissions.sql` — catálogo `permissions`, `current_user_has_permission()`, RLS de `invites`/`studios` reforçada por permissão, 3 papéis (Owner/Admin/Member) com grants corretos criados junto com o Studio.
+- `packages/database/src/repositories/users-repository.ts` — `listByStudioWithRoles()`.
+
+### Changed — Sprint 1.8d-4
+- `apps/web/app/settings/studio/actions.ts` — `inviteMember()` recebe o papel (Admin/Member).
+- `apps/web/hooks/use-current-studio.ts` — `updateStudio`/`revokeInvite` retornam `{ error? }` em vez de lançar.
+- `apps/web/components/settings/studio-members-section.tsx` — seletor de papel no convite, badge de papel real por membro.
+
+### Fixed — Sprint 1.8d-4
+- `revokeInvite`/`updateStudio` sem tratamento de erro podiam gerar unhandled promise rejection quando RLS bloqueava a ação (usuário sem permissão) — agora retornam erro amigável.
+
 ### Added — Sprint 1.8d-3 (Convites)
 - `supabase/migrations/20260728000001_invites.sql` — tabela `invites` + `bootstrap_studio_for_current_user` estendido para reconhecer convite pendente.
 - `apps/web/app/settings/studio/actions.ts` — Server Action `inviteMember()` (usa `admin.auth.admin.inviteUserByEmail`).

@@ -24,3 +24,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 1.8d-1 | _Nenhum — sprint de infraestrutura (cada conta ganha um Studio próprio nos bastidores, preparando o caminho para múltiplos estúdios e convites de time)_ |
 | 1.8d-2 | Nova tela **Studio** — edite nome e logo do seu estúdio e veja quem tem acesso a ele |
 | 1.8d-3 | Agora dá para **convidar pessoas por email** para o seu Studio — quem aceita entra direto no time |
+| 1.8d-4 | Convites agora escolhem o **papel** (Admin ou Member) — e as permissões de cada papel são reais, aplicadas pelo próprio banco de dados |
