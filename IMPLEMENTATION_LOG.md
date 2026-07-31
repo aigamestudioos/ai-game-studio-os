@@ -1248,6 +1248,10 @@ Mesmo padrão dos Sprints 2.0/2.1: substituir `apps/web/lib/knowledge-store.ts` 
 
 `pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright contra o banco real (local): **11/11 checks** — estado vazio real, criar documento cria a linha em `knowledge_documents` (type=ADR, status=DRAFT) **e** a versão 1 em `knowledge_document_versions` com o conteúdo correto (testado com acentuação em português — "acentuação", "ç", "ã" — para garantir que não há problema de encoding), resumo aparece no card da lista (derivado da versão), rótulos "Rascunho"/"ADR" corretos, documento continua visível após reload real, detalhes carregam com o conteúdo real da versão, ID inexistente cai em not-found. Zero erros de console.
 
+### Validação em produção
+
+Commit `6572a2e` deployado com sucesso (Vercel, status `success`). Reexecutado o teste Playwright contra produção (`https://ai-game-studio-os-web.vercel.app`): **11/11 checks**, zero erros de console. Comportamento idêntico ao local, incluindo a criação da versão 1 com acentuação em português.
+
 ### Pendências
 
 - Publishing é o último módulo ainda em mock.
