@@ -1301,12 +1301,17 @@ Antes de implementar, essa descoberta foi levada ao usuário (`CLAUDE.md` — pa
 
 ### Validação em produção
 
-Pendente — a fazer após revisão/push deste commit (mesmo fluxo dos sprints anteriores).
+Commit `b125021` (push em 2026-08-03) — `git push origin main` e status Vercel do commit confirmado `success` via `gh api .../commits/b125021/status` (`https://vercel.com/ai-game-studio-os/ai-game-studio-os-web/356Mr2tbrsHcTE16eDbKWRZnykrw`).
+
+Diferente dos Sprints 2.1/2.2, a validação funcional completa (autenticada) **não foi executada** neste sprint: as credenciais seed usadas na validação local (`founder@aigamestudio.os` / `demo-password-local-only`) não funcionam contra o projeto Supabase de produção ("Email ou senha incorretos") — o usuário confirmou que não há uma credencial de teste de produção disponível no momento e optou por uma validação só estática, sem login, em vez de fornecer uma credencial.
+
+Validação estática executada (Playwright, zero mutação de dados): `GET /login` → 200, zero erros de console; `GET /publishing` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing`, zero erros de console; `GET /publishing/00000000-0000-0000-0000-000000000000` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing%2F...`, zero erros de console. Confirma que o deploy está no ar e que o route-guard de autenticação cobre as novas rotas, mas **não confirma** os comportamentos autenticados (cards reais, botão desabilitado, `store_reviews` reais) em produção — essa checklist específica (item 3 do pedido do usuário) fica pendente até haver uma credencial de teste de produção disponível.
 
 ### Pendências
 
 - Nenhuma UI para criar `game_versions`/`builds`/`releases` — sem isso, a criação de Submission continua bloqueada. Fica para um sprint futuro dedicado a essa cadeia, se priorizado.
 - Editar/arquivar Submission.
+- Validação funcional autenticada de Publishing em produção (listagem real, detalhe, `store_reviews`) — bloqueada por falta de credencial de teste de produção; só a validação estática (route-guard, sem erros de console) foi feita.
 
 ### Próximo Sprint
 

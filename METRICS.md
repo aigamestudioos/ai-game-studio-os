@@ -994,6 +994,6 @@ Mesmo padrão dos Sprints 2.0/2.1/2.2: substitui `apps/web/lib/publishing-store.
 
 | Métrica | Valor |
 |---|---|
-| Vercel | a validar após push (pendente) |
+| Vercel | ✅ deploy do commit `b125021` (status `success`); validação funcional autenticada em produção pendente — sem credencial de teste de produção disponível, só validação estática (route-guard `/publishing`→`/login`, zero erros de console) foi feita |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
