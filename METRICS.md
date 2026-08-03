@@ -973,6 +973,7 @@ Mesmo padrão dos Sprints 2.0/2.1/2.2: substitui `apps/web/lib/publishing-store.
 | Testes E2E | 0 |
 | Cobertura (%) | 0% |
 | Teste manual (Playwright ad hoc, banco real local) | 3/3 checks — cards reais renderizando (Nebula Drift/Sprint Runner/Hyper Dash), botão "New Submission" desabilitado com mensagem, detalhe com "Revisões" reais a partir de `store_reviews`, zero erros de console |
+| Teste manual (Playwright, produção, conta de teste dedicada) | 6/6 aprovados: deploy, login/redirecionamento, estado vazio de Publishing, botão desabilitado + mensagem, zero erros de console, isolamento RLS. 3 itens **não validados em produção** (só localmente): listagem com submissions reais, detalhe de submission, `store_reviews` reais — ausência de dados no Studio da conta de teste, não é falha |
 
 ### Produto
 
@@ -994,6 +995,6 @@ Mesmo padrão dos Sprints 2.0/2.1/2.2: substitui `apps/web/lib/publishing-store.
 
 | Métrica | Valor |
 |---|---|
-| Vercel | ✅ deploy do commit `b125021` (status `success`); validação funcional autenticada em produção pendente — sem credencial de teste de produção disponível, só validação estática (route-guard `/publishing`→`/login`, zero erros de console) foi feita |
+| Vercel | ✅ deploy do commit `b125021` (status `success`). Validação em produção **parcial**: aprovados deploy, login/redirecionamento, estado vazio de Publishing, botão "New Submission" desabilitado + mensagem, zero erros de console, isolamento RLS. **Não validados em produção** (só localmente): listagem com submissions reais, detalhe de submission, `store_reviews` reais — falta um Studio de demonstração próprio para testes de produção (ver pendência de QA no IMPLEMENTATION_LOG.md) |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |

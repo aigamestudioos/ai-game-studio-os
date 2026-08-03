@@ -1305,13 +1305,30 @@ Commit `b125021` (push em 2026-08-03) — `git push origin main` e status Vercel
 
 Diferente dos Sprints 2.1/2.2, a validação funcional completa (autenticada) **não foi executada** neste sprint: as credenciais seed usadas na validação local (`founder@aigamestudio.os` / `demo-password-local-only`) não funcionam contra o projeto Supabase de produção ("Email ou senha incorretos") — o usuário confirmou que não há uma credencial de teste de produção disponível no momento e optou por uma validação só estática, sem login, em vez de fornecer uma credencial.
 
-Validação estática executada (Playwright, zero mutação de dados): `GET /login` → 200, zero erros de console; `GET /publishing` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing`, zero erros de console; `GET /publishing/00000000-0000-0000-0000-000000000000` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing%2F...`, zero erros de console. Confirma que o deploy está no ar e que o route-guard de autenticação cobre as novas rotas, mas **não confirma** os comportamentos autenticados (cards reais, botão desabilitado, `store_reviews` reais) em produção — essa checklist específica (item 3 do pedido do usuário) fica pendente até haver uma credencial de teste de produção disponível.
+Validação estática executada (Playwright, zero mutação de dados): `GET /login` → 200, zero erros de console; `GET /publishing` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing`, zero erros de console; `GET /publishing/00000000-0000-0000-0000-000000000000` (sem sessão) → redireciona corretamente para `/login?redirect=%2Fpublishing%2F...`, zero erros de console. Confirma que o deploy está no ar e que o route-guard de autenticação cobre as novas rotas, mas não confirmava, sozinha, os comportamentos autenticados.
+
+**Atualização — validação autenticada em produção (2026-08-03, mesmo dia, após o usuário criar uma conta de teste dedicada e confirmar o login manualmente):** antes de qualquer novo teste, foi verificado — só leitura, sem autenticar — que o build publicado em `https://ai-game-studio-os-web.vercel.app` tem `NEXT_PUBLIC_SUPABASE_URL=https://vkyswyuxitwakjqjteso.supabase.co` embutido no bundle (`_next/static/chunks/799-0d6ab77824245773.js`), idêntico ao `apps/web/.env.local` de produção deste repositório — confirmado que o frontend publicado aponta para o projeto Supabase correto antes de reautenticar.
+
+**A validação em produção não está completa.** Com a credencial de teste (`teste@aigamestudioos.com`), validação Playwright contra produção, zero mutação de dados, resultado por item:
+
+- Deploy de produção: **aprovado** (commit `b125021`, status Vercel `success`).
+- Login e redirecionamento: **aprovado** (autentica e redireciona para `/dashboard`).
+- Estado vazio de Publishing: **aprovado** (`/publishing` mostra corretamente "Nenhuma submissão ainda." para um Studio sem dados).
+- Botão "New Submission" desabilitado e mensagem explicativa: **aprovado** (`disabled=true`; texto "Uma Submissão exige um Release já existente..." presente).
+- Ausência de erros no console: **aprovado** (zero erros em toda a sessão).
+- Isolamento entre Studios por RLS: **aprovado** — a conta de teste pertence a um Studio próprio, recém-criado e vazio (`/projects` também mostra "Nenhum projeto ainda") e não enxerga as 3 submissions reais do Studio de demonstração (`founder@aigamestudio.os` — Nebula Drift/Sprint Runner/Hyper Dash).
+- Listagem com submissions reais: **não validada em produção**, por ausência de dados no Studio da conta de teste (não é falha nem aprovação — item não avaliável com os dados disponíveis).
+- Detalhe de submission: **não validado em produção**, pelo mesmo motivo.
+- `store_reviews` reais: **não validados em produção**, pelo mesmo motivo.
+
+Esses três últimos fluxos (listagem, detalhe, `store_reviews`) foram validados anteriormente no ambiente local, com Supabase local (Docker) e Playwright — ver "Validações executadas" acima — mas essa validação local não substitui uma validação equivalente em produção; a lacuna permanece registrada como pendência.
 
 ### Pendências
 
 - Nenhuma UI para criar `game_versions`/`builds`/`releases` — sem isso, a criação de Submission continua bloqueada. Fica para um sprint futuro dedicado a essa cadeia, se priorizado.
 - Editar/arquivar Submission.
-- Validação funcional autenticada de Publishing em produção (listagem real, detalhe, `store_reviews`) — bloqueada por falta de credencial de teste de produção; só a validação estática (route-guard, sem erros de console) foi feita.
+- Listagem com submissions reais, detalhe de submission e `store_reviews` reais seguem **não validados em produção** — só localmente. Requer uma conta de teste com acesso a um Studio que tenha submissions reais.
+- **Pendência futura de QA:** criar um Studio de demonstração próprio para testes de produção, com dados sintéticos e isolados — sem reutilizar o Studio fundador (`founder@aigamestudio.os`) nem dados reais de nenhum Studio existente. Isso destrava a validação completa (listagem/detalhe/`store_reviews`) em produção sem misturar contas de teste com dados de demonstração/reais.
 
 ### Próximo Sprint
 
