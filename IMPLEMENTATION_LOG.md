@@ -1261,3 +1261,53 @@ Commit `6572a2e` deployado com sucesso (Vercel, status `success`). Reexecutado o
 ### Próximo Sprint
 
 A definir com o usuário — Publishing real fecha a migração mock→real de todos os módulos de negócio do MVP original.
+
+---
+
+## Sprint 2.3 — Publishing real (somente leitura)
+
+**Status:** Concluído (validado contra o banco real)
+**Período:** 2026-08-03
+
+### Objetivo
+
+Mesmo padrão dos Sprints 2.0/2.1/2.2: substituir `apps/web/lib/publishing-store.ts` (mock) por dados reais via `packages/database`. Publishing fecha a migração mock→real de todos os módulos de negócio do MVP original.
+
+### Descoberta de schema que mudou o escopo do sprint
+
+`submissions.release_id`/`build_id` são `NOT NULL` (AGSOS-SPEC-002 §8, §17) — toda Submission exige um Release e um Build já existentes. Diferente do Sprint 2.1 (Games), onde a UI de criação de Project já existia e só faltava o seletor, aqui **não existe nenhuma UI em lugar nenhum do app para criar `game_versions`/`builds`/`releases`** (Sprint 2.1 já havia deferido isso, "fora de escopo"). Migrar Publishing para o padrão de criação real exigiria, portanto, construir essa cadeia inteira primeiro — escopo maior que o dos sprints anteriores.
+
+Antes de implementar, essa descoberta foi levada ao usuário (`CLAUDE.md` — parar e propor divisão antes de sprints que cresceriam além do padrão já estabelecido). Decisão: manter o sprint pequeno e no mesmo padrão dos anteriores — **somente leitura real**. A lista e o detalhe de Submissions passam a vir do banco; "New Submission" fica desabilitado com uma mensagem explicando a dependência, sem criar UI de Release/Build/Submission neste sprint (adiado para um sprint futuro dedicado a essa cadeia, se/quando for priorizado).
+
+### Arquivos criados
+
+- `apps/web/hooks/use-submissions.ts`, `use-submission.ts`.
+- `apps/web/lib/submission-status.ts` — mapeia o enum `submission_status` (8 valores) para rótulos em português + variantes de `Badge`.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/submissions-repository.ts` — `listWithDetails()`/`getWithDetails()` resolvem `submissions → releases → games/game_versions` e `submissions.platform_id → platforms` em consultas separadas (mesmo padrão de `builds-repository.listByGame()`); `listReviews()` novo, lê `store_reviews` por submissão.
+- `apps/web/app/publishing/page.tsx` / `app/publishing/[id]/page.tsx` — dados reais; botão "New Submission" desabilitado com mensagem; a tela de detalhe troca o histórico fabricado do mock por uma seção "Revisões" com os `store_reviews` reais (decisão/notas/data), já que o schema real não tem uma tabela de histórico de status equivalente ao mock.
+- `apps/web/components/publishing/cards.tsx` — `SubmissionCard` usa o enum `submission_status` real (era `SubmissionStatus` do mock).
+- `packages/database/src/index.ts` — export de `SubmissionWithDetails`.
+
+### Arquivos removidos
+
+- `apps/web/lib/publishing-store.ts` — mock eliminado.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Teste Playwright ad hoc contra o banco real (local, Docker): login com o usuário seed (`founder@aigamestudio.os`), 3 cards reais renderizados (Nebula Drift/Sprint Runner/Hyper Dash, com status/plataforma/versão corretos a partir do seed existente em `supabase/seed/02_demo_studio.sql`), botão "New Submission" corretamente desabilitado com a mensagem explicativa, detalhe carrega a seção "Revisões" com os `store_reviews` reais, zero erros de console. Corrigido no caminho um problema pré-existente do seed local (`confirmation_token` nulo quebrava login via GoTrue com erro 500) — ajuste feito só nos dados locais de teste, não em migration/seed versionado.
+
+### Validação em produção
+
+Pendente — a fazer após revisão/push deste commit (mesmo fluxo dos sprints anteriores).
+
+### Pendências
+
+- Nenhuma UI para criar `game_versions`/`builds`/`releases` — sem isso, a criação de Submission continua bloqueada. Fica para um sprint futuro dedicado a essa cadeia, se priorizado.
+- Editar/arquivar Submission.
+
+### Próximo Sprint
+
+A definir com o usuário. Com Publishing real concluído (somente leitura), todos os 4 módulos de negócio do MVP original (Projects, Games, Knowledge, Publishing) já leem do banco real — o mock só permanece na forma da cadeia Release/Build, ainda sem nenhuma UI de criação em todo o app.

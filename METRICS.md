@@ -942,3 +942,58 @@ Auth mock (`localStorage`) eliminada. Login, logout, sessão (restore + auto ref
 | Vercel | ✅ (nenhuma mudança de UI neste incremento — deploy não necessário para validação) |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.3 — Publishing real (somente leitura)
+
+**Data:** 2026-08-03
+
+Mesmo padrão dos Sprints 2.0/2.1/2.2: substitui `apps/web/lib/publishing-store.ts` (mock) por dados reais via `packages/database`. `submissions.release_id`/`build_id` são `NOT NULL` e não há, ainda, nenhuma UI para criar Release/Build — decisão de escopo tomada com o usuário: este sprint é somente leitura (lista/detalhe de Submissions reais), com "New Submission" desabilitado e mensagem explicativa, sem criar fluxo de Release/Build.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.3 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 305 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 8587 |
+| Commits totais | 55 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Teste manual (Playwright ad hoc, banco real local) | 3/3 checks — cards reais renderizando (Nebula Drift/Sprint Runner/Hyper Dash), botão "New Submission" desabilitado com mensagem, detalhe com "Revisões" reais a partir de `store_reviews`, zero erros de console |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 10 (inalterado) |
+| Repositories implementados | 5 (Studio, Project, Game, KnowledgeDocument, Submission — `Submission` ganhou `listWithDetails()`/`getWithDetails()`/`listReviews()`) |
+| Módulos de negócio migrados para dados reais | 4/4 (Projects, Games, Knowledge, Publishing) — mock→real do MVP original concluído; falta ainda a criação de Release/Build/Submission (fora de escopo deste sprint) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | a validar após push (pendente) |
+| Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

@@ -19,3 +19,4 @@ export { createBuildsRepository } from "./repositories/builds-repository";
 export type { BuildWithDetails } from "./repositories/builds-repository";
 export { createKnowledgeDocumentsRepository } from "./repositories/knowledge-documents-repository";
 export { createSubmissionsRepository } from "./repositories/submissions-repository";
+export type { SubmissionWithDetails } from "./repositories/submissions-repository";

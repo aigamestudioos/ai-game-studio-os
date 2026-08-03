@@ -1,24 +1,18 @@
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import type { SubmissionStatus, SubmissionStore } from "../../lib/publishing-store";
-
-const STATUS_VARIANT: Record<SubmissionStatus, "default" | "warning" | "success" | "destructive"> = {
-  "Em análise": "default",
-  Aprovado: "success",
-  Rejeitado: "destructive",
-  Publicado: "success",
-};
+import { submissionStatusLabel, submissionStatusVariant } from "../../lib/submission-status";
+import type { SubmissionStatus } from "@agsos/database";
 
 export function SubmissionCard({
   gameName,
-  store,
-  version,
+  platformName,
+  versionNumber,
   status,
   updatedAt,
 }: {
   gameName: string;
-  store: SubmissionStore;
-  version: string;
+  platformName: string;
+  versionNumber: string;
   status: SubmissionStatus;
   updatedAt?: string;
 }) {
@@ -27,10 +21,10 @@ export function SubmissionCard({
       <CardHeader>
         <div className="flex items-center justify-between gap-sm">
           <CardTitle className="text-base">{gameName}</CardTitle>
-          <Badge variant={STATUS_VARIANT[status]}>{status}</Badge>
+          <Badge variant={submissionStatusVariant(status)}>{submissionStatusLabel(status)}</Badge>
         </div>
         <CardDescription>
-          {store} — v{version}
+          {platformName} — v{versionNumber}
         </CardDescription>
       </CardHeader>
       <CardContent>
