@@ -2,18 +2,62 @@
 
 import { Rocket } from "lucide-react";
 import Link from "next/link";
+import { useState, type FormEvent } from "react";
 import { AppShell } from "../../components/layout/app-shell";
 import { SubmissionCard } from "../../components/publishing/cards";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
 import { Spinner } from "../../components/ui/spinner";
 import { useAuth } from "../../hooks/use-auth";
 import { useCurrentStudio } from "../../hooks/use-current-studio";
+import { usePublishableReleases } from "../../hooks/use-publishable-releases";
 import { useSubmissions } from "../../hooks/use-submissions";
+import { toast } from "../../hooks/use-toast";
+import { releaseChannelLabel } from "../../lib/release-status";
 
 export default function PublishingPage() {
   const { session } = useAuth();
   const { studio } = useCurrentStudio(session);
-  const { submissions, error } = useSubmissions(session, studio?.id);
+  const { submissions, error, refresh: refreshSubmissions } = useSubmissions(session, studio?.id);
+  const { releases, createSubmission } = usePublishableReleases(session, studio?.id);
+
+  const [open, setOpen] = useState(false);
+  const [releaseId, setReleaseId] = useState<string | null>(null);
+  const [platformId, setPlatformId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const selectedRelease = releases?.find((r) => r.releaseId === releaseId);
+  const hasReleases = !!releases && releases.length > 0;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!releaseId || !platformId || !selectedRelease) return;
+    const build = selectedRelease.builds.find((b) => b.platformId === platformId);
+    if (!build) return;
+
+    setLoading(true);
+    try {
+      await createSubmission({ releaseId, buildId: build.buildId, platformId });
+      toast({ title: "Submissão criada", variant: "success" });
+      setOpen(false);
+      setReleaseId(null);
+      setPlatformId(null);
+      refreshSubmissions();
+    } catch {
+      toast({ title: "Não foi possível criar a submissão", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <AppShell breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Publishing" }]}>
@@ -24,18 +68,77 @@ export default function PublishingPage() {
             <p className="text-muted-foreground">Acompanhe as submissões dos seus jogos nas lojas.</p>
           </div>
 
-          <Button disabled title="Nenhum Release disponível ainda">
-            <Rocket className="mr-sm size-4" aria-hidden="true" />
-            New Submission
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!hasReleases} title={hasReleases ? undefined : "Nenhum Release com build disponível ainda"}>
+                <Rocket className="mr-sm size-4" aria-hidden="true" />
+                New Submission
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <form onSubmit={handleSubmit}>
+                <DialogHeader>
+                  <DialogTitle>Nova Submissão</DialogTitle>
+                  <DialogDescription>Envie uma build para revisão em uma das lojas.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-md">
+                  <div className="space-y-sm">
+                    <span className="text-sm font-medium">Release</span>
+                    <div className="flex flex-wrap gap-sm">
+                      {(releases ?? []).map((release) => {
+                        const selected = releaseId === release.releaseId;
+                        return (
+                          <button
+                            key={release.releaseId}
+                            type="button"
+                            onClick={() => {
+                              setReleaseId(release.releaseId);
+                              setPlatformId(null);
+                            }}
+                            aria-pressed={selected}
+                          >
+                            <Badge variant={selected ? "default" : "outline"}>
+                              {release.gameName} v{release.versionNumber} — {releaseChannelLabel(release.releaseChannel)}
+                            </Badge>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {selectedRelease ? (
+                    <div className="space-y-sm">
+                      <span className="text-sm font-medium">Plataforma</span>
+                      <div className="flex flex-wrap gap-sm">
+                        {selectedRelease.builds.map((build) => {
+                          const selected = platformId === build.platformId;
+                          return (
+                            <button key={build.buildId} type="button" onClick={() => setPlatformId(build.platformId)} aria-pressed={selected}>
+                              <Badge variant={selected ? "default" : "outline"}>{build.platformName}</Badge>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <DialogFooter>
+                  <Button type="submit" loading={loading} disabled={loading || !releaseId || !platformId}>
+                    Criar Submissão
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </section>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-        <p className="text-sm text-muted-foreground">
-          Uma Submissão exige um Release já existente. Ainda não há UI para criar Releases/Builds — assim que esse
-          fluxo existir, "New Submission" será habilitado aqui.
-        </p>
+        {!hasReleases ? (
+          <p className="text-sm text-muted-foreground">
+            Uma Submissão exige um Release com pelo menos uma Build. Crie uma Version, uma Build e um Release em um
+            Game para habilitar "New Submission" aqui.
+          </p>
+        ) : null}
 
         {!submissions ? (
           <div className="flex justify-center py-2xl">

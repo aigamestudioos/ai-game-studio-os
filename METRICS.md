@@ -1054,3 +1054,61 @@ Primeiro dos 4 sprints em que o "Release Pipeline" completo (Game → Version �
 | Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.5 — Release Pipeline: UX de criação + hardening da simulação de Build
+
+**Data:** 2026-08-04
+
+Terceiro incremento visível do Release Pipeline (2.4 foi só schema/repositories). Entrega a UX de criação de Version/Build/Release + Timeline, desbloqueia "New Submission" em Publishing, e adiciona um hardening (detecção de Build travada + Retry Build) pedido pelo usuário depois que o Golden Path revelou a limitação da simulação client-side.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.5 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 317 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 9945 |
+| Commits totais | 59 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Golden Path (Playwright, banco real local) | 29/29 checks — Game→Version→Build (PENDING→RUNNING→SUCCEEDED)→Release→Submission, Timeline com 5 eventos, reload, logout/login, persistência; 6/6 combinações de breakpoint×tema sem overflow horizontal; zero erros de console |
+| Cenário de Build travada + Retry (Playwright, banco real local) | 16/16 checks — detecção após o limite de 20s, mensagem explicativa, Retry Build funcional, Timeline com `BuildFailed`→`BuildRetried`→`BuildFinished`; zero erros de console |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 11 (nova: `/games/[id]/versions/[versionId]`) |
+| Repositories implementados | 9 (Studio, Project, Game, KnowledgeDocument, Submission, GameVersion, Release, Platform, StudioEvents — `Build` ganhou `update()`) |
+| Eventos de domínio emitidos | 7 (`VersionCreated`, `BuildCreated`, `BuildFinished`, `BuildFailed`, `BuildRetried`, `ReleaseCreated`, `SubmissionCreated`) — persistidos em `studio_events` |
+| Débitos técnicos registrados (backlog, não bloqueantes) | 3 — `build_number` por contagem no client, `artifact_url` mockado, N+1 em `usePublishableReleases` (ver `DECISIONS.md`) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+| Limite de detecção de Build travada | 20s (`BUILD_SIMULATION_STUCK_THRESHOLD_MS`, centralizado em `apps/web/lib/build-simulation.ts`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ver IMPLEMENTATION_LOG.md para o resultado do deploy/validação em produção deste sprint |
+| Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

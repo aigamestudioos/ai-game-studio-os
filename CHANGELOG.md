@@ -6,6 +6,40 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.5 (Release Pipeline: UX de criação + hardening da simulação de Build)
+- `apps/web/hooks/use-game-versions.ts`, `use-game-version.ts`, `use-publishable-releases.ts`.
+- `apps/web/app/games/[id]/versions/[versionId]/page.tsx` — Version detail: Builds (criação + progresso simulado), Releases (criação), Timeline (`studio_events`).
+- `apps/web/lib/version-status.ts`, `release-status.ts`, `build-simulation.ts` (parâmetros centralizados da simulação de Build e `isBuildStuck()`).
+- `packages/database/src/repositories/platforms-repository.ts`, `studio-events-repository.ts`.
+- Ação **Retry Build** para Builds mockadas travadas em `RUNNING` (detecção via `isBuildStuck()`, limite `BUILD_SIMULATION_STUCK_THRESHOLD_MS = 20s`), com eventos `BuildFailed` + `BuildRetried`.
+- Aviso permanente na tela de Version: a simulação de Build é client-side, sem CI/CD real.
+
+### Changed — Sprint 2.5
+- `apps/web/app/games/[id]/page.tsx` — seção "Versions" com criação.
+- `apps/web/app/publishing/page.tsx` — "New Submission" desbloqueado (seleciona Release real + Build/Platform disponíveis).
+- `packages/database/src/repositories/builds-repository.ts` — `update()`; `releases-repository.ts` — `list()`.
+- `apps/web/lib/build-status.ts` — `buildTypeLabel()`.
+
+### Added — Sprint 2.4 (Release Pipeline: schema + repositories, sem UI)
+- `supabase/migrations/20260804000001_release_pipeline_extensions.sql` — ENUMs `build_type`/`release_channel` + colunas aditivas em `game_versions`/`builds`/`releases`.
+- `packages/database/src/repositories/game-versions-repository.ts`, `releases-repository.ts`.
+
+### Changed — Sprint 2.4
+- `packages/database/src/repositories/builds-repository.ts` — `listByVersion()`, `getById()`, `create()`.
+- `packages/database/src/generated/database.types.ts` — tipos `BuildType`/`ReleaseChannel` e colunas novas (hand-maintained, ver comentário no arquivo).
+
+### Added — Sprint 2.3 (Publishing real, somente leitura)
+- `apps/web/hooks/use-submissions.ts`, `use-submission.ts`.
+- `apps/web/lib/submission-status.ts`.
+
+### Changed — Sprint 2.3
+- `packages/database/src/repositories/submissions-repository.ts` — `listWithDetails()`, `getWithDetails()`, `listReviews()`.
+- `apps/web/app/publishing/page.tsx` / `app/publishing/[id]/page.tsx` — dados reais; criação desabilitada (sem Release ainda nesse sprint).
+- `apps/web/components/publishing/cards.tsx` — enum `submission_status` real.
+
+### Removed — Sprint 2.3
+- `apps/web/lib/publishing-store.ts` — mock eliminado.
+
 ### Added — Sprint 2.2 (Knowledge real)
 - `apps/web/hooks/use-knowledge-documents.ts`, `use-knowledge-document.ts`.
 - `apps/web/lib/knowledge-status.ts`, `knowledge-type.ts`.

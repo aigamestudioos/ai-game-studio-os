@@ -10,6 +10,16 @@ import type { Database, ReleasesRow } from "../generated/database.types";
 // 20260804000001_release_pipeline_extensions.sql.
 export function createReleasesRepository(client: SupabaseClient<Database>) {
   return {
+    async list(): Promise<ReleasesRow[]> {
+      const { data, error } = await client
+        .from("releases")
+        .select("*")
+        .is("archived_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+
     async listByGame(gameId: string): Promise<ReleasesRow[]> {
       const { data, error } = await client
         .from("releases")

@@ -1381,3 +1381,87 @@ Primeiro incremento do "Release Pipeline" (Game → Version → Build → Releas
 ### Próximo Sprint
 
 Sprint 2.5 — UX de criação da cadeia Version→Build→Release (abas em Game, build mockado, timeline via `studio_events`), desbloqueando a criação real de Submission em Publishing.
+
+---
+
+## Sprint 2.5 — Release Pipeline: UX de criação + hardening da simulação de Build
+
+**Status:** Concluído (validado contra o banco real, local e produção)
+**Período:** 2026-08-04
+
+### Objetivo
+
+Segundo dos 4 sprints do Release Pipeline (ver Sprint 2.4). Construir a UX de criação sobre o schema/repositories já existentes: Version e Build (com progresso simulado, sem CI/CD real ainda) e Release, com Timeline via `studio_events`, desbloqueando "New Submission" em Publishing (que desde o Sprint 2.3 ficava desabilitado por falta de Release).
+
+### Arquivos criados
+
+- `apps/web/hooks/use-game-versions.ts` (list+create Version), `use-game-version.ts` (Version+Builds+Releases+Timeline, simulação de Build, `retryBuild()`), `use-publishable-releases.ts` (Releases com Build disponível, para o formulário de Submission).
+- `apps/web/app/games/[id]/versions/[versionId]/page.tsx` — detalhe da Version: Builds (criação + progresso), Releases (criação), Timeline.
+- `apps/web/lib/version-status.ts`, `release-status.ts` — rótulos em português dos enums `version_status`/`release_status`/`release_channel`.
+- `apps/web/lib/build-simulation.ts` — parâmetros centralizados da simulação de Build (`BUILD_SIMULATION_RUNNING_DELAY_MS`, `BUILD_SIMULATION_SUCCEEDED_DELAY_MS`, `BUILD_SIMULATION_STUCK_THRESHOLD_MS`) e `isBuildStuck()`.
+- `packages/database/src/repositories/platforms-repository.ts` (`list()`, tabela global), `studio-events-repository.ts` (`create()`, `listByGameVersion()` via containment `metadata @> {game_version_id}`).
+
+### Arquivos alterados
+
+- `apps/web/app/games/[id]/page.tsx` — seção "Versions" com criação (nome, changelog, branch, commit).
+- `apps/web/app/publishing/page.tsx` — "New Submission" desbloqueado: seleciona um Release real, depois uma Plataforma entre as Builds disponíveis para a Version daquele Release.
+- `packages/database/src/repositories/builds-repository.ts` — `update()` (usado pela simulação de progresso).
+- `packages/database/src/repositories/releases-repository.ts` — `list()` (usado por `usePublishableReleases`).
+- `apps/web/lib/build-status.ts` — `buildTypeLabel()`.
+- `packages/database/src/index.ts` — exports novos.
+
+### Decisão de escopo: sem worker/CI-CD real, sem `platform_id` em `releases`
+
+Ver `DECISIONS.md` (seção "Sprint 2.4/2.5 — Release Pipeline") para as duas decisões formais deste sprint. Resumo: progresso de Build simulado inteiramente no client via `setTimeout` (arquitetura de repository+evento por transição já preparada para uma integração real futura, só o disparo é mock); `releases` não ganhou `platform_id`/`target_store` porque `submissions.platform_id` já cobre isso sem duplicar dado, respeitando a relação N:1 Release→Submissions já modelada.
+
+### Bug real encontrado e corrigido durante a validação (não um bug de produto — achado no próprio processo de teste)
+
+O primeiro Golden Path (Playwright) reportou a Build nunca chegando a `SUCCEEDED`. Investigado antes de qualquer mudança de código: a causa era o próprio script de teste, que chamava `page.reload()` dentro do loop de polling — um reload mata o `setTimeout` pendente no browser antes de ele completar a transição RUNNING→SUCCEEDED. Confirmado isoladamente (sem reload, a build completa em ~4.8s como esperado) e corrigido o script, não o produto.
+
+Essa investigação, no entanto, revelou uma limitação real e não hipotética: **qualquer reload/fechar aba durante a simulação também trava a Build de verdade**, não só no teste. Por isso o hardening abaixo — pedido explicitamente pelo usuário como condição para aprovar o sprint, na mesma sessão em que o achado apareceu.
+
+### Hardening: Build travada — detecção + Retry Build
+
+Sem introduzir worker/cron/Edge Function/queue/CI-CD real (fora de escopo, por instrução explícita do usuário — o estágio continua mock):
+
+- `isBuildStuck()` (`apps/web/lib/build-simulation.ts`) identifica uma Build como travada quando `status = RUNNING` e `updated_at` está há mais de `BUILD_SIMULATION_STUCK_THRESHOLD_MS` (20s — bem acima dos ~4.5s da simulação completa, para não gerar falso positivo por latência) sem progredir.
+- UI (`versions/[versionId]/page.tsx`): badge "Build travada" (variant `destructive`) substitui o badge de status normal, com uma mensagem explicando que é uma limitação da simulação client-side (não uma falha real de build) e um botão **Retry Build**.
+- `retryBuild()` (`use-game-version.ts`): registra `BuildFailed` (preserva o histórico de que a tentativa anterior travou, em vez de apagá-lo), volta o `status` da mesma linha para `PENDING` via `buildsRepo.update()`, registra `BuildRetried`, e reagenda a mesma simulação (`scheduleBuildSimulation()`, extraída de `createBuild()` para ser reaproveitada por ambos). Reaproveita a linha existente — o schema não tem um conceito de "tentativa" separado da Build (ver `DECISIONS.md`).
+- Aviso permanente (não uma mensagem só no momento da falha) no topo da tela de Version: "As builds desta versão são simuladas no navegador — não há CI/CD real ainda. Fechar ou atualizar a página durante uma build pode interromper o progresso; pipelines reais serão adicionados futuramente."
+- Sem `localStorage`/`sessionStorage`/mecanismo paralelo — todo o estado (inclusive a detecção de travamento) é derivado de colunas já persistidas no Postgres (`status`, `updated_at`).
+
+### Débitos técnicos registrados (aprovados pelo usuário para o backlog, não bloqueiam este sprint)
+
+1. `build_number` calculado por contagem no client (`createBuild()`) — duas criações simultâneas para a mesma Version/Platform podem colidir. Correção futura: cálculo transacional no banco.
+2. `artifact_url` aponta para um domínio mock (`builds.aigamestudioos.local`) — a UI já rotula o checksum como "(simulado)"; reforçar se um link/botão de download real for adicionado no futuro.
+3. `usePublishableReleases` resolve Release→Version→Game→Builds em consultas separadas por Release (padrão N+1) — aceitável no volume atual do MVP; revisar para consulta única/view/RPC quando o volume justificar.
+
+Ver `DECISIONS.md` para o registro formal dos três.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12), antes e depois do hardening. Golden Path completo via Playwright (local, banco real): **29/29 checks** — login, Game→Version→Build (PENDING→RUNNING→SUCCEEDED)→Release→Submission em Publishing (com Release/Build/Plataforma corretos no detalhe), Timeline com os 5 eventos (`VersionCreated`/`BuildCreated`/`BuildFinished`/`ReleaseCreated`/`SubmissionCreated`), reload, logout/login, tudo persistindo; responsividade e overflow horizontal verificados em mobile/tablet/desktop × light/dark (6 combinações, todas sem overflow). Zero erros de console.
+
+Cenário de hardening validado à parte (16/16 checks): build entra em RUNNING, reload mata o timer, build permanece RUNNING sem ser marcada como travada antes do limite, após ~22s a UI identifica "Build travada" com a mensagem correta, Retry Build funciona (build volta a progredir e chega a SUCCEEDED normalmente desta vez, sem novo reload), Timeline mostra `BuildCreated`→`BuildFailed`→`BuildRetried`→`BuildFinished` na ordem correta. Zero erros de console.
+
+Screenshots capturados nos 3 breakpoints × 2 temas para o estado de Build travada (Retry Build visível, sem overflow em nenhum).
+
+### Bugs de ambiente encontrados e resolvidos no processo (não relacionados ao código do sprint)
+
+- Local Supabase (`supabase start`) apresentou instabilidade intermitente (containers "unhealthy" na primeira tentativa) — resolvido reiniciando o stack.
+- Um `next-server` órfão de uma sessão anterior (27min, ~1.5GB RSS) estava ocupando a porta 3000 e pressionando a memória da sandbox (125MB livres de 7.8GB), causando crashes do Chromium durante os testes — identificado via `ps`/`free`, confirmado órfão (PID/tempo de vida não relacionados à sessão atual) e encerrado por PID específico (nunca `pkill` genérico). Dev server desta sessão rodou na porta 3001 sem problema depois disso.
+
+### Validação em produção
+
+Ver seção de fechamento (push + deploy) mais abaixo neste log, adicionada após o commit.
+
+### Pendências
+
+- Services/use cases/eventos tipados formais, Quick Actions, widgets de Dashboard (Sprint 2.6).
+- Suíte Playwright versionada no repositório + consolidação final de documentação (Sprint 2.7) — os scripts usados neste sprint foram ad hoc (scratchpad), não commitados.
+- Os 3 débitos técnicos listados acima (`build_number`, `artifact_url`, N+1 em `usePublishableReleases`).
+- Atualização formal de `AGSOS-SPEC-003` §13 com os ENUMs/colunas novos do Release Pipeline (arrastada do Sprint 2.4).
+
+### Próximo Sprint
+
+Sprint 2.6 — Services/use cases formais, eventos tipados, Quick Actions, widgets de Dashboard (Latest Builds, Failed Builds, Publishing Queue etc.), conforme divisão já proposta e confirmada com o usuário.

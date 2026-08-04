@@ -538,3 +538,26 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** `useKnowledgeDocuments.createDocument()` faz duas chamadas em sequência (criar o documento, depois criar a versão 1 com o resumo como conteúdo) — não uma transação de banco (Postgres não tem transação client-side via PostgREST), mas do ponto de vista da UI é uma única ação.
 **Motivo:** Mantém paridade com o comportamento do mock sem exigir uma segunda tela ("agora escreva o conteúdo completo") que o usuário não pediu.
 **Impacto:** Se a segunda chamada (`createVersion`) falhar depois da primeira (`create`) ter sucedido, fica um documento sem nenhuma versão — cenário não tratado neste sprint (raro, mas real); a página de detalhes já trata isso mostrando "Nenhuma versão publicada ainda." em vez de crashar.
+
+## Sprint 2.4/2.5 — Release Pipeline
+
+### [2026-08-04] Releases não têm `platform_id` — a plataforma vive na Submission, não no Release
+**Contexto:** O pedido original do Release Pipeline sugeria um `target_store` no Release. `submissions.platform_id` já existe desde o schema original (Sprint 1.7), e `submissions.release_id` é N:1 com `releases` — ou seja, um Release já pode gerar Submissions para lojas diferentes.
+**Decisão:** Não adicionar `platform_id`/`target_store` a `releases`. `release_channel` (Internal/Alpha/Beta/Production) foi adicionado normalmente — é atributo do Release, não da loja.
+**Motivo:** Duplicar a plataforma no Release contradiria a relação N:1 já modelada e violaria "nenhuma duplicação de dados".
+**Impacto:** O formulário de criação de Submission em Publishing pede Release + Plataforma separadamente, derivando a Build correta a partir dos dois.
+
+### [2026-08-04] Simulação de Build travada: reaproveitar a mesma linha (Retry), não criar uma tabela de "tentativas"
+**Contexto:** Sem CI/CD real, o progresso de Build é simulado por `setTimeout` no client — se a aba fechar/recarregar no meio, a Build fica presa em `RUNNING` para sempre, sem nada no servidor para completá-la (achado durante a validação do Golden Path do Sprint 2.5, não hipotético).
+**Decisão:** `isBuildStuck()` (limite `BUILD_SIMULATION_STUCK_THRESHOLD_MS = 20s`, centralizado em `apps/web/lib/build-simulation.ts`) identifica a Build travada na UI; "Retry Build" reaproveita a mesma linha (`buildsRepo.update()` volta o status para `PENDING`), registrando `BuildFailed` (não apaga o histórico de que a tentativa anterior travou) seguido de `BuildRetried`, e reinicia a mesma simulação.
+**Motivo:** O schema não tem um conceito de "tentativa"/"attempt" separado da Build — criar uma nova linha a cada retry duplicaria `build_number` sem necessidade e fragmentaria o histórico em várias linhas para o que é conceitualmente uma única Build. Reaproveitar a linha, com os dois eventos marcando a falha e o retry, preserva auditoria sem exigir decisão de schema nova.
+**Impacto:** Se no futuro builds precisarem de um histórico de tentativas explícito (ex.: métricas de flakiness de CI real), isso vira uma decisão de schema própria — não decidida aqui.
+
+### [2026-08-04] Débitos técnicos registrados, não corrigidos neste sprint (aprovados explicitamente pelo usuário para o backlog)
+**Contexto:** Revisão do Sprint 2.5 apontou três pontos que funcionam para o MVP mas não escalam bem.
+**Decisão:** Documentar, não bloquear o sprint:
+1. `build_number` é calculado por contagem no client (`use-game-version.ts`, `createBuild()`) — duas criações simultâneas para a mesma Version/Platform podem gerar o mesmo número. Correção futura: calcular de forma transacional no banco (sequência ou `SELECT ... FOR UPDATE`/função Postgres).
+2. `artifact_url` aponta para `builds.aigamestudioos.local/mock/...` — um artefato inexistente. A UI já rotula o checksum como "(simulado)"; reforçar isso se um link/botão de download real do `artifact_url` for adicionado no futuro, para nunca parecer um download real.
+3. `usePublishableReleases` (Publishing → New Submission) resolve Release→Version→Game→Builds em consultas separadas por Release, um padrão N+1. Funciona no volume atual (poucas Releases); revisar para uma consulta única/view/RPC quando o volume justificar.
+**Motivo:** Nenhum dos três é um bug — são limitações conhecidas de um MVP que ainda não tem volume ou concorrência reais. Consertar agora seria otimização prematura sem sinal de que é necessário.
+**Impacto:** Repetido aqui e em `IMPLEMENTATION_LOG.md` para não virar dívida invisível — releitura futura desses dois arquivos deve encontrar os três pontos.

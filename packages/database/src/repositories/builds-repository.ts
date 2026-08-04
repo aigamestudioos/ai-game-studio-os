@@ -82,5 +82,14 @@ export function createBuildsRepository(client: SupabaseClient<Database>) {
       if (error) throw error;
       return data;
     },
+
+    // Usado pela simulação de progresso de build no client (Sprint 2.5) —
+    // não há CI/CD real ainda, então PENDING→RUNNING→SUCCEEDED/FAILED é
+    // simulado no browser e persistido a cada transição.
+    async update(id: string, patch: Partial<BuildsRow>): Promise<BuildsRow> {
+      const { data, error } = await client.from("builds").update(patch).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    },
   };
 }

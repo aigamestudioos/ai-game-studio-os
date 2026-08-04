@@ -19,6 +19,8 @@ export { createBuildsRepository } from "./repositories/builds-repository";
 export type { BuildWithDetails } from "./repositories/builds-repository";
 export { createGameVersionsRepository } from "./repositories/game-versions-repository";
 export { createReleasesRepository } from "./repositories/releases-repository";
+export { createPlatformsRepository } from "./repositories/platforms-repository";
+export { createStudioEventsRepository } from "./repositories/studio-events-repository";
 export { createKnowledgeDocumentsRepository } from "./repositories/knowledge-documents-repository";
 export { createSubmissionsRepository } from "./repositories/submissions-repository";
 export type { SubmissionWithDetails } from "./repositories/submissions-repository";

@@ -4,6 +4,23 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.5 — Publique jogos de ponta a ponta (com simulação de build)
+
+✨ Dentro de um Game, crie uma **Version**, gere uma **Build** (o progresso é simulado por enquanto — ainda não há fábrica de builds real conectada) e crie um **Release**
+✨ Acompanhe tudo numa **Timeline** com o histórico completo daquela versão
+✨ Com um Release pronto, "New Submission" em Publishing já funciona de verdade
+🔧 Se a build simulada ficar "travada" (por exemplo, se você recarregar a página no meio do processo), a tela agora avisa e oferece **Retry Build**
+🔧 Aviso deixado bem claro: builds ainda são simuladas, não um pipeline de verdade — isso vem em um sprint futuro
+
+## Sprint 2.4 — Preparação para builds e releases (bastidores)
+
+_Nenhuma mudança visível — schema e conexões internas preparadas para o Sprint 2.5._
+
+## Sprint 2.3 — Publishing de verdade (só consulta, por enquanto)
+
+✨ Suas **submissões de publicação agora são dados reais**
+🔧 Criar uma nova submissão ainda não está disponível — depende de builds/releases, que chegam no próximo sprint
+
 ## Sprint 2.2 — Knowledge de verdade
 
 ✨ Seus **documentos da base de conhecimento agora são salvos de verdade**
