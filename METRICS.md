@@ -998,3 +998,59 @@ Mesmo padrão dos Sprints 2.0/2.1/2.2: substitui `apps/web/lib/publishing-store.
 | Vercel | ✅ deploy do commit `b125021` (status `success`). Validação em produção **parcial**: aprovados deploy, login/redirecionamento, estado vazio de Publishing, botão "New Submission" desabilitado + mensagem, zero erros de console, isolamento RLS. **Não validados em produção** (só localmente): listagem com submissions reais, detalhe de submission, `store_reviews` reais — falta um Studio de demonstração próprio para testes de produção (ver pendência de QA no IMPLEMENTATION_LOG.md) |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.4 — Release Pipeline: schema + repositories (sem UI)
+
+**Data:** 2026-08-04
+
+Primeiro dos 4 sprints em que o "Release Pipeline" completo (Game → Version → Build → Release → Submission → Store Review → Published) foi dividido — pedido original excedia os limites de sprint deste repositório (`CLAUDE.md`); divisão proposta e confirmada pelo usuário antes de implementar. Este sprint é só schema + repositories, sem UI.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.4 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 308 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 8753 |
+| Commits totais | 58 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Migration validada contra Postgres real | ✅ (`supabase migration up`, local/Docker) — ENUMs/colunas/`CHECK` constraint (`chk_releases_rollout_percentage`) e RLS confirmados via `\d` no psql |
+| Repositories exercitados fim a fim (script ad hoc, `authenticated` role, local) | 6/6 checks — create+list de Version/Build/Release com os campos novos, valores persistidos corretos, `rollout_percentage=150` corretamente rejeitado pelo `CHECK`, dados de teste removidos |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 10 (inalterado — nenhuma tela nova neste sprint) |
+| Repositories implementados | 7 (Studio, Project, Game, KnowledgeDocument, Submission, GameVersion, Release — `Build` ganhou `listByVersion()`/`getById()`/`create()`) |
+| ENUMs novos | 2 (`build_type`, `release_channel` — aditivos, `AGSOS-SPEC-003` §13 permanece intacto; atualização formal do documento é débito registrado) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
+| Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

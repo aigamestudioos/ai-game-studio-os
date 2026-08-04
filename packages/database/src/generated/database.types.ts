@@ -20,6 +20,8 @@ export type BuildStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANC
 export type ReleaseStatus = "DRAFT" | "READY_FOR_SUBMISSION" | "SUBMISSION_IN_PROGRESS" | "PARTIALLY_PUBLISHED" | "PUBLISHED" | "REJECTED" | "CANCELLED" | "ARCHIVED";
 export type SubmissionStatus = "DRAFT" | "WAITING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | "CANCELLED";
 export type IntegrationStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "DEGRADED" | "ERROR" | "DISABLED";
+export type BuildType = "DEBUG" | "RELEASE" | "INTERNAL" | "PRODUCTION";
+export type ReleaseChannel = "INTERNAL" | "ALPHA" | "BETA" | "PRODUCTION";
 export type KnowledgeDocumentType = "SPEC" | "ADR" | "SOP" | "GUIDE" | "PLAYBOOK" | "TEMPLATE" | "POLICY" | "LESSON_LEARNED" | "TECHNICAL_DOCUMENT";
 export type KnowledgeDocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "OBSOLETE" | "ARCHIVED";
 
@@ -135,6 +137,9 @@ export type GameVersionsRow = WithStudio & {
   game_id: string;
   version_number: string;
   status: VersionStatus;
+  changelog: string | null;
+  branch: string | null;
+  commit_hash: string | null;
 };
 
 export type BuildsRow = WithStudio & {
@@ -143,12 +148,22 @@ export type BuildsRow = WithStudio & {
   status: BuildStatus;
   artifact_url: string | null;
   logs_url: string | null;
+  build_number: number | null;
+  build_type: BuildType;
+  artifact_size: number | null;
+  checksum: string | null;
+  generated_at: string | null;
 };
 
 export type ReleasesRow = WithStudio & {
   game_id: string;
   game_version_id: string;
   status: ReleaseStatus;
+  release_channel: ReleaseChannel;
+  scheduled_at: string | null;
+  published_at: string | null;
+  release_notes: string | null;
+  rollout_percentage: number | null;
 };
 
 export type GameLocalizationsRow = {

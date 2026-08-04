@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../generated/database.types";
+import type { BuildsRow, Database } from "../generated/database.types";
 
 export type BuildWithDetails = {
   id: string;
@@ -54,6 +54,33 @@ export function createBuildsRepository(client: SupabaseClient<Database>) {
         versionNumber: versionById.get(build.game_version_id) ?? "—",
         platformName: platformById.get(build.platform_id) ?? "—",
       }));
+    },
+
+    // Sprint 2.4 — CRUD real por versão, ainda sem UI de criação (essa
+    // continua sendo montada com listByGame() até o Sprint 2.5).
+    async listByVersion(gameVersionId: string): Promise<BuildsRow[]> {
+      const { data, error } = await client
+        .from("builds")
+        .select("*")
+        .eq("game_version_id", gameVersionId)
+        .is("archived_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+
+    async getById(id: string): Promise<BuildsRow | null> {
+      const { data, error } = await client.from("builds").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+
+    async create(
+      input: Pick<BuildsRow, "studio_id" | "game_version_id" | "platform_id"> & Partial<BuildsRow>,
+    ): Promise<BuildsRow> {
+      const { data, error } = await client.from("builds").insert(input).select("*").single();
+      if (error) throw error;
+      return data;
     },
   };
 }

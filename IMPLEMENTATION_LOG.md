@@ -1333,3 +1333,51 @@ Esses três últimos fluxos (listagem, detalhe, `store_reviews`) foram validados
 ### Próximo Sprint
 
 A definir com o usuário. Com Publishing real concluído (somente leitura), todos os 4 módulos de negócio do MVP original (Projects, Games, Knowledge, Publishing) já leem do banco real — o mock só permanece na forma da cadeia Release/Build, ainda sem nenhuma UI de criação em todo o app.
+
+---
+
+## Sprint 2.4 — Release Pipeline: schema + repositories (sem UI)
+
+**Status:** Concluído (validado contra o banco real)
+**Período:** 2026-08-04
+
+### Objetivo
+
+Primeiro incremento do "Release Pipeline" (Game → Version → Build → Release → Submission → Store Review → Published) pedido pelo usuário. O pedido original tinha escopo de um único sprint gigante (schema + repositories + services + use cases + eventos + UX completa de Versions/Builds/Releases + widgets de Dashboard + Quick Actions + suíte Playwright + 7 documentos atualizados) — muito acima dos limites deste repositório (`CLAUDE.md`: máx. ~50 arquivos/3 packages/10 arquivos novos por sprint). Antes de implementar, a divisão foi proposta e confirmada pelo usuário em 4 sprints:
+
+- **2.4 (este):** schema + repositories da cadeia Version→Build→Release, sem UI.
+- **2.5:** UX de criação (abas Versions/Builds/Releases em Game, build mockado, timeline via `studio_events`) — desbloqueia a criação de Submission em Publishing.
+- **2.6:** Services/use cases formais, eventos tipados, Quick Actions, widgets de Dashboard.
+- **2.7:** Suíte Playwright golden-path completa + consolidação de documentação (CHANGELOG/PROJECT_STATUS/DECISIONS/RELEASE_NOTES/PRODUCT_PROGRESS) + validação em produção do pipeline completo.
+
+### Decisões de schema
+
+`AGSOS-SPEC-003` §13 já define `version_status`/`build_status`/`release_status` como ENUMs oficiais congelados — nenhum deles foi alterado. Os atributos pedidos pelo usuário (changelog/branch/commit_hash em Version; build_number/tipo/tamanho/checksum em Build; canal/agendamento/rollout em Release) não existiam no documento normativo porque as colunas também não existiam — são extensões aditivas, registradas aqui como pendência de atualização formal de `AGSOS-SPEC-003` (não feita neste commit).
+
+**Desvio deliberado do pedido original:** não foi adicionado `platform_id`/"target_store" em `releases`. O modelo já existente (`submissions.release_id` N:1 `releases`, com `submissions.platform_id` próprio) já permite que um Release gere Submissions para lojas diferentes — duplicar a plataforma no Release contradiria essa relação N:1 e violaria "nenhuma duplicação de dados". `release_channel` (Internal/Alpha/Beta/Production) foi adicionado normalmente, é um atributo do Release, não da loja.
+
+### Arquivos criados
+
+- `supabase/migrations/20260804000001_release_pipeline_extensions.sql` — 2 ENUMs novos (`build_type`, `release_channel`) + colunas aditivas em `game_versions`/`builds`/`releases` (nenhuma coluna/tabela existente removida ou renomeada; forward-only, `AGSOS-SPEC-003` §3).
+- `packages/database/src/repositories/game-versions-repository.ts` — `listByGame()`/`getById()`/`create()`.
+- `packages/database/src/repositories/releases-repository.ts` — `listByGame()`/`listByVersion()`/`getById()`/`create()`.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/builds-repository.ts` — `listByVersion()`/`getById()`/`create()` novos (mantém `listByGame()` já existente, usado pela tela de detalhe de Game desde o Sprint 2.1).
+- `packages/database/src/generated/database.types.ts` — tipos `BuildType`/`ReleaseChannel` e colunas novas em `GameVersionsRow`/`BuildsRow`/`ReleasesRow` (arquivo hand-maintained até existir projeto Supabase remoto linkado — ver comentário no topo do arquivo).
+- `packages/database/src/index.ts` — exports de `createGameVersionsRepository`/`createReleasesRepository`.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Migration aplicada contra Postgres real (local, Docker) via `supabase migration up` — colunas/ENUMs/constraint (`chk_releases_rollout_percentage`) confirmados via `\d` no psql, RLS (`_isolation` policies) intacta nas 3 tabelas. Repositories exercitados fim a fim com um script ad hoc autenticado como usuário real (`authenticated` role, não `service_role` — o app nunca usa `service_role` no browser, `ADR-003`): criação de Version→Build→Release com os campos novos, leitura via `listByGame()`/`listByVersion()` confirmando os valores persistidos, e confirmação de que `rollout_percentage=150` é corretamente rejeitado pelo `CHECK` constraint. Dados de teste removidos ao final (nenhum resíduo no banco local).
+
+### Pendências
+
+- UI de criação de Version/Build/Release (Sprint 2.5).
+- Services/use cases/eventos tipados (Sprint 2.6).
+- Atualização formal de `AGSOS-SPEC-003` §13 com os ENUMs/colunas novos (débito de documentação, não bloqueia o código).
+
+### Próximo Sprint
+
+Sprint 2.5 — UX de criação da cadeia Version→Build→Release (abas em Game, build mockado, timeline via `studio_events`), desbloqueando a criação real de Submission em Publishing.
