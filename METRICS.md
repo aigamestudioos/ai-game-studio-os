@@ -1086,6 +1086,7 @@ Terceiro incremento visível do Release Pipeline (2.4 foi só schema/repositorie
 | Cobertura (%) | 0% |
 | Golden Path (Playwright, banco real local) | 29/29 checks — Game→Version→Build (PENDING→RUNNING→SUCCEEDED)→Release→Submission, Timeline com 5 eventos, reload, logout/login, persistência; 6/6 combinações de breakpoint×tema sem overflow horizontal; zero erros de console |
 | Cenário de Build travada + Retry (Playwright, banco real local) | 16/16 checks — detecção após o limite de 20s, mensagem explicativa, Retry Build funcional, Timeline com `BuildFailed`→`BuildRetried`→`BuildFinished`; zero erros de console |
+| Golden Path em produção | Bloqueado — migration do Sprint 2.4 não aplicada em produção (ver Deploy, abaixo, e IMPLEMENTATION_LOG.md); só login + criação de Project/Game confirmados em prod |
 
 ### Produto
 
@@ -1109,6 +1110,6 @@ Terceiro incremento visível do Release Pipeline (2.4 foi só schema/repositorie
 
 | Métrica | Valor |
 |---|---|
-| Vercel | ver IMPLEMENTATION_LOG.md para o resultado do deploy/validação em produção deste sprint |
+| Vercel | ✅ deploy do commit `da76df5` (status `success`). Golden Path de produção **bloqueado**: migration do Sprint 2.4 nunca foi aplicada ao Supabase de produção (schema desatualizado — `game_versions`/`builds`/`releases` sem as colunas novas), sem `SUPABASE_ACCESS_TOKEN` disponível nesta sessão para aplicar. Confirmados em produção: login com conta de teste dedicada, criação real de Project/Game. Não exercitado em produção: Version/Build/Release/Submission (bloqueados pela migration pendente) — validado apenas localmente (29/29 + 16/16). Ver IMPLEMENTATION_LOG.md |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |

@@ -1453,10 +1453,24 @@ Screenshots capturados nos 3 breakpoints × 2 temas para o estado de Build trava
 
 ### Validação em produção
 
-Ver seção de fechamento (push + deploy) mais abaixo neste log, adicionada após o commit.
+Commit `da76df5` — `git push origin main` e status Vercel confirmado `success` via `gh api .../commits/da76df5/status` (`https://vercel.com/ai-game-studio-os/ai-game-studio-os-web/4W1srwVxB5KaDQ5eRSasNtNM5c9p`).
+
+**Golden Path em produção BLOQUEADO — migration do Sprint 2.4 nunca foi aplicada ao Supabase de produção.** Com a conta de teste dedicada (`teste@aigamestudioos.com`), login funcionou, e um Project + Game novos foram criados com sucesso (dentro do Studio isolado dessa conta, sem tocar dados de outros Studios) — mas a criação da primeira Version falhou com:
+
+```
+PGRST204: Could not find the 'branch' column of 'game_versions' in the schema cache
+```
+
+**Causa raiz confirmada (não é bug de código):** `supabase/migrations/20260804000001_release_pipeline_extensions.sql` (Sprint 2.4) foi validada e aplicada com sucesso contra o Postgres **local** (Docker, via `supabase migration up`), mas nunca foi propagada ao projeto Supabase remoto de produção (`vkyswyuxitwakjqjteso`) — não existe pipeline de CI neste repositório (`.github/workflows/` não existe) que faça isso automaticamente, e esta sessão não tinha `SUPABASE_ACCESS_TOKEN`/login do CLI nem a connection string do Postgres de produção para rodar `supabase db push` ou aplicar o SQL diretamente. O código do app está correto; o schema de produção está desatualizado em relação a `game_versions`/`builds`/`releases` (faltam as colunas do Sprint 2.4: `branch`/`changelog`/`commit_hash`, `build_number`/`build_type`/`artifact_size`/`checksum`/`generated_at`, `release_channel`/`scheduled_at`/`published_at`/`release_notes`/`rollout_percentage`).
+
+Apresentado o bloqueio ao usuário antes de qualquer tentativa de contorno (nenhuma credencial foi adivinhada ou solicitada de forma insegura). Decisão do usuário: não aplicar a migration nesta sessão — documentar o bloqueio e encerrar a validação de produção deste sprint sem o Golden Path completo em prod. Consequência: apenas os itens de produção que **não** dependem das colunas novas foram confirmados (deploy, login, criação de Project/Game reais, schema-guard funcionando corretamente — ver abaixo); os itens que dependem da cadeia Version→Build→Release→Submission **não foram exercitados em produção**.
+
+Validação local (Docker, mesmo commit) permanece a evidência válida de que o código funciona corretamente contra o schema correto — ver "Validações executadas" acima (29/29 + 16/16, zero erros de console).
 
 ### Pendências
 
+- **Bloqueante para validação completa de produção:** aplicar `supabase/migrations/20260804000001_release_pipeline_extensions.sql` ao projeto Supabase de produção (`vkyswyuxitwakjqjteso`) — via `supabase db push` (precisa de `SUPABASE_ACCESS_TOKEN`) ou SQL Editor do Dashboard. Depois disso, reexecutar o Golden Path de produção (script ad hoc já escrito, não commitado — ver observação sobre scripts abaixo).
+- Nenhum processo de CI aplica migrations a produção automaticamente — vale considerar formalizar esse passo (`supabase db push` num pipeline, ou um passo manual documentado no runbook de deploy) para este gap não se repetir a cada sprint com mudança de schema.
 - Services/use cases/eventos tipados formais, Quick Actions, widgets de Dashboard (Sprint 2.6).
 - Suíte Playwright versionada no repositório + consolidação final de documentação (Sprint 2.7) — os scripts usados neste sprint foram ad hoc (scratchpad), não commitados.
 - Os 3 débitos técnicos listados acima (`build_number`, `artifact_url`, N+1 em `usePublishableReleases`).
