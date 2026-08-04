@@ -1479,3 +1479,47 @@ Validação local (Docker, mesmo commit) permanece a evidência válida de que o
 ### Próximo Sprint
 
 Sprint 2.6 — Services/use cases formais, eventos tipados, Quick Actions, widgets de Dashboard (Latest Builds, Failed Builds, Publishing Queue etc.), conforme divisão já proposta e confirmada com o usuário.
+
+---
+
+## Sprint 2.5.1 — Production Readiness
+
+**Status:** Concluído (processo/tooling); pendência de dados pré-existente permanece aberta (ver abaixo)
+**Período:** 2026-08-04
+
+### Objetivo
+
+Sprint puramente operacional, sem nenhuma funcionalidade nova de produto — decisão explícita do usuário após o Sprint 2.5 revelar que uma migration validada localmente nunca chegou a produção, e que nada no processo detectava isso antes do Golden Path de produção esbarrar num erro real. Objetivo: eliminar esse risco de forma estrutural, não pontual, mantendo a solução no nível de complexidade adequado para um solo founder (sem CI/CD completo).
+
+### Arquivos criados
+
+- `DEPLOY_RUNBOOK.md` — processo operacional de deploy de schema: por que migrations continuam manuais (decisão explícita, não omissão), quando aplicar, checklist obrigatório, como aplicar (CLI com token, ou SQL Editor como fallback sem token), como validar sincronia antes de declarar o deploy pronto, e o registro do que aconteceu no Sprint 2.5 como caso de referência.
+- `scripts/check-schema-sync.sh` — compara `supabase/migrations/` (local) contra `supabase migration list --linked` (remoto); falha com a lista exata de migrations pendentes se houver divergência, ou falha explicando o que falta se não houver `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` disponível. Nunca reporta sucesso silenciosamente sem credencial.
+
+### Arquivos alterados
+
+- `DEFINITION_OF_DONE.md` — nova seção 10, "Gate de Schema/Migrations": nenhum sprint que crie/altere uma migration pode ser declarado Concluído sem os 4 itens do checklist (migration aplicada em produção, `check-schema-sync.sh` verde, Golden Path contra produção, evidências + documentação atualizada). Faltando qualquer um, o sprint é relatado como Parcialmente Concluído, com o item nomeado — nunca escondido.
+- `CLAUDE.md` — pointer para `DEPLOY_RUNBOOK.md`/`DEFINITION_OF_DONE.md` §10 na seção de processo.
+- `package.json` — script `check:schema` (`pnpm check:schema`), atalho para `scripts/check-schema-sync.sh`.
+
+### Decisão: manual + scriptado, não CI/CD completo
+
+Registrada com o mesmo peso de uma entrada de `DECISIONS.md` (ver lá, se este arquivo for consultado antes): este repositório não tem `.github/workflows/` e este sprint **não criou um**. `supabase db push` continua sendo rodado manualmente pela pessoa fazendo o sprint, não por um pipeline. O ganho de confiabilidade vem de dois lugares que não exigem infraestrutura de CI: um script que verifica o estado (`check-schema-sync.sh`) e um checklist que torna o passo impossível de esquecer (`DEPLOY_RUNBOOK.md` §3 + o gate formal em `DEFINITION_OF_DONE.md` §10). Se o ritmo de sprints com mudança de schema crescer a ponto de o passo manual virar gargalo de verdade (sinal a observar, não hipótese), a evolução natural é automatizar só esse step — não reconstruir o pipeline inteiro.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12) — nenhum código de `apps/web`/`packages/*` foi tocado, só documentação, um script novo e um script npm. `scripts/check-schema-sync.sh` testado no único caminho executável nesta sessão (sem credencial disponível): falha corretamente com mensagem clara e `exit 1`, tanto direto (`bash scripts/check-schema-sync.sh`) quanto via `pnpm check:schema`. O caminho com credencial válida (`SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` presente, comparando `supabase migration list --linked` de verdade) **não pôde ser exercitado nesta sessão** — mesma limitação de credenciais do Sprint 2.5. Sem testes E2E (não há UI neste sprint).
+
+### Pendência pré-existente que este sprint NÃO resolve sozinho
+
+A migration `20260804000001_release_pipeline_extensions.sql` (Sprint 2.4) **continua não aplicada em produção** — este sprint entrega o processo e a ferramenta para detectar e aplicar isso de forma confiável a partir de agora, mas aplicar essa migration específica ainda depende de uma credencial (`SUPABASE_ACCESS_TOKEN` ou a connection string de produção) que não está disponível nesta sessão. Ou seja: o Golden Path de produção do Release Pipeline (Version/Build/Release/Submission) permanece bloqueado até essa migration ser aplicada — por decisão do usuário, isso fica registrado como pendência explícita, não escondido atrás de "Sprint 2.5.1 concluído".
+
+### Pendências
+
+- **Aplicar a migration do Sprint 2.4 em produção** (`DEPLOY_RUNBOOK.md` §4) e então reexecutar `check:schema` + o Golden Path de produção do Release Pipeline — item mais prioritário do backlog atual (herdado do Sprint 2.5, ainda não resolvido).
+- Exercitar `check-schema-sync.sh` com credencial real pelo menos uma vez, para confirmar o parsing de `supabase migration list --linked` contra a saída real do CLI (só testado com mensagens de erro nesta sessão).
+- Débitos técnicos do Sprint 2.5 (`build_number`, `artifact_url`, N+1) seguem no backlog, com prioridade menor que a migration pendente.
+
+### Próximo Sprint
+
+A definir com o usuário — provavelmente aplicar a migration pendente (destrava o Golden Path de produção do Release Pipeline) antes de retomar o Sprint 2.6.

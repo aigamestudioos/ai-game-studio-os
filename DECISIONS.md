@@ -561,3 +561,11 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 3. `usePublishableReleases` (Publishing → New Submission) resolve Release→Version→Game→Builds em consultas separadas por Release, um padrão N+1. Funciona no volume atual (poucas Releases); revisar para uma consulta única/view/RPC quando o volume justificar.
 **Motivo:** Nenhum dos três é um bug — são limitações conhecidas de um MVP que ainda não tem volume ou concorrência reais. Consertar agora seria otimização prematura sem sinal de que é necessário.
 **Impacto:** Repetido aqui e em `IMPLEMENTATION_LOG.md` para não virar dívida invisível — releitura futura desses dois arquivos deve encontrar os três pontos.
+
+## Sprint 2.5.1 — Production Readiness
+
+### [2026-08-04] Migrations em produção continuam manuais — scriptadas e com gate, não automatizadas via CI
+**Contexto:** O Sprint 2.5 revelou que uma migration validada localmente (Sprint 2.4) nunca chegou ao Supabase de produção, e nada no processo detectava isso antes do Golden Path de produção esbarrar num erro real (`PGRST204`). A correção óbvia seria um pipeline de CI que rodasse `supabase db push` automaticamente a cada push com migration nova.
+**Decisão:** Não construir esse pipeline agora. Em vez disso: `scripts/check-schema-sync.sh` (compara local×remoto, falha explicitamente se houver divergência ou se faltar credencial) + um checklist obrigatório em `DEPLOY_RUNBOOK.md` + um gate formal em `DEFINITION_OF_DONE.md` §10 que impede declarar um sprint com migration "Concluído" sem os 4 itens do checklist marcados.
+**Motivo:** Instrução explícita do usuário — para um solo founder, o custo de manter um pipeline de CI/CD completo (secrets geridos, jobs, superfície de coisas que podem quebrar) supera o valor neste estágio, quando o volume de sprints com mudança de schema ainda é baixo. Um script + checklist resolve a causa raiz real (ninguém verificava o estado antes de seguir em frente) sem essa complexidade adicional.
+**Impacto:** Se o ritmo de sprints com schema crescer a ponto do passo manual virar gargalo mensurável (não hipotético), a evolução natural é automatizar só esse step (`supabase db push` num job de CI), reaproveitando o mesmo script de verificação — não reconstruir o processo do zero.

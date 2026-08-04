@@ -17,7 +17,8 @@
     "test:e2e": "turbo run test:e2e",
     "format": "turbo run format",
     "format:check": "turbo run format:check",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "check:schema": "bash scripts/check-schema-sync.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

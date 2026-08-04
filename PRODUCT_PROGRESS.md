@@ -31,3 +31,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 2.3 | Suas **submissões de publicação agora são dados reais** — ainda sem criar novas (depende de Release, que chega no 2.5) |
 | 2.4 | _Nenhum — sprint de infraestrutura (schema de Version/Build/Release preparado nos bastidores)_ |
 | 2.5 | Agora dá para **publicar um jogo de ponta a ponta**: criar Version → gerar Build (simulada) → criar Release → criar Submission em Publishing, tudo com uma Timeline do que aconteceu; builds travadas (ex.: página recarregada no meio) são identificadas e recuperáveis com **Retry Build** |
+| 2.5.1 | _Nenhum — sprint de processo/infraestrutura (processo e ferramenta para nunca mais deployar código sobre um schema de produção desatualizado, depois de o Sprint 2.5 ter revelado esse risco na prática)_ |

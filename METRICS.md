@@ -1113,3 +1113,51 @@ Terceiro incremento visível do Release Pipeline (2.4 foi só schema/repositorie
 | Vercel | ✅ deploy do commit `da76df5` (status `success`). Golden Path de produção **bloqueado**: migration do Sprint 2.4 nunca foi aplicada ao Supabase de produção (schema desatualizado — `game_versions`/`builds`/`releases` sem as colunas novas), sem `SUPABASE_ACCESS_TOKEN` disponível nesta sessão para aplicar. Confirmados em produção: login com conta de teste dedicada, criação real de Project/Game. Não exercitado em produção: Version/Build/Release/Submission (bloqueados pela migration pendente) — validado apenas localmente (29/29 + 16/16). Ver IMPLEMENTATION_LOG.md |
 | Supabase | — (schema pronto, sem projeto remoto — Sprint 1.8) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.5.1 — Production Readiness
+
+**Data:** 2026-08-04
+
+Sprint puramente de processo — sem funcionalidade de produto, sem mudança em `apps/web`/`packages/*`. Entrega o processo/ferramenta que faltava depois de o Sprint 2.5 revelar uma migration validada localmente mas nunca aplicada em produção.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.5.1 |
+| Arquivos (git-tracked) | 319 |
+| Commits totais | 61 (antes deste commit) |
+| Build | ✅ (inalterado — nenhum código de app/package tocado) |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| `scripts/check-schema-sync.sh` — caminho sem credencial | ✅ falha corretamente com mensagem clara e `exit 1`, direto e via `pnpm check:schema` |
+| `scripts/check-schema-sync.sh` — caminho com credencial válida | ⬜ não exercitado nesta sessão (sem `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` disponível — mesma limitação do Sprint 2.5) |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Nenhum Product Delta | sprint de processo/infraestrutura (`DEFINITION_OF_DONE.md` §9) |
+| Documentos operacionais novos | 1 (`DEPLOY_RUNBOOK.md`) |
+| Gates formais de processo | 1 novo (`DEFINITION_OF_DONE.md` §10 — Gate de Schema/Migrations) |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Pipeline de CI | Nenhum — decisão explícita mantida (ver `DECISIONS.md`), migrations continuam aplicadas manualmente, com script de verificação + checklist em vez de automação completa |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
+| Supabase | **pendência não resolvida:** migration do Sprint 2.4 continua não aplicada em produção — falta credencial (`SUPABASE_ACCESS_TOKEN`/connection string) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

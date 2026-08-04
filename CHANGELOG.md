@@ -6,6 +6,14 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.5.1 (Production Readiness)
+- `DEPLOY_RUNBOOK.md` — processo operacional de deploy de schema (checklist, como aplicar migrations em produção, decisão de manter manual+scriptado em vez de CI).
+- `scripts/check-schema-sync.sh` (+ `pnpm check:schema`) — compara migrations locais × aplicadas em produção, falha explicitamente se houver divergência ou credencial ausente.
+
+### Changed — Sprint 2.5.1
+- `DEFINITION_OF_DONE.md` — nova seção 10, "Gate de Schema/Migrations": sprint com migration nova só é "Concluído" com os 4 itens do checklist confirmados.
+- `CLAUDE.md` — pointer para o runbook/gate.
+
 ### Added — Sprint 2.5 (Release Pipeline: UX de criação + hardening da simulação de Build)
 - `apps/web/hooks/use-game-versions.ts`, `use-game-version.ts`, `use-publishable-releases.ts`.
 - `apps/web/app/games/[id]/versions/[versionId]/page.tsx` — Version detail: Builds (criação + progresso simulado), Releases (criação), Timeline (`studio_events`).

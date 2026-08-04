@@ -138,3 +138,16 @@ Respostas válidas (algo que o usuário vê ou faz na aplicação):
 - ✅ "Agora o Dashboard mostra os projetos."
 
 Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicação — ex.: este próprio incremento de governança) declaram isso explicitamente em vez de forçar uma resposta artificial: "Nenhum Product Delta — sprint de processo/infraestrutura."
+
+## 10. Gate de Schema/Migrations (obrigatório desde o Sprint 2.5.1)
+
+**Origem:** Sprint 2.5 — a migration do Sprint 2.4 foi validada localmente, o app foi codificado e deployado sobre ela, e só na hora de rodar o Golden Path de produção descobriu-se que a migration nunca tinha sido aplicada ao Supabase remoto (`PGRST204: could not find the 'branch' column`). Nenhuma etapa do processo até então obrigava verificar isso antes de declarar o sprint concluído.
+
+**Regra permanente:** nenhum sprint que crie ou altere um arquivo em `supabase/migrations/` pode ser declarado **Concluído** sem, todos os quatro, confirmados no relatório final (ver checklist completo em `DEPLOY_RUNBOOK.md` §3):
+
+1. Migration aplicada em produção (`supabase db push`, ou SQL Editor — `DEPLOY_RUNBOOK.md` §4).
+2. `scripts/check-schema-sync.sh` executado e verde.
+3. Golden Path (ou o fluxo relevante) executado **contra produção**, não só localmente.
+4. Evidências de produção anexadas ao relatório e documentação (`IMPLEMENTATION_LOG.md`/`METRICS.md`) atualizada refletindo o resultado real.
+
+**Se qualquer um desses quatro falhar:** o sprint é relatado como **Parcialmente Concluído**, com o item faltante nomeado explicitamente — nunca como "Concluído" com uma ressalva escondida no meio do texto. Isso não é uma penalidade: é o relatório final continuar sendo uma fonte confiável do estado real do software, mesmo quando o bloqueio é operacional (falta de credencial, infraestrutura de terceiros fora do ar) e não um erro de código.

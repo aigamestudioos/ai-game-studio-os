@@ -22,3 +22,7 @@ Isso evita que um único sprint atravesse muitos módulos ao mesmo tempo.
 
 - Ao final de cada sprint, rodar `./scripts/metrics.sh` e atualizar [METRICS.md](METRICS.md) com uma nova entrada (não sobrescrever entradas de sprints anteriores).
 - Ver [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md) para o registro narrativo de cada sprint (o "porquê"); METRICS.md é só o snapshot numérico.
+
+## Migrations / Deploy de schema
+
+- Todo sprint que criar ou alterar um arquivo em `supabase/migrations/` segue o processo e o checklist obrigatório em [DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md) — inclui aplicar a migration em produção (não só localmente) antes de declarar o sprint concluído. Ver o gate formal em [DEFINITION_OF_DONE.md](DEFINITION_OF_DONE.md) §10.
