@@ -1273,6 +1273,31 @@ Trocar papel e remover membro do Studio, fechando um gap real de RLS encontrado 
 
 | Métrica | Valor |
 |---|---|
-| Vercel | a validar após push (pendente) |
-| Supabase | **2 migrations pendentes em produção** (Sprint 2.4 + esta) — sem `SUPABASE_ACCESS_TOKEN` disponível nesta sessão |
+| Vercel | ✅ deploy do commit `1a06e77` (status `success`) |
+| Supabase | ✅ **as 2 migrations pendentes (Sprint 2.4 + 2.7) já estavam aplicadas em produção**, confirmado de forma independente (PostgREST + `pg_dump` do schema) — ver Sprint 2.7.1 no IMPLEMENTATION_LOG.md |
+| Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.7.1 — Fechamento da validação de produção (Sprint 2.4–2.7)
+
+**Data:** 2026-08-05
+
+Aplicação/confirmação das 2 migrations pendentes em produção + validação funcional completa (positiva e negativa) do gerenciamento de membros direto contra o Supabase de produção. Um bug real foi encontrado e corrigido no próprio `scripts/check-schema-sync.sh` (falso negativo — reportava tudo como pendente por não saber ler o JSON da CLI).
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| `pnpm check:schema` (produção, após correção do script) | ✅ verde |
+| Validação funcional de produção — gerenciamento de membros | 17/17 checks — 4 fluxos negativos bloqueados pela RLS (Member sem permissão, incluindo tentativas contra o Owner) + 4 fluxos positivos do Owner (troca de papel nos dois sentidos, remoção) + proteção do Owner testada até contra si mesmo, todos com evidência via chamadas REST diretas, não só a UI |
+| Contas de teste usadas | 1 dedicada (`teste@aigamestudioos.com`, Studio isolado) + 2 descartáveis criadas e removidas por completo neste sprint |
+| Bug real corrigido | 1 (`check-schema-sync.sh` — parsing de JSON, commit `1a06e77`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ deploy do commit `1a06e77` (status `success`) |
+| Supabase | ✅ Sprint 2.4 e Sprint 2.7 confirmadas aplicadas em produção. Golden Path *funcional* (não só schema) do Release Pipeline (2.4/2.5/2.6) ainda não reexecutado em produção nesta sessão — próximo passo, sem bloqueio de credencial |
 | Ambientes | Production (`main`, deploy automático a cada push) |

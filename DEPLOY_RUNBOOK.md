@@ -64,6 +64,8 @@ Copiar o conteúdo do(s) arquivo(s) `supabase/migrations/*.sql` pendente(s), na 
 
 Em ambos os casos: **nunca** commitar o token, a connection string ou qualquer credencial — nem em arquivos, nem em mensagens de commit, nem em logs colados no chat.
 
+**Se for passar o token para um agente de IA rodando neste Codespace** (Claude Code ou similar): `export` no seu terminal **não funciona** — o agente roda num processo separado do seu terminal, e variáveis de ambiente não atravessam essa fronteira entre processos (só o filesystem é compartilhado). O caminho que funciona é escrever o token num arquivo fora do repositório, nunca commitado (ex.: `echo "SEU_TOKEN" > /tmp/supabase_token`, **sem espaço depois da primeira barra** — um espaço aí faz o `>` redirecionar para `/` em vez de `/tmp/...` e o comando falha silenciosamente), para o agente ler o arquivo e exportar a variável só dentro das próprias chamadas. **Nunca cole o token diretamente na conversa/chat com o agente** — se isso acontecer por engano, trate o token como comprometido, revogue-o em `supabase.com/dashboard/account/tokens` e gere um novo antes de continuar (aconteceu de verdade no Sprint 2.7.1 — ver `IMPLEMENTATION_LOG.md`).
+
 ## 5. Validar compatibilidade código↔banco antes de declarar o deploy pronto
 
 ```bash
@@ -75,6 +77,14 @@ O script compara `supabase/migrations/` (local) contra o que está de fato aplic
 
 ## 6. O que aconteceu no Sprint 2.5 (referência)
 
-`supabase/migrations/20260804000001_release_pipeline_extensions.sql` (Sprint 2.4) foi validada e aplicada só localmente. O Sprint 2.5 (UI que depende dessas colunas) foi codificado, testado localmente com sucesso, e deployado — e só na hora de rodar o Golden Path *de produção* o gap apareceu, como um erro `PGRST204` do PostgREST ("Could not find the 'branch' column..."). Ninguém tinha rodado `supabase db push`; não existia processo nem script que pegasse isso antes. Esse é exatamente o cenário que este runbook existe para prevenir — com `check-schema-sync.sh`, esse mesmo gap teria sido detectado em segundos, antes de qualquer tentativa de golden path.
+`supabase/migrations/20260804000001_release_pipeline_extensions.sql` (Sprint 2.4) foi validada e aplicada só localmente. O Sprint 2.5 (UI que depende dessas colunas) foi codificado, testado localmente com sucesso, e deployado — e só na hora de rodar o Golden Path *de produção* o gap apareceu, como um erro `PGRST204` do PostgREST ("Could not find the 'branch' column..."). Ninguém tinha rodado `supabase db push`; não existia processo nem script que pegasse isso antes. Esse é exatamente o cenário que este runbook existe para prevenir.
+
+**Atualização (Sprint 2.7.1):** as migrations pendentes do Sprint 2.4 e do Sprint 2.7 foram confirmadas aplicadas em produção — de forma independente, via PostgREST (colunas novas respondem sem erro) e `supabase db dump --linked` (texto das políticas de RLS bate com as migrations locais), não só confiando no ledger `supabase migration list`. `pnpm check:schema` está verde. Ver `IMPLEMENTATION_LOG.md` (Sprint 2.7.1) para as evidências completas.
+
+## 7. `check-schema-sync.sh` teve um bug real — corrigido, mas serve de lição
+
+Quando finalmente testado com uma credencial real pela primeira vez (Sprint 2.7.1), `check-schema-sync.sh` reportava **todas** as migrations como pendentes, mesmo com o schema em sincronia — um falso negativo, não um falso positivo (o tipo mais perigoso: o script "funcionava" no sentido de nunca aprovar silenciosamente algo errado, mas teria bloqueado todo `pnpm check:schema` para sempre). Causa: a CLI do Supabase emite uma linha JSON (`{"migrations":[...]}`), e o parsing original (`awk -F'|'`) assumia a tabela de texto de uma versão mais antiga da CLI. Corrigido para parsear o JSON de verdade (commit `1a06e77`).
+
+**Lição:** um script de verificação nunca testado contra o caso real que ele deveria pegar é só uma suposição de que funciona. Da próxima vez que este script (ou qualquer verificação de schema) for escrito ou alterado, validar contra uma execução real com credencial antes de confiar nele como parte do gate — não só revisar o código.
 
 **Nota:** este runbook formaliza o processo; ele não aplica, sozinho, a migration pendente do Sprint 2.4 — isso continua exigindo a credencial (seção 4), que não estava disponível nas sessões em que este documento foi escrito. Ver `IMPLEMENTATION_LOG.md` (Sprint 2.5.1) para o status atual dessa pendência específica.

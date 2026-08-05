@@ -1613,3 +1613,71 @@ O usuário pediu "Studio & Members" como próximo sprint. Investigado antes de i
 ### Próximo Sprint
 
 A definir com o usuário. Duas migrations pendentes de produção (Sprint 2.4 e esta) — aplicar as duas de uma vez, quando houver credencial disponível, é mais eficiente que aplicar uma de cada vez.
+
+---
+
+## Sprint 2.7.1 — Fechamento da validação de produção (Sprint 2.4–2.7)
+
+**Status:** Concluído
+**Período:** 2026-08-05
+
+### Objetivo
+
+Fechar a validação de produção que os Sprints 2.4/2.5/2.6/2.7 deixaram pendente por falta de credencial. Sem isso, nenhum dos quatro podia ser declarado completamente validado (`DEFINITION_OF_DONE.md` §10).
+
+### Como a credencial chegou (registrado por transparência)
+
+O usuário tentou passar o `SUPABASE_ACCESS_TOKEN` via `export` no terminal — não funciona, porque o shell do agente é um processo separado do terminal do usuário; variáveis de ambiente não atravessam essa fronteira, só o filesystem é compartilhado. Combinado com um erro de digitação (`echo token > / tmp/...` com espaço depois da primeira barra, que faz o `>` redirecionar para `/` em vez de `/tmp/...`), o token acabou colado diretamente na conversa. **Tratado como comprometido imediatamente**: não foi usado, o usuário foi orientado a revogá-lo e gerar um novo. O caminho correto — escrever o token num arquivo fora do repositório (`/tmp/supabase_token`, nunca versionado) e o agente ler o arquivo — funcionou depois de corrigido o typo. O arquivo foi apagado (`shred -u`) assim que as migrations foram confirmadas aplicadas.
+
+### Achado real: as duas migrations já estavam aplicadas em produção
+
+Antes de rodar `db push`, `supabase migration list --linked` já mostrava as duas migrations pendentes (`20260804000001`, `20260805000001`) com `remote` preenchido — ou seja, **já tinham sido aplicadas em algum momento antes desta sessão**, por um caminho não seguido/documentado neste log (não foi este agente, em nenhuma sessão anterior registrada aqui). Isso não foi aceito sem checagem: confirmado de forma independente, sem depender só do ledger de migrations —
+
+- **Sprint 2.4** (`game_versions`/`builds`/`releases`): consulta direta via PostgREST às colunas novas (`branch`, `build_type`, `release_channel` etc.) — resposta `[]` (array vazio, não erro `PGRST204`) confirma que as colunas existem de verdade no schema de produção.
+- **Sprint 2.7** (RLS de `users`/`user_roles`): `supabase db dump --linked` do schema `public`, inspecionando o `CREATE POLICY` de `users_update`/`user_roles_insert`/`user_roles_delete` — texto idêntico ao da migration local.
+
+### Bug real encontrado e corrigido no próprio processo de verificação
+
+`scripts/check-schema-sync.sh` (criado no Sprint 2.5.1, nunca antes exercitado com uma credencial real) reportava **todas** as migrations como pendentes, mesmo com o schema em sincronia — um falso negativo. Causa: a CLI do Supabase agora emite uma linha JSON (`{"migrations":[...]}`), não a tabela de texto que o `awk -F'|'` do script assumia. Corrigido para parsear o JSON de verdade com `node` (commit `1a06e77`, separado do commit de validação, seguindo a prática de commits atômicos). Sem essa correção, `pnpm check:schema` teria bloqueado sprints futuros com um alarme falso indefinidamente.
+
+### Validação funcional completa em produção (Sprint 2.7 — gerenciamento de membros)
+
+Executada com uma conta de teste dedicada (`teste@aigamestudioos.com`, Studio isolado, sem tocar o Studio fundador nem dados de outros Studios) + 2 contas descartáveis criadas via Admin API especificamente para este teste (sem fluxo de convite por email — `admin.auth.admin.createUser()`), **removidas por completo ao final**. Os fluxos negativos foram testados com chamadas REST diretas (não cliques na UI), exatamente para provar que quem bloqueia é o banco, não a tela:
+
+**17/17 checks, todos contra o Supabase de produção real:**
+- ✅ Member (sem `studio.manage_members`) tenta trocar o papel de outro membro → `DELETE` retorna 0 linhas (RLS filtrou, não é erro silencioso de aplicação).
+- ✅ Member tenta remover outro membro → `UPDATE` bloqueado com erro explícito de RLS.
+- ✅ Member tenta alterar o papel do Owner → bloqueado (0 linhas).
+- ✅ Member tenta remover o Owner → bloqueado (erro explícito de RLS).
+- ✅ Owner troca o papel de um membro (Member → Admin → Member) → funciona nos dois sentidos, persistido de verdade (confirmado com uma segunda consulta via `service_role`, não só a resposta do próprio `UPDATE`).
+- ✅ Owner remove um membro → funciona, `archived_at` persistido.
+- ✅ **Owner tenta alterar o próprio papel** → bloqueado (0 linhas) — a proteção do Owner vale até contra o próprio Owner, não é só "outros não podem mexer no Owner".
+- ✅ **Owner tenta remover a si mesmo** → bloqueado com erro explícito de RLS.
+- ✅ Ao final, o Owner original continua ativo e com o papel Owner no banco — nenhum dado real foi alterado por este teste.
+
+Isso responde item a item à revisão técnica pedida: `UPDATE` com `USING`+`WITH CHECK` (confirmado no dump), `user_roles` tem política de `DELETE` própria (não há política de `UPDATE` nenhuma nessa tabela — troca de papel só é possível via `DELETE`+`INSERT`, o que é mais seguro que permitir `UPDATE` parcial), proteção contra alterar o papel do Owner (testado e confirmado, inclusive pelo próprio Owner), proteção contra um Admin se auto-promover a Owner (mesma exclusão de `role_id` cobre isso — `INSERT` de uma linha com a role "Owner" é bloqueado para qualquer chamador autenticado, não só para quem tenta alterar outra pessoa), proteção contra remover o Owner (testado), proteção contra trocar `studio_id` durante o update (o `WITH CHECK` já exige `studio_id = current_user_studio_id()` no valor final da linha, o que bloqueia qualquer tentativa de reatribuir a linha a outro Studio).
+
+### `pnpm check:schema`
+
+✅ Verde, com o script corrigido — `Schema de produção em sincronia com supabase/migrations/`.
+
+### Golden Path de produção do Release Pipeline (Sprint 2.4/2.5/2.6)
+
+Não reexecutado nesta sessão (o usuário priorizou fechar a validação de RLS/membros, que era o pedido explícito). O schema já está confirmado em produção (colunas via PostgREST) — o Golden Path funcional completo (Version→Build→Release→Submission→Timeline→widgets do Dashboard) usando a conta de teste dedicada fica como o próximo passo natural, não bloqueado por nenhuma credencial desta vez.
+
+### Classificação final
+
+- **Sprint 2.4** (schema Release Pipeline): ✅ schema confirmado em produção via PostgREST. Golden Path funcional em produção ainda não reexecutado (ver acima) — chamar de "parcialmente validado em produção" até isso ser feito.
+- **Sprint 2.5** (UX de criação + hardening): ✅ schema do qual depende confirmado em produção. Golden Path funcional em produção não reexecutado nesta sessão — mesma pendência do 2.4.
+- **Sprint 2.6** (eventos tipados + widgets): ✅ schema confirmado. Widgets do Dashboard em produção não reexecutados nesta sessão.
+- **Sprint 2.7** (gerenciar membros): ✅ **completamente validado em produção** — schema, RLS, fluxos positivos e negativos, todos com evidência real contra o banco de produção.
+
+### Pendências
+
+- Reexecutar o Golden Path funcional (não só o schema) do Release Pipeline em produção (Sprints 2.4/2.5/2.6) — próximo passo natural, sem bloqueio de credencial.
+- Revogar/confirmar a revogação do token que foi colado na conversa por engano (ação do usuário, fora do que o agente consegue verificar).
+- Débitos técnicos já registrados em sprints anteriores (`build_number`, `artifact_url`, N+1 em `usePublishableReleases`, catálogo de `permissions` sem UI) seguem no backlog.
+
+### Próximo Sprint
+
+A definir com o usuário — Sprint 2.6 original (Services/use cases/eventos formais além do que já foi feito) ou o Golden Path de produção pendente listado acima.
