@@ -32,7 +32,24 @@ OUTPUT=$(npx supabase migration list $MODE 2>&1) || {
 }
 echo "$OUTPUT"
 
-LOCAL_ONLY=$(echo "$OUTPUT" | awk -F'|' 'NR>2 {gsub(/ /,"",$1); gsub(/ /,"",$2); if ($1 != "" && $2 == "") print $1}')
+# A CLI emite uma linha JSON ({"migrations":[{"local":...,"remote":...}]}) —
+# não uma tabela de texto. Extraído com node (sempre disponível neste
+# monorepo) em vez de awk/grep na tabela antiga, que nunca soube ler JSON e
+# reportava "tudo pendente" mesmo com o schema em sincronia (bug real,
+# achado e corrigido no Sprint 2.7.1 comparando contra o schema real via
+# PostgREST antes de confiar cegamente na saída deste script).
+JSON_LINE=$(echo "$OUTPUT" | grep -oE '\{"migrations".*\}' | tail -1)
+
+if [ -z "$JSON_LINE" ]; then
+  echo "❌ Não consegui encontrar a linha JSON de 'migrations' na saída acima — formato inesperado da CLI."
+  exit 1
+fi
+
+LOCAL_ONLY=$(node -e '
+  const data = JSON.parse(process.argv[1]);
+  const pending = data.migrations.filter((m) => !m.remote);
+  for (const m of pending) console.log(m.local);
+' "$JSON_LINE")
 
 if [ -n "$LOCAL_ONLY" ]; then
   echo ""
