@@ -33,3 +33,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 2.5 | Agora dá para **publicar um jogo de ponta a ponta**: criar Version → gerar Build (simulada) → criar Release → criar Submission em Publishing, tudo com uma Timeline do que aconteceu; builds travadas (ex.: página recarregada no meio) são identificadas e recuperáveis com **Retry Build** |
 | 2.5.1 | _Nenhum — sprint de processo/infraestrutura (processo e ferramenta para nunca mais deployar código sobre um schema de produção desatualizado, depois de o Sprint 2.5 ter revelado esse risco na prática)_ |
 | 2.6 | O **Dashboard agora mostra dados reais** de builds e releases: "Latest Builds", "Failed Builds" e "Pending Releases" — os primeiros widgets do Dashboard conectados ao banco de verdade |
+| 2.7 | Em **Settings → Studio**, agora dá para **trocar o papel de um membro já no time** (Admin ⇄ Member) e **removê-lo do Studio** — antes só dava para definir o papel no momento do convite |

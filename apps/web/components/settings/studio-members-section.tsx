@@ -1,13 +1,19 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { InvitesRow } from "@agsos/database";
+import type { InvitesRow, RolesRow } from "@agsos/database";
 import { inviteMember } from "../../app/settings/studio/actions";
 import type { MemberWithRole } from "../../hooks/use-current-studio";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
 import { toast } from "../../hooks/use-toast";
@@ -17,13 +23,23 @@ const INVITABLE_ROLES = ["Member", "Admin"] as const;
 export function StudioMembersSection({
   members,
   pendingInvites,
+  roles,
+  currentUserId,
+  studioOwnerId,
   onInvited,
   onRevoke,
+  onChangeRole,
+  onRemove,
 }: {
   members: MemberWithRole[];
   pendingInvites: InvitesRow[];
+  roles: RolesRow[];
+  currentUserId: string | undefined;
+  studioOwnerId: string | undefined;
   onInvited: () => void;
   onRevoke: (id: string) => Promise<{ error?: string }>;
+  onChangeRole: (userId: string, newRoleId: string) => Promise<{ error?: string }>;
+  onRemove: (userId: string) => Promise<{ error?: string }>;
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<(typeof INVITABLE_ROLES)[number]>("Member");
@@ -63,6 +79,25 @@ export function StudioMembersSection({
     }
   }
 
+  async function handleChangeRole(userId: string, newRoleId: string) {
+    const result = await onChangeRole(userId, newRoleId);
+    if (result.error) {
+      toast({ title: "Não foi possível trocar o papel", description: result.error, variant: "destructive" });
+    } else {
+      toast({ title: "Papel atualizado", variant: "success" });
+    }
+  }
+
+  async function handleRemove(userId: string, name: string) {
+    if (!window.confirm(`Remover ${name} deste Studio?`)) return;
+    const result = await onRemove(userId);
+    if (result.error) {
+      toast({ title: "Não foi possível remover", description: result.error, variant: "destructive" });
+    } else {
+      toast({ title: "Membro removido", variant: "success" });
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -78,6 +113,10 @@ export function StudioMembersSection({
               .join("")
               .slice(0, 2)
               .toUpperCase();
+            const isOwner = member.id === studioOwnerId;
+            const isSelf = member.id === currentUserId;
+            const assignableRoles = roles.filter((r) => r.name === "Admin" || r.name === "Member");
+
             return (
               <li key={member.id} className="flex items-center gap-md">
                 <Avatar className="size-9 shrink-0">
@@ -88,9 +127,35 @@ export function StudioMembersSection({
                   <p className="truncate text-sm font-medium text-foreground">{member.name}</p>
                   <p className="truncate text-xs text-text-tertiary">{member.email}</p>
                 </div>
-                <Badge variant="outline" className="shrink-0">
-                  {roleName}
-                </Badge>
+
+                {isOwner ? (
+                  <Badge variant="outline" className="shrink-0">
+                    {roleName}
+                  </Badge>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" className="shrink-0">
+                        <Badge variant="outline" className="cursor-pointer select-none">
+                          {roleName}
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {assignableRoles.map((r) => (
+                        <DropdownMenuItem key={r.id} onSelect={() => handleChangeRole(member.id, r.id)} disabled={r.name === roleName}>
+                          {r.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                {!isOwner && !isSelf ? (
+                  <Button variant="ghost" size="sm" className="shrink-0" onClick={() => handleRemove(member.id, member.name)}>
+                    Remover
+                  </Button>
+                ) : null}
               </li>
             );
           })}

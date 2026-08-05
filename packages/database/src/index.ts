@@ -12,6 +12,7 @@ export * from "./generated/database.types";
 export { createStudiosRepository } from "./repositories/studios-repository";
 export { createUsersRepository } from "./repositories/users-repository";
 export { createInvitesRepository } from "./repositories/invites-repository";
+export { createRolesRepository } from "./repositories/roles-repository";
 export { createProjectsRepository } from "./repositories/projects-repository";
 export { createEpicsRepository } from "./repositories/epics-repository";
 export { createGamesRepository } from "./repositories/games-repository";

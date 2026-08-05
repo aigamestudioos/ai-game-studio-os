@@ -1218,3 +1218,61 @@ Retomada de funcionalidades de negócio após o Sprint 2.5.1 (processo). Eventos
 | Vercel | a validar após push (pendente) |
 | Supabase | **pendência não resolvida (herdada do Sprint 2.4):** migration continua não aplicada em produção — bloqueia também a validação de produção deste sprint (widgets dependem das colunas novas) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.7 — Gerenciar membros existentes (trocar papel / remover)
+
+**Data:** 2026-08-05
+
+Trocar papel e remover membro do Studio, fechando um gap real de RLS encontrado no planejamento (`users`/`user_roles` sem gate de permissão desde o Sprint 1.7). Duas migrations agora pendentes de produção (Sprint 2.4 + esta).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.7 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 324 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 10505 |
+| Commits totais | 63 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Migration validada contra Postgres real | ✅ (`supabase migration up`, local/Docker) — políticas confirmadas via `\d+` no psql |
+| Fluxo positivo (Playwright, Owner) | 9/9 checks — troca de papel, remoção, persistência após logout/login, zero erros de console |
+| Fluxo negativo (Playwright, Member sem permissão) | 5/5 checks — RLS bloqueia de verdade (não só a UI), erro amigável, nenhuma mudança persistida |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 11 (inalterado — `/settings/studio` ganhou funcionalidade, não é rota nova) |
+| Repositories implementados | 10 (+ `Role`) |
+| Ações de gerenciamento de membro | 2 novas (trocar papel, remover) — invite/revoke já existiam |
+| Achado de segurança fechado | 1 (RLS de `users`/`user_roles` sem gate de permissão, pré-existente desde o Sprint 1.7) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | a validar após push (pendente) |
+| Supabase | **2 migrations pendentes em produção** (Sprint 2.4 + esta) — sem `SUPABASE_ACCESS_TOKEN` disponível nesta sessão |
+| Ambientes | Production (`main`, deploy automático a cada push) |

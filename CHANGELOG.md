@@ -6,6 +6,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.7 (Gerenciar membros existentes)
+- `supabase/migrations/20260805000001_member_management_permissions.sql` — fecha um gap de RLS pré-existente em `users`/`user_roles` (sem gate de permissão desde o Sprint 1.7) e adiciona os gates `studio.manage_members` necessários para trocar papel/remover membro.
+- `packages/database/src/repositories/roles-repository.ts` — `listByStudio()`, `changeMemberRole()`.
+
+### Changed — Sprint 2.7
+- `packages/database/src/repositories/users-repository.ts` — `archive()` (soft-delete); `listByStudioWithRoles()` filtra arquivados.
+- `apps/web/hooks/use-current-studio.ts` — `roles`, `changeMemberRole()`, `removeMember()`.
+- `apps/web/components/settings/studio-members-section.tsx` — papel vira `DropdownMenu` editável; botão "Remover" por membro (exceto Owner/si mesmo).
+
 ### Added — Sprint 2.6 (Eventos tipados + widgets reais de Dashboard)
 - `apps/web/lib/domain-events.ts` — union discriminada `ReleasePipelineEvent` + helper `releasePipelineEvent()`.
 - `apps/web/hooks/use-release-pipeline-widgets.ts`, `apps/web/components/dashboard/pipeline-widgets.tsx` — Latest Builds/Failed Builds/Pending Releases.

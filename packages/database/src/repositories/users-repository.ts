@@ -33,8 +33,29 @@ export function createUsersRepository(client: SupabaseClient<Database>) {
         .eq("studio_id", studioId);
       if (error) throw error;
       return (data as unknown as { users: UsersRow; roles: { name: string } }[])
-        .filter((row) => row.users)
+        .filter((row) => row.users && !row.users.archived_at)
         .map((row) => ({ user: row.users, roleName: row.roles?.name ?? "Member" }));
+    },
+
+    // Remoção de membro (Sprint 2.7) — soft-delete via `archived_at`, nunca
+    // deleta a conta em `auth.users`. RLS (20260805000001) já impede
+    // arquivar o Owner; `updated_actor_id` é sempre quem executou a ação
+    // (não o próprio membro removido).
+    async archive(id: string, actor: { actorType: "USER"; actorId: string }): Promise<UsersRow> {
+      const { data, error } = await client
+        .from("users")
+        .update({
+          archived_at: new Date().toISOString(),
+          archived_actor_type: actor.actorType,
+          archived_actor_id: actor.actorId,
+          updated_actor_type: actor.actorType,
+          updated_actor_id: actor.actorId,
+        })
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
     },
   };
 }

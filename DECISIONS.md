@@ -583,3 +583,17 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Não adicionados.
 **Motivo:** Version/Build/Release exigem um Game já selecionado (a UI de criação vive em `/games/[id]` e `/games/[id]/versions/[versionId]`) — um Quick Action no Dashboard não tem para onde mandar o usuário sem antes escolher um Game, o que tornaria o atalho um redirecionamento disfarçado sem ganho real sobre simplesmente navegar até o Game.
 **Impacto:** Se o Dashboard ganhar um seletor de "Game ativo" no futuro (não existe hoje), Quick Actions contextuais a esse Game passam a fazer sentido — reavaliar nesse momento.
+
+## Sprint 2.7 — Gerenciar membros existentes
+
+### [2026-08-05] Remoção de membro é soft-delete (`archived_at`), nunca apaga a conta de `auth.users`
+**Contexto:** "Remover um membro" poderia significar deletar a conta de autenticação (`admin.auth.admin.deleteUser()`) ou só revogar o acesso ao Studio.
+**Decisão:** `users.archive()` só marca `archived_at`/`archived_actor_type`/`archived_actor_id` — mesmo padrão de soft-delete já usado em todo o schema (`AGSOS-SPEC-003` §1). A linha de `user_roles` correspondente também é removida (via troca de papel/DELETE), então o membro arquivado perde acesso de fato (RLS de todas as tabelas de negócio depende de `current_user_studio_id()`, que lê `users.studio_id` — um usuário arquivado ainda tem `studio_id`, mas sem nenhuma role/permissão ativa não consegue mais escrever nada, e pode ser reavaliado no futuro).
+**Motivo:** Deletar a conta de auth é destrutivo e difícil de reverter (login, histórico de `created_actor_id` em outras tabelas ficaria órfão). Soft-delete é reversível (reativar = desarquivar + reatribuir role) e consistente com o resto do projeto.
+**Impacto:** Não há, ainda, UI para reverter uma remoção (reativar um membro arquivado) — se isso for pedido, é uma extensão pequena sobre o que já existe (desfazer o `archived_at`, não uma decisão nova).
+
+### [2026-08-05] Achado de segurança fechado antes de expor a primeira UI de escrita: RLS de `users`/`user_roles` não tinha gate de permissão
+**Contexto:** Ao planejar a UI de troca de papel/remoção, notei que `users_isolation`/`user_roles_isolation` (desde o Sprint 1.7) só verificavam `studio_id`, sem nenhuma permissão — diferente de `invites`/`studios`, que já ganharam `studio.manage_members`/`studio.edit` no Sprint 1.8d-4. Isso significava que qualquer membro do Studio já podia, tecnicamente, fazer UPDATE/DELETE na linha de `users`/`user_roles` de qualquer outro membro (inclusive o Owner) — só não havia UI que exercitasse esse caminho de escrita ainda.
+**Decisão:** Fechado via `20260805000001_member_management_permissions.sql` antes de escrever qualquer linha de UI — a permissão de gravação nunca existiu exposta na prática (nenhuma UI a usava), mas o buraco no banco existia desde o Sprint 1.7.
+**Motivo:** Corrigir a causa (RLS) antes do sintoma (UI) — construir a UI de gerenciamento de membros sobre uma RLS sem gate teria tornado esse achado explorável de fato pela primeira vez, não só teoricamente.
+**Impacto:** Vale uma auditoria futura das demais tabelas com política `*_isolation` genérica (sem gate de permissão) para checar se alguma outra também devia ter um `studio.*` específico e não tem — não feita neste sprint (fora de escopo, mas registrada como sugestão).

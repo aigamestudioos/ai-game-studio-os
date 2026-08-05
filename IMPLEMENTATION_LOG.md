@@ -1571,3 +1571,45 @@ Ver `DECISIONS.md` ("Sprint 2.6") para o registro formal. Resumo: (1) sem camada
 ### Próximo Sprint
 
 A definir com o usuário. Aplicar a migration pendente do Sprint 2.4 em produção continua sendo o item de maior prioridade do backlog — sem isso, nenhum sprint futuro do Release Pipeline consegue ser validado de ponta a ponta em produção.
+
+---
+
+## Sprint 2.7 — Gerenciar membros existentes (trocar papel / remover)
+
+**Status:** Concluído (validado localmente); pendências de produção acumuladas (Sprint 2.4 + esta migration)
+**Período:** 2026-08-05
+
+### Objetivo
+
+O usuário pediu "Studio & Members" como próximo sprint. Investigado antes de implementar: convites, papéis (Owner/Admin/Member) e permissões reais (RLS) **já existiam** desde os Sprints 1.8d-2/3/4 — não era um sprint greenfield. Informado ao usuário, que confirmou o escopo real ainda faltante: trocar o papel de um membro já existente e removê-lo do Studio (hoje só era possível definir o papel no momento do convite).
+
+### Achado de segurança real (não hipotético) durante o planejamento
+
+`users_isolation`/`user_roles_isolation` (Sprint 1.7, só corrigidas para recursão no Sprint 1.8d-1) eram políticas de RLS únicas checando apenas `studio_id = current_user_studio_id()`, **sem nenhum gate de permissão** — diferente de `invites`/`studios`, que já tinham `studio.invite_members`/`studio.manage_members`/`studio.edit` desde o Sprint 1.8d-4. Na prática, **qualquer membro de um Studio já podia fazer UPDATE/DELETE na linha de `users`/`user_roles` de qualquer outro membro** (incluindo o Owner) — só não havia nenhuma UI que exercitasse isso ainda (só `SELECT` era usado). Fechado nesta migration antes de expor a primeira UI que escreve nessas tabelas.
+
+### Arquivos criados
+
+- `supabase/migrations/20260805000001_member_management_permissions.sql` — `users`: `SELECT` aberto ao Studio, `UPDATE` exige `studio.manage_members` **e** nunca pode tocar a linha do Owner (`id <> studios.owner_user_id`). `user_roles`: `SELECT` aberto, `INSERT`/`DELETE` exigem `studio.manage_members` e nunca podem tocar uma role `Owner`.
+- `packages/database/src/repositories/roles-repository.ts` — `listByStudio()`, `changeMemberRole()` (troca de papel modelada como `DELETE` da role atual + `INSERT` da nova em `user_roles`, não um `UPDATE` — mesmo padrão "sem UPDATE parcial" já usado no projeto).
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/users-repository.ts` — `archive()` (soft-delete via `archived_at`, nunca deleta a conta em `auth.users`); `listByStudioWithRoles()` passou a filtrar membros arquivados.
+- `packages/database/src/index.ts` — export de `createRolesRepository`.
+- `apps/web/hooks/use-current-studio.ts` — `roles`, `changeMemberRole()`, `removeMember()`; ambos com guards de aplicação (nunca tocar o Owner, nunca remover a si mesmo) **além** da RLS — defesa em profundidade, mesmo padrão de `updateStudio()`/`revokeInvite()` (RLS é a barreira real; erros `42501` viram mensagem amigável).
+- `apps/web/components/settings/studio-members-section.tsx` — badge de papel virou um `DropdownMenu` (troca de papel) para membros que não são o Owner; botão "Remover" (com `window.confirm`) para membros que não são o Owner nem o próprio usuário logado.
+- `apps/web/app/settings/studio/page.tsx` — passa as novas props (`roles`, `currentUserId`, `studioOwnerId`, `onChangeRole`, `onRemove`).
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Migration aplicada e validada contra Postgres real (local, Docker) via `supabase migration up` — políticas confirmadas via `\d+ users`/`\d+ user_roles` no psql. Fluxo positivo (Playwright, Owner de um Studio de teste com Owner/Admin/Member reais no seed): 9/9 checks — Owner não tem controles na própria linha, trocar papel de Member→Admin funciona e persiste, remover o Admin original funciona e persiste, membro promovido a Admin consegue ver a lista corretamente após logout/login, zero erros de console. Fluxo negativo (membro sem `studio.manage_members` tentando trocar papel/remover outro membro): 5/5 checks — RLS bloqueia de verdade (não é só a UI escondendo o botão), erro amigável exibido em vez de crash, nenhuma mudança persistida; os dois `403` que aparecem no log de rede são a RLS funcionando como projetado (mesmo padrão já documentado para `invites`/`studios` desde o Sprint 1.8d-4 — "não é bug"), não um erro real.
+
+### Pendências
+
+- **Migration deste sprint também não aplicada em produção** — mesma limitação de credencial (sem `SUPABASE_ACCESS_TOKEN`/connection string nesta sessão). Acumula com a pendência do Sprint 2.4: agora são 2 migrations pendentes de deploy em produção.
+- Nenhuma UI para o próprio usuário "sair" do Studio (self-removal é bloqueado deliberadamente, é um fluxo diferente).
+- Nenhuma UI para gerenciar o catálogo de `permissions`/`role_permissions` em si (só atribuir Admin/Member a um membro, não redefinir o que cada papel pode fazer).
+
+### Próximo Sprint
+
+A definir com o usuário. Duas migrations pendentes de produção (Sprint 2.4 e esta) — aplicar as duas de uma vez, quando houver credencial disponível, é mais eficiente que aplicar uma de cada vez.

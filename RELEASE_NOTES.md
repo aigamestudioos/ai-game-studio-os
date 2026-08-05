@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.7 — Gerencie membros do seu time
+
+✨ Em **Settings → Studio**, agora dá para **trocar o papel** de um membro já convidado (Admin ⇄ Member) direto na lista
+✨ Agora também dá para **remover um membro** do Studio
+🔧 Reforço de segurança nos bastidores: só quem tem permissão de gerenciar membros consegue fazer essas duas ações — garantido pelo próprio banco de dados, não só pela tela
+
 ## Sprint 2.6 — Dashboard com dados reais do seu Release Pipeline
 
 ✨ O Dashboard agora mostra suas **builds mais recentes**, **builds que falharam** e **releases pendentes** — dados reais, não mais só demonstração
