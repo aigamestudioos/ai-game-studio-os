@@ -4,6 +4,11 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.6 — Dashboard com dados reais do seu Release Pipeline
+
+✨ O Dashboard agora mostra suas **builds mais recentes**, **builds que falharam** e **releases pendentes** — dados reais, não mais só demonstração
+🔧 Por trás dos panos, os eventos do Release Pipeline (Version/Build/Release/Submission) agora são fortemente tipados, reduzindo o risco de bugs futuros
+
 ## Sprint 2.5 — Publique jogos de ponta a ponta (com simulação de build)
 
 ✨ Dentro de um Game, crie uma **Version**, gere uma **Build** (o progresso é simulado por enquanto — ainda não há fábrica de builds real conectada) e crie um **Release**

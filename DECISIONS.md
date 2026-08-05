@@ -569,3 +569,17 @@ Contexto geral: usuário pediu para não pular direto para a integração real, 
 **Decisão:** Não construir esse pipeline agora. Em vez disso: `scripts/check-schema-sync.sh` (compara local×remoto, falha explicitamente se houver divergência ou se faltar credencial) + um checklist obrigatório em `DEPLOY_RUNBOOK.md` + um gate formal em `DEFINITION_OF_DONE.md` §10 que impede declarar um sprint com migration "Concluído" sem os 4 itens do checklist marcados.
 **Motivo:** Instrução explícita do usuário — para um solo founder, o custo de manter um pipeline de CI/CD completo (secrets geridos, jobs, superfície de coisas que podem quebrar) supera o valor neste estágio, quando o volume de sprints com mudança de schema ainda é baixo. Um script + checklist resolve a causa raiz real (ninguém verificava o estado antes de seguir em frente) sem essa complexidade adicional.
 **Impacto:** Se o ritmo de sprints com schema crescer a ponto do passo manual virar gargalo mensurável (não hipotético), a evolução natural é automatizar só esse step (`supabase db push` num job de CI), reaproveitando o mesmo script de verificação — não reconstruir o processo do zero.
+
+## Sprint 2.6 — Eventos tipados + widgets de Dashboard
+
+### [2026-08-05] Sem camada formal de Service/UseCase — os hooks continuam sendo a orquestração
+**Contexto:** O pedido original do Release Pipeline (Sprint 2.4) listava `VersionService`/`BuildService`/`ReleaseService` e use cases (`CreateVersion`, `CreateBuild`, `RetryBuild`, etc.) como arquivos separados dos hooks. Os Sprints 2.4/2.5 já entregaram exatamente esse comportamento (repository → evento → atualização de estado) dentro dos próprios hooks (`use-game-version.ts`, `use-game-versions.ts`, `use-publishable-releases.ts`).
+**Decisão:** Não extrair uma camada de arquivos `*-service.ts`/`*-use-case.ts` separada neste sprint.
+**Motivo:** Os hooks já cumprem o papel de orquestração (chamam o repository, emitem o evento certo, atualizam o estado local) de forma testável e sem lógica de domínio dentro de componentes visuais — que era o objetivo real por trás do pedido de "Service Layer". Criar uma camada extra só para satisfazer o nome "Service"/"UseCase" seria abstração sem comportamento novo, o oposto do princípio "nenhuma abstração desnecessária" já seguido no resto do projeto.
+**Impacto:** Se um caso de uso precisar ser reaproveitado por mais de um hook/página no futuro (sinal real de duplicação, não hipótese), esse é o momento de extrair a lógica compartilhada para uma função própria — não antes.
+
+### [2026-08-05] Sem novos Quick Actions no Dashboard para Version/Build/Release
+**Contexto:** O pedido original também listava "Create Version"/"Create Build"/"Create Release" como Quick Actions do Dashboard.
+**Decisão:** Não adicionados.
+**Motivo:** Version/Build/Release exigem um Game já selecionado (a UI de criação vive em `/games/[id]` e `/games/[id]/versions/[versionId]`) — um Quick Action no Dashboard não tem para onde mandar o usuário sem antes escolher um Game, o que tornaria o atalho um redirecionamento disfarçado sem ganho real sobre simplesmente navegar até o Game.
+**Impacto:** Se o Dashboard ganhar um seletor de "Game ativo" no futuro (não existe hoje), Quick Actions contextuais a esse Game passam a fazer sentido — reavaliar nesse momento.

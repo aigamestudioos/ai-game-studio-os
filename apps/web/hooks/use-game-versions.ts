@@ -8,6 +8,7 @@ import {
   type Session,
 } from "@agsos/database";
 import { getBrowserClient } from "../lib/supabase-client";
+import { releasePipelineEvent } from "../lib/domain-events";
 
 // Versions de um Game (Sprint 2.5 — primeira UI de criação da cadeia
 // Version→Build→Release; schema e repositories já existiam desde o
@@ -58,11 +59,10 @@ export function useGameVersions(session: Session | null | undefined, studioId: s
 
     await events.create({
       studio_id: studioId,
-      event_name: "VersionCreated",
+      ...releasePipelineEvent("VersionCreated", { version_number: created.version_number, game_id: gameId }),
       event_version: 1,
       aggregate_type: "game_version",
       aggregate_id: created.id,
-      payload: { version_number: created.version_number, game_id: gameId },
       metadata: { game_version_id: created.id },
       actor_type: "USER",
       actor_id: session.user.id,

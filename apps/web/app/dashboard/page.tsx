@@ -19,8 +19,12 @@ import {
   SectionHeader,
 } from "../../components/dashboard/widgets";
 import { AppShell } from "../../components/layout/app-shell";
+import { FailedBuildsWidget, LatestBuildsWidget, PendingReleasesWidget } from "../../components/dashboard/pipeline-widgets";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { useAuth } from "../../hooks/use-auth";
+import { useCurrentStudio } from "../../hooks/use-current-studio";
+import { useReleasePipelineWidgets } from "../../hooks/use-release-pipeline-widgets";
 
 const QUICK_ACTIONS = [
   { label: "New Project", icon: FolderPlus },
@@ -32,6 +36,9 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { session } = useAuth();
+  const { studio } = useCurrentStudio(session);
+  const { latestBuilds, failedBuilds, pendingReleases, error: widgetsError } = useReleasePipelineWidgets(session, studio?.id);
 
   return (
     <AppShell breadcrumbs={[{ label: "Dashboard" }]}>
@@ -105,6 +112,16 @@ export default function DashboardPage() {
                   ))}
                 </CardContent>
               </Card>
+            </section>
+
+            <section className="space-y-md">
+              <SectionHeader title="Release Pipeline" />
+              {widgetsError ? <p className="text-sm text-destructive">{widgetsError}</p> : null}
+              <div className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
+                <LatestBuildsWidget builds={latestBuilds} />
+                <FailedBuildsWidget builds={failedBuilds} />
+                <PendingReleasesWidget releases={pendingReleases} />
+              </div>
             </section>
           </div>
 

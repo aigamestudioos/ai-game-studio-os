@@ -1516,10 +1516,58 @@ A migration `20260804000001_release_pipeline_extensions.sql` (Sprint 2.4) **cont
 
 ### Pendências
 
-- **Aplicar a migration do Sprint 2.4 em produção** (`DEPLOY_RUNBOOK.md` §4) e então reexecutar `check:schema` + o Golden Path de produção do Release Pipeline — item mais prioritário do backlog atual (herdado do Sprint 2.5, ainda não resolvido).
+- **Aplicar a migration do Sprint 2.4 em produção** (`DEPLOY_RUNBOOK.md` §4) e então reexecutar `check:schema` + o Golden Path de produção do Release Pipeline — item mais prioritário do backlog atual. Oferecido ao usuário no início do Sprint 2.6 (gerar `SUPABASE_ACCESS_TOKEN` ou aplicar via SQL Editor); usuário optou por adiar explicitamente ("depois eu faço isso") e seguir para o próximo sprint sem essa validação — decisão dele, registrada aqui para não ficar implícita. Continua bloqueando o Golden Path de produção do Release Pipeline até ser aplicada.
 - Exercitar `check-schema-sync.sh` com credencial real pelo menos uma vez, para confirmar o parsing de `supabase migration list --linked` contra a saída real do CLI (só testado com mensagens de erro nesta sessão).
 - Débitos técnicos do Sprint 2.5 (`build_number`, `artifact_url`, N+1) seguem no backlog, com prioridade menor que a migration pendente.
 
 ### Próximo Sprint
 
 A definir com o usuário — provavelmente aplicar a migration pendente (destrava o Golden Path de produção do Release Pipeline) antes de retomar o Sprint 2.6.
+
+---
+
+## Sprint 2.6 — Eventos tipados + widgets reais de Dashboard
+
+**Status:** Concluído (validado localmente); Golden Path de produção do Release Pipeline continua bloqueado pela pendência herdada do Sprint 2.4 (migration não aplicada em produção)
+**Período:** 2026-08-05
+
+### Objetivo
+
+Retomada de funcionalidades de negócio depois do Sprint 2.5.1 (processo). Escopo decidido pelo próprio agente, sem novo ciclo de aprovação prévia (usuário pediu para seguir em frente): eventos tipados do Release Pipeline + os widgets de Dashboard mais diretamente ligados a ele (Latest Builds, Failed Builds, Pending Releases). **Decisão explícita de não criar** uma camada formal de Services/Use Cases separada dos hooks, nem novos Quick Actions — ver `DECISIONS.md`.
+
+### Arquivos criados
+
+- `apps/web/lib/domain-events.ts` — union discriminada `ReleasePipelineEvent` (7 eventos: `VersionCreated`/`BuildCreated`/`BuildFinished`/`BuildFailed`/`BuildRetried`/`ReleaseCreated`/`SubmissionCreated`) + helper `releasePipelineEvent(name, payload)` que impede `event_name`/`payload` divergirem por engano em qualquer call site.
+- `apps/web/hooks/use-release-pipeline-widgets.ts` — busca Latest Builds (5 mais recentes do Studio), Failed Builds (status `FAILED`) e Pending Releases (status fora dos terminais) em paralelo.
+- `apps/web/components/dashboard/pipeline-widgets.tsx` — `LatestBuildsWidget`/`FailedBuildsWidget`/`PendingReleasesWidget`.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/builds-repository.ts` — `listRecentByStudio(limit, statusFilter?)`, resolve `builds → game_versions → games` e `→ platforms` em consultas separadas (mesmo padrão já usado em `listByGame()`).
+- `packages/database/src/repositories/releases-repository.ts` — `listPendingByStudio(limit)`, mesmo padrão, filtra por status fora de `RELEASE_TERMINAL_STATUSES` (`PUBLISHED`/`REJECTED`/`CANCELLED`/`ARCHIVED`).
+- `packages/database/src/index.ts` — exports de `BuildWithGameDetails`/`ReleaseWithGameDetails`.
+- `apps/web/hooks/use-game-version.ts`, `use-game-versions.ts`, `use-publishable-releases.ts` — os 7 call sites de `studioEventsRepository.create()` passam a usar `releasePipelineEvent()` em vez de `event_name`/`payload` soltos.
+- `apps/web/app/dashboard/page.tsx` — nova seção "Release Pipeline" com os 3 widgets, dados reais (`useAuth`/`useCurrentStudio`/`useReleasePipelineWidgets`, mesmo padrão de toda página autenticada do app). Os demais widgets do Dashboard (Quick Stats, Recent Projects, Recent Activity, AI Insights, Roadmap Snapshot) continuam mock — fora de escopo, mesma decisão já registrada em `DECISIONS.md` desde o Sprint 2.0.
+
+### Decisões de escopo
+
+Ver `DECISIONS.md` ("Sprint 2.6") para o registro formal. Resumo: (1) sem camada de Service/UseCase separada — os hooks já cumprem esse papel (repository → evento → estado), formalizar em arquivos novos por ação seria abstração sem ganho real no estágio atual; (2) sem novos Quick Actions no Dashboard — criar Version/Build/Release exige um Game já selecionado, então um atalho genérico no Dashboard não teria para onde mandar o usuário de forma útil.
+
+### Bug real corrigido (TypeScript, achado antes de qualquer teste)
+
+`releasePipelineEvent()` — a primeira versão não compilava (`pnpm build` pegou, `web#build` falhou com erro de tipos condicionais distribuídos dentro do corpo da função, uma limitação conhecida do TypeScript). Corrigido com um type alias (`PayloadFor<Name>`) + `as never` no retorno interno, mantendo a assinatura pública 100% tipada (a segurança de tipo real está na assinatura, não na implementação). Documentado com comentário no próprio arquivo para não parecer um `any` disfarçado sem explicação.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Validação local (Playwright, banco real, Docker) — 12/12 checks: Dashboard mostra a seção "Release Pipeline" com os 3 widgets, zero erros de console; regressão do golden path (Game→Version→Build→Release) continua funcionando; widgets refletem os dados reais criados na mesma sessão (Nebula Drift aparece em Latest Builds e Pending Releases logo depois de criados). Uma checagem inicial acusou um erro 401 isolado — investigado antes de mexer em qualquer código: não reproduziu em 4 tentativas limpas subsequentes (incluindo o mesmo fluxo exato), consistente com um flake intermitente de renovação de token da sessão Supabase, não uma regressão deste sprint — registrado como observação, não como bug corrigido.
+
+### Pendências
+
+- **Migration do Sprint 2.4 continua não aplicada em produção** — mesma pendência herdada, agora bloqueando também a validação de produção deste sprint (`Latest Builds`/`Pending Releases` dependem de `builds`/`releases` com as colunas novas). Sem `SUPABASE_ACCESS_TOKEN` disponível nesta sessão.
+- Demais widgets do Dashboard (Quick Stats, Recent Projects, Recent Activity, AI Insights, Roadmap Snapshot) continuam mock.
+- Débitos técnicos anteriores (`build_number`, `artifact_url`, N+1 em `usePublishableReleases`) seguem no backlog.
+- Flake intermitente de 401 observado uma vez — não investigado a fundo (não reproduzível, prioridade baixa).
+
+### Próximo Sprint
+
+A definir com o usuário. Aplicar a migration pendente do Sprint 2.4 em produção continua sendo o item de maior prioridade do backlog — sem isso, nenhum sprint futuro do Release Pipeline consegue ser validado de ponta a ponta em produção.

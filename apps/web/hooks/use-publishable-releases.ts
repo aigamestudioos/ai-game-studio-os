@@ -13,6 +13,7 @@ import {
   type Session,
 } from "@agsos/database";
 import { getBrowserClient } from "../lib/supabase-client";
+import { releasePipelineEvent } from "../lib/domain-events";
 
 export type PublishableRelease = {
   releaseId: string;
@@ -96,11 +97,10 @@ export function usePublishableReleases(session: Session | null | undefined, stud
     const release = releases?.find((r) => r.releaseId === input.releaseId);
     await eventsRepo.create({
       studio_id: studioId,
-      event_name: "SubmissionCreated",
+      ...releasePipelineEvent("SubmissionCreated", { release_id: input.releaseId, platform_id: input.platformId }),
       event_version: 1,
       aggregate_type: "submission",
       aggregate_id: created.id,
-      payload: { release_id: input.releaseId, platform_id: input.platformId },
       metadata: release ? { game_version_id: release.gameVersionId } : {},
       actor_type: "USER",
       actor_id: session.user.id,

@@ -1161,3 +1161,60 @@ Sprint puramente de processo — sem funcionalidade de produto, sem mudança em 
 | Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
 | Supabase | **pendência não resolvida:** migration do Sprint 2.4 continua não aplicada em produção — falta credencial (`SUPABASE_ACCESS_TOKEN`/connection string) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.6 — Eventos tipados + widgets reais de Dashboard
+
+**Data:** 2026-08-05
+
+Retomada de funcionalidades de negócio após o Sprint 2.5.1 (processo). Eventos tipados do Release Pipeline + 3 widgets reais de Dashboard (Latest Builds, Failed Builds, Pending Releases). Golden Path de produção segue bloqueado pela migration pendente do Sprint 2.4 (herdada, não resolvida neste sprint).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.6 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 322 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 10246 |
+| Commits totais | 62 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Validação local (Playwright, banco real) | 12/12 checks — widgets do Dashboard com dados reais, regressão do golden path (Game→Version→Build→Release), zero erros de console em execução limpa |
+| Observação | Um 401 isolado apareceu numa execução; não reproduziu em 4 tentativas limpas subsequentes (flake de renovação de token, não regressão deste sprint) |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 11 (inalterado — Dashboard ganhou seção nova, não é rota nova) |
+| Widgets de Dashboard conectados a dados reais | 3 (Latest Builds, Failed Builds, Pending Releases) — os demais continuam mock |
+| Eventos de domínio tipados | 7 (`ReleasePipelineEvent`, `apps/web/lib/domain-events.ts`) |
+| Repositories com queries studio-wide novas | 2 (`builds-repository.listRecentByStudio()`, `releases-repository.listPendingByStudio()`) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | a validar após push (pendente) |
+| Supabase | **pendência não resolvida (herdada do Sprint 2.4):** migration continua não aplicada em produção — bloqueia também a validação de produção deste sprint (widgets dependem das colunas novas) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

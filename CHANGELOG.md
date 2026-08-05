@@ -6,6 +6,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.6 (Eventos tipados + widgets reais de Dashboard)
+- `apps/web/lib/domain-events.ts` — union discriminada `ReleasePipelineEvent` + helper `releasePipelineEvent()`.
+- `apps/web/hooks/use-release-pipeline-widgets.ts`, `apps/web/components/dashboard/pipeline-widgets.tsx` — Latest Builds/Failed Builds/Pending Releases.
+- `packages/database/src/repositories/builds-repository.ts` — `listRecentByStudio()`; `releases-repository.ts` — `listPendingByStudio()`.
+
+### Changed — Sprint 2.6
+- `apps/web/app/dashboard/page.tsx` — seção "Release Pipeline" com os 3 widgets reais.
+- `apps/web/hooks/use-game-version.ts`, `use-game-versions.ts`, `use-publishable-releases.ts` — eventos emitidos via `releasePipelineEvent()`, não mais `event_name`/`payload` soltos.
+
 ### Added — Sprint 2.5.1 (Production Readiness)
 - `DEPLOY_RUNBOOK.md` — processo operacional de deploy de schema (checklist, como aplicar migrations em produção, decisão de manter manual+scriptado em vez de CI).
 - `scripts/check-schema-sync.sh` (+ `pnpm check:schema`) — compara migrations locais × aplicadas em produção, falha explicitamente se houver divergência ou credencial ausente.

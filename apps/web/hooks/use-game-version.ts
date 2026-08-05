@@ -14,6 +14,7 @@ import {
 } from "@agsos/database";
 import { getBrowserClient } from "../lib/supabase-client";
 import { BUILD_SIMULATION_RUNNING_DELAY_MS, BUILD_SIMULATION_SUCCEEDED_DELAY_MS } from "../lib/build-simulation";
+import { releasePipelineEvent } from "../lib/domain-events";
 
 // Version + Builds + Releases + Timeline (Sprint 2.5). Não há CI/CD real
 // ainda (AGSOS-SPEC-003 não define esse domínio) — a progressão de status de
@@ -95,11 +96,10 @@ export function useGameVersion(session: Session | null | undefined, studioId: st
         setBuilds((prev) => prev.map((b) => (b.id === succeeded.id ? succeeded : b)));
         await eventsRepo.create({
           studio_id: buildStudioId,
-          event_name: "BuildFinished",
+          ...releasePipelineEvent("BuildFinished", { status: "SUCCEEDED" }),
           event_version: 1,
           aggregate_type: "build",
           aggregate_id: succeeded.id,
-          payload: { status: "SUCCEEDED" },
           metadata: { game_version_id: gameVersionId },
           actor_type: "USER",
           actor_id: userId,
@@ -134,11 +134,10 @@ export function useGameVersion(session: Session | null | undefined, studioId: st
 
     await eventsRepo.create({
       studio_id: studioId,
-      event_name: "BuildCreated",
+      ...releasePipelineEvent("BuildCreated", { platform_id: input.platformId, build_type: input.buildType, game_version_id: version.id }),
       event_version: 1,
       aggregate_type: "build",
       aggregate_id: created.id,
-      payload: { platform_id: input.platformId, build_type: input.buildType, game_version_id: version.id },
       metadata: { game_version_id: version.id },
       actor_type: "USER",
       actor_id: session.user.id,
@@ -163,11 +162,10 @@ export function useGameVersion(session: Session | null | undefined, studioId: st
 
     await eventsRepo.create({
       studio_id: studioId,
-      event_name: "BuildFailed",
+      ...releasePipelineEvent("BuildFailed", { reason: "stuck_simulation_timeout" }),
       event_version: 1,
       aggregate_type: "build",
       aggregate_id: buildId,
-      payload: { reason: "stuck_simulation_timeout" },
       metadata: { game_version_id: version.id },
       ...actor,
     });
@@ -181,11 +179,10 @@ export function useGameVersion(session: Session | null | undefined, studioId: st
 
     await eventsRepo.create({
       studio_id: studioId,
-      event_name: "BuildRetried",
+      ...releasePipelineEvent("BuildRetried", {}),
       event_version: 1,
       aggregate_type: "build",
       aggregate_id: buildId,
-      payload: {},
       metadata: { game_version_id: version.id },
       ...actor,
     });
@@ -216,11 +213,10 @@ export function useGameVersion(session: Session | null | undefined, studioId: st
 
     await eventsRepo.create({
       studio_id: studioId,
-      event_name: "ReleaseCreated",
+      ...releasePipelineEvent("ReleaseCreated", { release_channel: input.releaseChannel, game_version_id: version.id }),
       event_version: 1,
       aggregate_type: "release",
       aggregate_id: created.id,
-      payload: { release_channel: input.releaseChannel, game_version_id: version.id },
       metadata: { game_version_id: version.id },
       actor_type: "USER",
       actor_id: session.user.id,
