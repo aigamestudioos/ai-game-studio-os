@@ -1360,3 +1360,63 @@ Primeiro dos 3 incrementos do Store Connections (Apple/Google). Auditoria de Fas
 | Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
 | Supabase | migration validada localmente; aplicação em produção pendente de credencial (mesmo processo do `DEPLOY_RUNBOOK.md`) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.9 — Apple App Store Connect (integração real)
+
+**Data:** 2026-08-06
+
+Primeira integração externa real do AGSOS (`AGSOS-SPEC-008`) — adapter Apple completo, UI de Store Connections, validação real (não simulada) contra a API da Apple. Google Play e publicação de verdade explicitamente fora de escopo.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.9 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 (`@agsos/integrations` ganha implementação real pela primeira vez) |
+| Arquivos (git-tracked) | 336 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 12007 |
+| Commits totais | 67 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Golden Path (Playwright, UI real, banco real) | 15/15 checks — criar/validar (chamada real à Apple)/persistência/disconnect/remover, zero erros de console |
+| Fluxo negativo de permissão/RLS (script direto, banco real) | 9/9 checks — `get_store_connection_secret` inacessível até para o Owner autenticado (só `service_role`), `clear_store_connection_secret` bloqueado para Member sem permissão |
+| Validação com credenciais Apple reais | ⬜ não realizada — sem conta de teste disponível (não é uma falha, é uma pendência documentada) |
+| `pnpm check:schema` | ⬜ não executado — sem `SUPABASE_ACCESS_TOKEN` nesta sessão |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 12 (nova: `/settings/store-connections`) |
+| Adapters de integração implementados | 1 (`ApplePublishingAdapter` — `AGSOS-SPEC-008`) |
+| Eventos de domínio com call site real | 6 de 6 (`StoreConnectionCreated/Updated/Validated/Deleted/HealthChecked`, `StoreAppsDiscovered`) |
+| Bugs reais corrigidos | 3 (`@types/node` faltando, Studio seedado sem permissions, `seed.sql` gerado não sincronizado com `seed/*.sql`) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+| Dependências novas | `@types/node` em `packages/integrations` (sem dependência de runtime nova — JWT ES256 via `node:crypto`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não deployado nesta sessão — usuário pediu para parar ao final do Sprint 2.9 sem push automático |
+| Supabase | 2 migrations pendentes de produção (Sprint 2.8 + esta) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

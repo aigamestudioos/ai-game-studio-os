@@ -6,6 +6,17 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.9 (Apple App Store Connect — integração real)
+- `packages/integrations/src/apple/{types,jwt,client,errors,adapter}.ts` — `ApplePublishingAdapter` completo (connect/disconnect/health/listApps/getApp), JWT ES256 via `node:crypto`.
+- `supabase/migrations/20260807000001_store_connection_secret_read.sql` — `get_store_connection_secret()` (GRANT só `service_role`), `clear_store_connection_secret()` ("Disconnect").
+- `apps/web/app/settings/store-connections/{page,actions}.tsx`, `hooks/use-store-connections.ts`, `lib/store-connection-status.ts`.
+
+### Changed — Sprint 2.9
+- `packages/database/src/repositories/store-connections-repository.ts` — `getSecret()`, `clearSecret()`, `markValidationResult()` com `discoveredApps`.
+- `apps/web/lib/domain-events.ts` — eventos de Store Connection ganham os 2 payloads que faltavam e o primeiro call site real.
+- `apps/web/app/settings/studio/page.tsx` — link para a nova tela.
+- `supabase/seed.sql`/`supabase/seed/02_demo_studio.sql` — corrigido bug real (Studio seedado sem nenhuma permission, ver DECISIONS.md).
+
 ### Added — Sprint 2.8 (Store Connections: schema + RLS + Vault, sem UI)
 - `supabase/migrations/20260806000001_store_connections_vault.sql` — colunas novas em `store_connections` (`display_name`/`last_validation_at`/`last_error`/`metadata`); `create extension supabase_vault`; função `set_store_connection_secret()` (SECURITY DEFINER); trigger `store_connections_delete_secret`; permissão `studio.manage_store_connections` + RLS dividida (`_select`/`_insert`/`_update`/`_delete`).
 - `packages/database/src/repositories/store-connections-repository.ts` — `listByStudio()`, `getById()`, `create()`, `update()`, `setSecret()`, `markValidationResult()`, `delete()`.

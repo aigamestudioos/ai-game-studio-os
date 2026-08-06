@@ -10,5 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1"
   }
 }

@@ -1752,3 +1752,84 @@ Não aplicável — este sprint não tem UI (por decisão explícita da divisão
 ### Próximo Sprint
 
 Sprint 2.9 — adapters Apple/Google reais (`packages/integrations/`), conforme divisão confirmada com o usuário.
+
+---
+
+## Sprint 2.9 — Apple App Store Connect (integração real)
+
+**Status:** Concluído (validado localmente, produção pendente de credencial); Google Play e publicação de verdade explicitamente fora de escopo, por instrução do usuário
+**Período:** 2026-08-06
+
+### Fase 1 — Auditoria (obrigatória, feita antes de qualquer código)
+
+**O que já existia:** todo o backend do Sprint 2.8 (`store_connections` com RLS + gate de permissão, Vault, `set_store_connection_secret()`, repository); `packages/integrations` scaffolded (buildável) mas vazio; `AGSOS-SPEC-008 §3` já especifica o contrato `IntegrationAdapter`/`ApplePublishingAdapter` exato pedido.
+
+**O que estava parcialmente pronto:** nada consumia o Vault ainda (só escrita, sem leitura server-side) — `get_store_connection_secret()` não existia. Nenhum adapter real. Nenhuma UI.
+
+**O que realmente faltava:** adapter Apple completo (JWT ES256, cliente HTTP, `health()`/`listApps()`/`getApp()`), RPC de leitura do segredo restrita a `service_role`, Server Action orquestrando UI→Adapter→API, UI completa (`Settings → Store Connections`), eventos emitidos de verdade (só tipados desde o 2.8), permissão `clear_store_connection_secret()` para "Disconnect".
+
+**Arquivos a alterar (confirmado antes de codificar):** `packages/integrations/src/apple/*` (novo), `packages/database` (migration + repository + types), `apps/web` (Server Action, hook, página, componentes, link em `/settings/studio`). 3 packages tocados (`database`, `integrations`, `web`) — dentro do limite do `CLAUDE.md`.
+
+**Estimativa:** ~21 arquivos, 10 novos — no limite superior recomendado, mas ainda dentro do teto (`CLAUDE.md`: máx. 10 novos, máx. 3 packages). Não precisou de nova divisão.
+
+### Restrição adicionada pelo usuário antes de implementar (ajuste importante ao plano)
+
+Sem credenciais reais de Apple Developer disponíveis nesta sessão (Issuer ID/Key ID/.p8/Team ID de uma conta de verdade) — instrução explícita: entregar toda a infraestrutura e UI, mas **nunca simular sucesso**. A validação com credenciais reais fica documentada como pendência explícita, não escondida atrás de um "funciona" não verificado. Ver "Validação com credenciais reais" abaixo.
+
+### Arquitetura implementada (AGSOS-SPEC-008 §3)
+
+UI → Server Action (`validateStoreConnection`) → `ApplePublishingAdapter` → App Store Connect API → Resposta. A UI (`apps/web/app/settings/store-connections/page.tsx`) nunca importa `@agsos/integrations` nem chama a Apple diretamente — só o hook, que só chama a Server Action para o passo de validação (criar/editar/disconnect/remover continuam client-side, via RLS, como no Sprint 2.8).
+
+### Arquivos criados
+
+- `packages/integrations/src/apple/{types,jwt,client,errors,adapter}.ts` — adapter completo: `connect()`/`disconnect()`/`health()`/`listApps()`/`getApp()`. JWT ES256 construído com `node:crypto` nativo (sem dependência nova — `createSign("sha256")` + `dsaEncoding: "ieee-p1363"` para o formato raw r||s que JWS exige). Erros sempre sanitizados por status HTTP (`sanitizeAppleError`), nunca ecoam a resposta bruta da Apple.
+- `supabase/migrations/20260807000001_store_connection_secret_read.sql` — `get_store_connection_secret()` (leitura do Vault, `GRANT` só para `service_role` — nunca `authenticated`, diferente de todas as outras RPCs deste projeto até agora); `clear_store_connection_secret()` ("Disconnect": limpa Vault + `credentials_ref`, mantém a linha, diferente do DELETE real do Sprint 2.8); fecha um gap de `revoke ... from public` que `set_store_connection_secret()` (Sprint 2.8) nunca tinha.
+- `apps/web/app/settings/store-connections/{page,actions}.tsx` — UI completa (lista, criar, validar, editar, disconnect, remover) + Server Action.
+- `apps/web/hooks/use-store-connections.ts`, `apps/web/lib/store-connection-status.ts`.
+
+### Arquivos alterados
+
+- `packages/database/src/repositories/store-connections-repository.ts` — `getSecret()` (só para uso via Server Action/admin-client), `clearSecret()`, `markValidationResult()` ganhou `discoveredApps` (persistido em `metadata.apps`, coluna já existente desde o Sprint 2.8 — nenhuma tabela nova para isso).
+- `packages/database/src/generated/database.types.ts` — 2 `Functions` novas registradas.
+- `apps/web/lib/domain-events.ts` — `StoreConnectionHealthCheckedPayload`/`StoreAppsDiscoveredPayload`, união `StoreConnectionEvent` completa; os 6 eventos agora têm pelo menos um call site real (Server Action + hook).
+- `apps/web/app/settings/studio/page.tsx` — card com link para `/settings/store-connections` (sidebar principal não alterada — `SPEC-005 §9` congela sua ordem; mesmo padrão já usado para `/settings/account`, alcançável só pelo menu do usuário).
+- `packages/integrations/package.json`/`tsconfig.json` — `@types/node` (necessário para `node:crypto`/`fetch`/`Buffer` tipados; achado ao rodar `pnpm build`, não hipotético) e `types: ["node"]`.
+- `apps/web/package.json` — dependência `@agsos/integrations` + `prebuild` estendido.
+
+### Bugs reais encontrados e corrigidos (achados testando, não hipotéticos)
+
+1. **`packages/integrations` sem `@types/node`** — `pnpm build` falhava (`Cannot find name 'Buffer'/'fetch'/'AbortController'`). Corrigido adicionando a devDependency + `types: ["node"]`, mesmo padrão já usado em `packages/database`.
+2. **`founder@aigamestudio.os` (a conta usada em quase toda validação local deste projeto) não tinha NENHUMA permission** — achado ao tentar criar a primeira Store Connection localmente, bloqueado pela RLS com "Você não tem permissão". Causa raiz: o Studio seedado (`supabase/seed.sql`/`supabase/seed/02_demo_studio.sql`) foi criado antes do sistema de roles/permissions existir (Sprint 1.7) e **nunca recebeu um backfill de `role_permissions`** — diferente de todo Studio criado via `bootstrap_studio_for_current_user()` (assinaturas reais, inclusive em produção), que já concede ao Owner todas as permissions. Isso nunca foi pego antes porque os Sprints 1.8d-4/2.7 testaram permissão com um Studio à parte, não com `founder`. **Não afeta produção** (nenhum Studio real foi criado por este caminho — todos vêm do bootstrap real). Corrigido nos dois arquivos de seed (o "fonte" `seed/02_demo_studio.sql` e o "gerado" `seed.sql`, que é o que a CLI realmente lê — ver achado 3).
+3. **`supabase/seed.sql` é gerado a partir de `supabase/seed/*.sql`, mas não existe nenhum script que regenere automaticamente** — editei só o "source" (`seed/02_demo_studio.sql`) primeiro, e o `db reset` seguinte não pegou a mudança, porque `supabase/config.toml` aponta `sql_paths = ["./seed.sql"]`, não para a pasta `seed/`. Corrigido replicando a mudança manualmente nos dois arquivos (mesmo processo manual que o cabeçalho do `seed.sql` já indicava ser necessário, só não documentado como um passo explícito em lugar nenhum). Registrado como débito de processo abaixo.
+
+### Débitos técnicos / decisões em aberto
+
+- **Sem script que regenere `seed.sql` a partir de `seed/*.sql`** — toda edição a um dos arquivos-fonte precisa ser replicada manualmente no gerado, ou a mudança não tem efeito (achado real, item 3 acima). Vale um script `scripts/regenerate-seed.sh` futuro.
+- `AGSOS-SPEC-008 §9` (`integration_jobs`, fila de retry/rate-limit) segue não implementado — só necessário quando houver retry real de verdade (esta sprint faz uma chamada síncrona por `Validate Connection`, sem fila).
+- Débitos já registrados em sprints anteriores (`build_number`, `artifact_url`, N+1 em `usePublishableReleases`, DELETE-real-vs-soft-delete de Store Connections) seguem no backlog.
+
+### Validações executadas (local, banco real)
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Migration aplicada e validada via `supabase db reset` completo — `GRANT`s confirmados via `pg_shdepend` (`get_store_connection_secret` só para `service_role`, nenhuma das 3 funções com `PUBLIC` residual).
+
+**Golden Path via Playwright (UI real, banco real): 15/15 checks** — login, navegação até `/settings/store-connections` (via link, não sidebar), criar conexão Apple com credenciais sintaticamente válidas mas falsas, clicar "Validate" (chamada de rede real à `api.appstoreconnect.apple.com`, não mock), a validação **falha de verdade** (não simula sucesso) com a Apple real respondendo `401` para o JWT bem-formado porém não autêntico — confirmado que a mensagem exibida é a sanitizada (`"Credenciais inválidas ou expiradas..."`), nunca a resposta bruta da Apple; nenhum stack trace, Private Key, JWT ou `credentials_ref` aparece em nenhum momento na tela nem nos logs do servidor; status `ERROR` persiste após reload e após logout/login; Disconnect limpa o Vault e volta o status para Desconectado; Remover apaga a linha. Zero erros de console durante toda a sessão.
+
+**Fluxo negativo de permissão/RLS (script direto, banco real): 9/9 checks** — Member sem `studio.manage_store_connections` bloqueado tanto de `get_store_connection_secret` (rejeitado por falta de `GRANT`, nem chega a avaliar a função) quanto de `clear_store_connection_secret` (rejeitado pela checagem de permissão dentro da função); confirmado que **nem o Owner autenticado consegue chamar `get_store_connection_secret`** — só `service_role` tem o `GRANT`, prova de que "nunca retornar secrets pelas APIs" é garantido estruturalmente, não por uma checagem que poderia ter um bug; segredo permanece intacto após a tentativa do Member; Owner consegue de verdade limpar via Disconnect.
+
+### Validação com credenciais reais da Apple
+
+**Não realizada — sem conta Apple Developer com App Store Connect API habilitada disponível.** Por instrução explícita do usuário, isso não bloqueou o sprint nem foi contornado: toda a infraestrutura (Vault, RLS, adapter, JWT, UI) está pronta e testada com o máximo de realismo possível sem uma credencial verdadeira (a chamada de rede é real, contra a Apple real, só a credencial em si é fabricada). O caminho de sucesso (`listApps()` retornando Apps de verdade, contador de Apps > 0, `status = CONNECTED`) permanece **não verificado** até uma credencial real ser fornecida. Isso não é uma simulação de sucesso — é uma lacuna documentada.
+
+### Validação em produção
+
+Não executada nesta sessão — sem `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` disponíveis (mesma situação recorrente; token não foi provisionado nesta sessão). Duas migrations agora pendentes de aplicar em produção desde o Sprint 2.8 (`20260806000001`) + esta (`20260807000001`).
+
+### Segurança — checklist explícito pedido
+
+- Private Key/JWT/secrets: nunca impressos em log, nunca retornados por nenhuma API, nunca aparecem na UI — confirmado nos 15+9 checks acima.
+- `credentials_ref`: nunca retornado como o segredo em si (é só um UUID do Vault); `get_store_connection_secret()` é o único caminho de leitura do valor real, e só `service_role` pode chamá-lo.
+- Nenhum evento (`studio_events`) carrega qualquer campo sensível — os payloads tipados (`domain-events.ts`) nunca incluem `secret`/`privateKey`/`credentials_ref`/JWT, só metadados não sensíveis (`ok: boolean`, `count: number`, `status`, `error` sanitizado).
+
+### Próximo Sprint
+
+Aguardando aprovação explícita do usuário antes de iniciar qualquer novo sprint (Sprint 2.10 NÃO iniciado automaticamente, por instrução). Quando aprovado: possíveis focos são Google Play (mesma arquitetura de adapter), validação com credenciais Apple reais quando disponíveis, ou aplicar as 2 migrations pendentes em produção.

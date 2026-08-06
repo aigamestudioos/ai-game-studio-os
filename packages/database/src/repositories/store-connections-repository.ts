@@ -7,11 +7,12 @@ import type { Database, StoreConnectionsRow } from "../generated/database.types"
 //
 // `credentials_ref` nunca é a credencial — é o id de um segredo no Supabase
 // Vault. Este repository nunca lê nem grava o segredo diretamente: gravar
-// passa por `setSecret()` (RPC `set_store_connection_secret`, que valida
-// permissão + posse do Studio inteiramente dentro de uma função
-// SECURITY DEFINER antes de tocar o Vault); não existe (nem deveria existir
-// aqui) um método para LER o segredo de volta — isso é trabalho dos
-// adapters (Sprint 2.9), que rodam só no servidor.
+// passa por `setSecret()`, ler por `getSecret()` — ambas RPCs SECURITY
+// DEFINER que validam posse do Studio/permissão antes de tocar o Vault.
+// `getSecret()` só é chamável por `service_role` (grant restrito na
+// migration, Sprint 2.9) — nunca importar esta função num Client Component;
+// ela só deve ser invocada a partir de uma Server Action usando
+// `admin-client.ts`.
 export function createStoreConnectionsRepository(client: SupabaseClient<Database>) {
   return {
     async listByStudio(studioId: string): Promise<StoreConnectionsRow[]> {
@@ -62,35 +63,56 @@ export function createStoreConnectionsRepository(client: SupabaseClient<Database
       if (error) throw error;
     },
 
-    // Resultado de uma tentativa de validação (Sprint 2.9 vai chamar isso
-    // depois de tentar listar apps via o adapter correspondente).
-    async markValidationResult(
-      id: string,
-      result: { status: "CONNECTED" | "ERROR"; lastError: string | null },
-      actor: { actorType: "USER"; actorId: string },
-    ): Promise<StoreConnectionsRow> {
-      const { data, error } = await client
-        .from("store_connections")
-        .update({
-          status: result.status,
-          last_error: result.lastError,
-          last_validation_at: new Date().toISOString(),
-          updated_actor_type: actor.actorType,
-          updated_actor_id: actor.actorId,
-        })
-        .eq("id", id)
-        .select("*")
-        .single();
+    // Lê o segredo do Vault (Sprint 2.9) — só a Server Action de "Validate
+    // Connection" chama isso, com um client admin (`service_role`). Nunca
+    // expor este método a um caminho alcançável pelo browser.
+    async getSecret(storeConnectionId: string): Promise<string | null> {
+      const { data, error } = await client.rpc("get_store_connection_secret", {
+        p_store_connection_id: storeConnectionId,
+      });
       if (error) throw error;
       return data;
     },
 
-    // Soft-delete (mesmo padrão de `users.archive()`, Sprint 2.7) — a
-    // trigger `store_connections_delete_secret` só limpa o Vault num DELETE
-    // de verdade, não num archive. Como este sprint não expõe UI ainda,
-    // "remover" fica definido aqui como o DELETE real (limpa o Vault junto),
-    // não archive — reavaliar se o Sprint 2.10 (UI) preferir soft-delete
-    // reversível como o resto do projeto.
+    // "Disconnect" (Sprint 2.9) — limpa Vault + `credentials_ref`, volta o
+    // status para DISCONNECTED, mantém a linha (diferente de `delete()`).
+    async clearSecret(storeConnectionId: string, actorId: string): Promise<void> {
+      const { error } = await client.rpc("clear_store_connection_secret", {
+        p_store_connection_id: storeConnectionId,
+        p_actor_id: actorId,
+      });
+      if (error) throw error;
+    },
+
+    // Resultado de uma tentativa de validação — health() + listApps() via
+    // o adapter correspondente (Sprint 2.9). `discoveredApps` vai em
+    // `metadata` (coluna já existente desde o Sprint 2.8) — não foi criada
+    // uma tabela nova só para isso; a lista é só para exibição, não é usada
+    // por nenhuma feature de negócio ainda (publicação/build permanecem
+    // fora de escopo deste sprint).
+    async markValidationResult(
+      id: string,
+      result: { status: "CONNECTED" | "ERROR"; lastError: string | null; discoveredApps?: unknown[] },
+      actor: { actorType: "USER"; actorId: string },
+    ): Promise<StoreConnectionsRow> {
+      const patch: Partial<StoreConnectionsRow> = {
+        status: result.status,
+        last_error: result.lastError,
+        last_validation_at: new Date().toISOString(),
+        updated_actor_type: actor.actorType,
+        updated_actor_id: actor.actorId,
+      };
+      if (result.discoveredApps) {
+        patch.metadata = { apps: result.discoveredApps };
+      }
+      const { data, error } = await client.from("store_connections").update(patch).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+
+    // DELETE real (não soft-delete) — a trigger `store_connections_delete_secret`
+    // (Sprint 2.8) limpa o Vault junto. Decisão registrada em DECISIONS.md:
+    // provisória, sem UI que decidisse diferente até agora.
     async delete(id: string): Promise<void> {
       const { error } = await client.from("store_connections").delete().eq("id", id);
       if (error) throw error;

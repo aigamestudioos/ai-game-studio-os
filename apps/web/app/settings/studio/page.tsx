@@ -1,8 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import { Rocket } from "lucide-react";
 import { AppShell } from "../../../components/layout/app-shell";
 import { StudioInfoSection } from "../../../components/settings/studio-info-section";
 import { StudioMembersSection } from "../../../components/settings/studio-members-section";
+import { Button } from "../../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Spinner } from "../../../components/ui/spinner";
 import { useAuth } from "../../../hooks/use-auth";
 import { useCurrentStudio } from "../../../hooks/use-current-studio";
@@ -38,6 +42,20 @@ export default function StudioSettingsPage() {
               onChangeRole={changeMemberRole}
               onRemove={removeMember}
             />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Store Connections</CardTitle>
+                <CardDescription>Conecte suas contas da Apple e do Google para publicar seus jogos.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href="/settings/store-connections">
+                    <Rocket className="mr-sm size-4" aria-hidden="true" />
+                    Gerenciar Store Connections
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

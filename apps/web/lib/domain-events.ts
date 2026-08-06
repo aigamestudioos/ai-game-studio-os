@@ -44,20 +44,25 @@ export function releasePipelineEvent<Name extends ReleasePipelineEventName>(
 
 // Sprint 2.8 — mesmos tipos/helper, domínio diferente (Store Connections,
 // não Release Pipeline — união separada por bounded context, AGSOS-SPEC-002
-// §8). Definidos agora porque o contrato do evento já é conhecido, mas
-// **nenhum call site existe ainda** — este sprint é só schema/RLS/Vault,
-// sem UI (Sprint 2.10) nem adapters que de fato validam a conexão (Sprint
-// 2.9). Emitir estes eventos é trabalho desses sprints futuros.
+// §8). Definidos no Sprint 2.8 sem nenhum call site ainda (só schema/RLS/
+// Vault); o Sprint 2.9 (adapter Apple + UI) é quem finalmente emite todos
+// eles — `payload` nunca inclui nada sensível (sem JWT/private
+// key/credentials_ref/payload do Vault, "nunca registrar secrets em
+// eventos").
 export type StoreConnectionCreatedPayload = { platform_id: string; display_name: string | null };
 export type StoreConnectionUpdatedPayload = { fields: string[] };
 export type StoreConnectionValidatedPayload = { status: "CONNECTED" | "ERROR"; error: string | null };
 export type StoreConnectionDeletedPayload = Record<string, never>;
+export type StoreConnectionHealthCheckedPayload = { ok: boolean };
+export type StoreAppsDiscoveredPayload = { count: number };
 
 export type StoreConnectionEvent =
   | { name: "StoreConnectionCreated"; payload: StoreConnectionCreatedPayload }
   | { name: "StoreConnectionUpdated"; payload: StoreConnectionUpdatedPayload }
   | { name: "StoreConnectionValidated"; payload: StoreConnectionValidatedPayload }
-  | { name: "StoreConnectionDeleted"; payload: StoreConnectionDeletedPayload };
+  | { name: "StoreConnectionDeleted"; payload: StoreConnectionDeletedPayload }
+  | { name: "StoreConnectionHealthChecked"; payload: StoreConnectionHealthCheckedPayload }
+  | { name: "StoreAppsDiscovered"; payload: StoreAppsDiscoveredPayload };
 
 export type StoreConnectionEventName = StoreConnectionEvent["name"];
 

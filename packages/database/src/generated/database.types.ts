@@ -325,6 +325,14 @@ export type Database = {
         Args: { p_store_connection_id: string; p_secret: string; p_actor_id: string };
         Returns: undefined;
       };
+      get_store_connection_secret: {
+        Args: { p_store_connection_id: string };
+        Returns: string | null;
+      };
+      clear_store_connection_secret: {
+        Args: { p_store_connection_id: string; p_actor_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
