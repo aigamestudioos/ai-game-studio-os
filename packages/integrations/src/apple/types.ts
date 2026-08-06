@@ -1,4 +1,7 @@
-// Apple App Store Connect — Adapter Pattern (AGSOS-SPEC-008 §3). Sprint 2.9.
+import type { HealthResult, IntegrationAdapter, ItemResult, ListResult } from "../core/types";
+
+// Apple App Store Connect — Adapter Pattern (AGSOS-SPEC-008 §3). Sprint 2.9;
+// retrofit sobre `core/types.ts` no Sprint 2.10 (framework compartilhado).
 
 export type AppleCredentials = {
   issuerId: string;
@@ -15,20 +18,14 @@ export type AppleApp = {
   sku: string;
 };
 
-export type AdapterHealthResult = { ok: true } | { ok: false; error: string };
-
-export type AdapterListAppsResult = { ok: true; apps: AppleApp[] } | { ok: false; error: string };
-
-// Contrato base de todo adapter de integração (AGSOS-SPEC-008 §3,
-// `IntegrationAdapter`) — connect()/disconnect() aqui são no-ops para Apple
-// (a API é stateless por chamada, autenticada via JWT assinado a cada
-// requisição; não existe "sessão" para abrir/fechar), mas o contrato é
-// mantido para os adapters futuros (Google Play, etc.) que possam precisar
-// de verdade.
-export interface ApplePublishingAdapter {
-  connect(): Promise<AdapterHealthResult>;
-  disconnect(): Promise<void>;
-  health(): Promise<AdapterHealthResult>;
-  listApps(): Promise<AdapterListAppsResult>;
-  getApp(appId: string): Promise<{ ok: true; app: AppleApp } | { ok: false; error: string }>;
+// connect()/disconnect() são no-ops para Apple (API stateless por chamada,
+// autenticada via JWT assinado a cada requisição; não existe "sessão" para
+// abrir/fechar) — o contrato (`IntegrationAdapter`) é o mesmo de todo
+// provider, mesmo quando alguns métodos são triviais para um provider
+// específico.
+export interface ApplePublishingAdapter extends IntegrationAdapter {
+  listApps(): Promise<ListResult<AppleApp>>;
+  getApp(appId: string): Promise<ItemResult<AppleApp>>;
 }
+
+export type { HealthResult };

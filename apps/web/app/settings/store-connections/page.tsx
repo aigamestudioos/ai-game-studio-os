@@ -25,15 +25,19 @@ import { toast } from "../../../hooks/use-toast";
 import { getBrowserClient } from "../../../lib/supabase-client";
 import { storeConnectionStatusLabel, storeConnectionStatusVariant } from "../../../lib/store-connection-status";
 
-// Sprint 2.9 — só Apple está de fato cadastrável/validável nesta tela
-// (Google Play fora de escopo, por decisão explícita do usuário). O
-// formulário não expõe um seletor de provider por isso — quando o Google
-// Play adapter existir, esta tela ganha o seletor, não antes.
+// Sprint 2.9 (Apple) + Sprint 2.10 (Google Play) — seletor de provider no
+// formulário de criação; cada provider tem seus próprios campos de
+// credencial porque os formatos são reais e diferentes (Apple: Issuer
+// ID/Key ID/Team ID/.p8; Google: JSON de Service Account + Package Name).
+type Provider = "apple" | "google";
+
 type AppleForm = { displayName: string; issuerId: string; keyId: string; teamId: string; privateKey: string };
+type GoogleForm = { displayName: string; packageName: string; serviceAccountJson: string };
 
-const EMPTY_FORM: AppleForm = { displayName: "", issuerId: "", keyId: "", teamId: "", privateKey: "" };
+const EMPTY_APPLE_FORM: AppleForm = { displayName: "", issuerId: "", keyId: "", teamId: "", privateKey: "" };
+const EMPTY_GOOGLE_FORM: GoogleForm = { displayName: "", packageName: "", serviceAccountJson: "" };
 
-type DiscoveredApp = { id: string; name: string; bundleId: string; sku: string };
+type DiscoveredApp = { id: string; name: string; bundleId?: string; sku?: string; packageName?: string };
 
 export default function StoreConnectionsPage() {
   const { session } = useAuth();
@@ -43,12 +47,15 @@ export default function StoreConnectionsPage() {
 
   const [platforms, setPlatforms] = useState<PlatformsRow[] | undefined>(undefined);
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState<AppleForm>(EMPTY_FORM);
+  const [provider, setProvider] = useState<Provider>("apple");
+  const [form, setForm] = useState<AppleForm>(EMPTY_APPLE_FORM);
+  const [googleForm, setGoogleForm] = useState<GoogleForm>(EMPTY_GOOGLE_FORM);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<AppleForm>(EMPTY_FORM);
+  const [editForm, setEditForm] = useState<AppleForm>(EMPTY_APPLE_FORM);
+  const [editGoogleForm, setEditGoogleForm] = useState<GoogleForm>(EMPTY_GOOGLE_FORM);
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -63,24 +70,38 @@ export default function StoreConnectionsPage() {
   }, [session]);
 
   const appStorePlatform = platforms?.find((p) => p.name === "App Store");
+  const googlePlayPlatform = platforms?.find((p) => p.name === "Google Play");
+  const selectedPlatform = provider === "apple" ? appStorePlatform : googlePlayPlatform;
+
+  function platformName(platformId: string): string {
+    return platforms?.find((p) => p.id === platformId)?.name ?? "Desconhecido";
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!appStorePlatform) return;
+    if (!selectedPlatform) return;
     setCreateError(null);
     setCreateLoading(true);
     try {
-      const result = await createConnection({
-        platformId: appStorePlatform.id,
-        displayName: form.displayName.trim(),
-        credentials: { issuerId: form.issuerId.trim(), keyId: form.keyId.trim(), teamId: form.teamId.trim(), privateKey: form.privateKey.trim() },
-      });
+      const result =
+        provider === "apple"
+          ? await createConnection({
+              platformId: selectedPlatform.id,
+              displayName: form.displayName.trim(),
+              credentials: { issuerId: form.issuerId.trim(), keyId: form.keyId.trim(), teamId: form.teamId.trim(), privateKey: form.privateKey.trim() },
+            })
+          : await createConnection({
+              platformId: selectedPlatform.id,
+              displayName: googleForm.displayName.trim(),
+              credentials: { packageName: googleForm.packageName.trim(), serviceAccountJson: googleForm.serviceAccountJson.trim() },
+            });
       if (result.error) {
         setCreateError(result.error);
         return;
       }
       toast({ title: "Conexão criada", description: "Clique em Validate para confirmar as credenciais.", variant: "success" });
-      setForm(EMPTY_FORM);
+      setForm(EMPTY_APPLE_FORM);
+      setGoogleForm(EMPTY_GOOGLE_FORM);
       setCreateOpen(false);
     } finally {
       setCreateLoading(false);
@@ -98,7 +119,20 @@ export default function StoreConnectionsPage() {
         setEditError(nameResult.error);
         return;
       }
-      if (editForm.issuerId || editForm.keyId || editForm.teamId || editForm.privateKey) {
+      const connection = connections?.find((c) => c.id === editingId);
+      const isGoogle = connection ? platformName(connection.platform_id) === "Google Play" : false;
+      if (isGoogle) {
+        if (editGoogleForm.packageName || editGoogleForm.serviceAccountJson) {
+          const credResult = await reconnect(editingId, {
+            packageName: editGoogleForm.packageName.trim(),
+            serviceAccountJson: editGoogleForm.serviceAccountJson.trim(),
+          });
+          if (credResult.error) {
+            setEditError(credResult.error);
+            return;
+          }
+        }
+      } else if (editForm.issuerId || editForm.keyId || editForm.teamId || editForm.privateKey) {
         const credResult = await reconnect(editingId, {
           issuerId: editForm.issuerId.trim(),
           keyId: editForm.keyId.trim(),
@@ -156,59 +190,129 @@ export default function StoreConnectionsPage() {
 
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!appStorePlatform}>Add Connection</Button>
+              <Button disabled={!appStorePlatform && !googlePlayPlatform}>Add Connection</Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleCreate}>
                 <DialogHeader>
-                  <DialogTitle>Nova conexão — Apple App Store Connect</DialogTitle>
+                  <DialogTitle>
+                    Nova conexão — {provider === "apple" ? "Apple App Store Connect" : "Google Play"}
+                  </DialogTitle>
                   <DialogDescription>
-                    Gere uma API Key em App Store Connect → Users and Access → Integrations. As credenciais ficam
-                    guardadas no Supabase Vault — nunca em texto puro.
+                    {provider === "apple"
+                      ? "Gere uma API Key em App Store Connect → Users and Access → Integrations. As credenciais ficam guardadas no Supabase Vault — nunca em texto puro."
+                      : "Crie uma Service Account no Google Cloud Console, dê acesso a ela no Play Console (Users and permissions) e cole o JSON da chave abaixo. As credenciais ficam guardadas no Supabase Vault — nunca em texto puro."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-md">
                   <div className="space-y-sm">
-                    <label htmlFor="sc-name" className="text-sm font-medium">
-                      Nome amigável
+                    <label htmlFor="sc-provider" className="text-sm font-medium">
+                      Provider
                     </label>
-                    <Input id="sc-name" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required disabled={createLoading} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-sm">
-                    <div className="space-y-sm">
-                      <label htmlFor="sc-issuer" className="text-sm font-medium">
-                        Issuer ID
-                      </label>
-                      <Input id="sc-issuer" value={form.issuerId} onChange={(e) => setForm({ ...form, issuerId: e.target.value })} required disabled={createLoading} />
+                    <div className="flex gap-sm">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={provider === "apple" ? "default" : "outline"}
+                        disabled={!appStorePlatform || createLoading}
+                        onClick={() => setProvider("apple")}
+                      >
+                        Apple App Store
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={provider === "google" ? "default" : "outline"}
+                        disabled={!googlePlayPlatform || createLoading}
+                        onClick={() => setProvider("google")}
+                      >
+                        Google Play
+                      </Button>
                     </div>
-                    <div className="space-y-sm">
-                      <label htmlFor="sc-keyid" className="text-sm font-medium">
-                        Key ID
-                      </label>
-                      <Input id="sc-keyid" value={form.keyId} onChange={(e) => setForm({ ...form, keyId: e.target.value })} required disabled={createLoading} />
-                    </div>
                   </div>
-                  <div className="space-y-sm">
-                    <label htmlFor="sc-team" className="text-sm font-medium">
-                      Team ID
-                    </label>
-                    <Input id="sc-team" value={form.teamId} onChange={(e) => setForm({ ...form, teamId: e.target.value })} required disabled={createLoading} />
-                  </div>
-                  <div className="space-y-sm">
-                    <label htmlFor="sc-key" className="text-sm font-medium">
-                      Private Key (.p8)
-                    </label>
-                    <Textarea
-                      id="sc-key"
-                      value={form.privateKey}
-                      onChange={(e) => setForm({ ...form, privateKey: e.target.value })}
-                      placeholder="-----BEGIN PRIVATE KEY-----..."
-                      required
-                      disabled={createLoading}
-                      className="font-mono text-xs"
-                      rows={5}
-                    />
-                  </div>
+
+                  {provider === "apple" ? (
+                    <>
+                      <div className="space-y-sm">
+                        <label htmlFor="sc-name" className="text-sm font-medium">
+                          Nome amigável
+                        </label>
+                        <Input id="sc-name" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} required disabled={createLoading} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-sm">
+                        <div className="space-y-sm">
+                          <label htmlFor="sc-issuer" className="text-sm font-medium">
+                            Issuer ID
+                          </label>
+                          <Input id="sc-issuer" value={form.issuerId} onChange={(e) => setForm({ ...form, issuerId: e.target.value })} required disabled={createLoading} />
+                        </div>
+                        <div className="space-y-sm">
+                          <label htmlFor="sc-keyid" className="text-sm font-medium">
+                            Key ID
+                          </label>
+                          <Input id="sc-keyid" value={form.keyId} onChange={(e) => setForm({ ...form, keyId: e.target.value })} required disabled={createLoading} />
+                        </div>
+                      </div>
+                      <div className="space-y-sm">
+                        <label htmlFor="sc-team" className="text-sm font-medium">
+                          Team ID
+                        </label>
+                        <Input id="sc-team" value={form.teamId} onChange={(e) => setForm({ ...form, teamId: e.target.value })} required disabled={createLoading} />
+                      </div>
+                      <div className="space-y-sm">
+                        <label htmlFor="sc-key" className="text-sm font-medium">
+                          Private Key (.p8)
+                        </label>
+                        <Textarea
+                          id="sc-key"
+                          value={form.privateKey}
+                          onChange={(e) => setForm({ ...form, privateKey: e.target.value })}
+                          placeholder="-----BEGIN PRIVATE KEY-----..."
+                          required
+                          disabled={createLoading}
+                          className="font-mono text-xs"
+                          rows={5}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-sm">
+                        <label htmlFor="gp-name" className="text-sm font-medium">
+                          Nome amigável
+                        </label>
+                        <Input id="gp-name" value={googleForm.displayName} onChange={(e) => setGoogleForm({ ...googleForm, displayName: e.target.value })} required disabled={createLoading} />
+                      </div>
+                      <div className="space-y-sm">
+                        <label htmlFor="gp-package" className="text-sm font-medium">
+                          Package Name
+                        </label>
+                        <Input
+                          id="gp-package"
+                          value={googleForm.packageName}
+                          onChange={(e) => setGoogleForm({ ...googleForm, packageName: e.target.value })}
+                          placeholder="com.estudio.jogo"
+                          required
+                          disabled={createLoading}
+                        />
+                      </div>
+                      <div className="space-y-sm">
+                        <label htmlFor="gp-json" className="text-sm font-medium">
+                          Service Account JSON
+                        </label>
+                        <Textarea
+                          id="gp-json"
+                          value={googleForm.serviceAccountJson}
+                          onChange={(e) => setGoogleForm({ ...googleForm, serviceAccountJson: e.target.value })}
+                          placeholder='{"client_email": "...", "private_key": "..." }'
+                          required
+                          disabled={createLoading}
+                          className="font-mono text-xs"
+                          rows={5}
+                        />
+                      </div>
+                    </>
+                  )}
                   {createError ? <p className="text-sm text-destructive">{createError}</p> : null}
                 </div>
                 <DialogFooter>
@@ -233,12 +337,15 @@ export default function StoreConnectionsPage() {
           <div className="space-y-md">
             {connections.map((connection) => {
               const apps = (connection.metadata?.apps as DiscoveredApp[] | undefined) ?? [];
+              const isGoogle = platformName(connection.platform_id) === "Google Play";
               return (
                 <Card key={connection.id}>
                   <CardHeader className="flex flex-row items-start justify-between gap-sm">
                     <div>
                       <CardTitle className="text-base">{connection.display_name ?? "Sem nome"}</CardTitle>
-                      <p className="text-xs text-muted-foreground">Apple App Store Connect</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isGoogle ? "Google Play" : "Apple App Store Connect"}
+                      </p>
                     </div>
                     <Badge variant={storeConnectionStatusVariant(connection.status)}>{storeConnectionStatusLabel(connection.status)}</Badge>
                   </CardHeader>
@@ -258,7 +365,7 @@ export default function StoreConnectionsPage() {
                         {apps.map((app) => (
                           <li key={app.id} className="flex items-center gap-sm text-sm">
                             <span className="font-medium">{app.name}</span>
-                            <span className="text-muted-foreground">{app.bundleId}</span>
+                            <span className="text-muted-foreground">{app.bundleId ?? app.packageName}</span>
                           </li>
                         ))}
                       </ul>
@@ -276,7 +383,10 @@ export default function StoreConnectionsPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => setEditForm({ ...EMPTY_FORM, displayName: connection.display_name ?? "" })}
+                            onClick={() => {
+                              setEditForm({ ...EMPTY_APPLE_FORM, displayName: connection.display_name ?? "" });
+                              setEditGoogleForm({ ...EMPTY_GOOGLE_FORM, displayName: connection.display_name ?? "" });
+                            }}
                           >
                             Editar
                           </Button>
@@ -297,39 +407,70 @@ export default function StoreConnectionsPage() {
                                 </label>
                                 <Input id="edit-name" value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} required disabled={editLoading} />
                               </div>
-                              <div className="grid grid-cols-2 gap-sm">
-                                <div className="space-y-sm">
-                                  <label htmlFor="edit-issuer" className="text-sm font-medium">
-                                    Issuer ID
-                                  </label>
-                                  <Input id="edit-issuer" value={editForm.issuerId} onChange={(e) => setEditForm({ ...editForm, issuerId: e.target.value })} disabled={editLoading} />
-                                </div>
-                                <div className="space-y-sm">
-                                  <label htmlFor="edit-keyid" className="text-sm font-medium">
-                                    Key ID
-                                  </label>
-                                  <Input id="edit-keyid" value={editForm.keyId} onChange={(e) => setEditForm({ ...editForm, keyId: e.target.value })} disabled={editLoading} />
-                                </div>
-                              </div>
-                              <div className="space-y-sm">
-                                <label htmlFor="edit-team" className="text-sm font-medium">
-                                  Team ID
-                                </label>
-                                <Input id="edit-team" value={editForm.teamId} onChange={(e) => setEditForm({ ...editForm, teamId: e.target.value })} disabled={editLoading} />
-                              </div>
-                              <div className="space-y-sm">
-                                <label htmlFor="edit-key" className="text-sm font-medium">
-                                  Private Key (.p8)
-                                </label>
-                                <Textarea
-                                  id="edit-key"
-                                  value={editForm.privateKey}
-                                  onChange={(e) => setEditForm({ ...editForm, privateKey: e.target.value })}
-                                  className="font-mono text-xs"
-                                  rows={5}
-                                  disabled={editLoading}
-                                />
-                              </div>
+                              {isGoogle ? (
+                                <>
+                                  <div className="space-y-sm">
+                                    <label htmlFor="edit-gp-package" className="text-sm font-medium">
+                                      Package Name
+                                    </label>
+                                    <Input
+                                      id="edit-gp-package"
+                                      value={editGoogleForm.packageName}
+                                      onChange={(e) => setEditGoogleForm({ ...editGoogleForm, packageName: e.target.value })}
+                                      disabled={editLoading}
+                                    />
+                                  </div>
+                                  <div className="space-y-sm">
+                                    <label htmlFor="edit-gp-json" className="text-sm font-medium">
+                                      Service Account JSON
+                                    </label>
+                                    <Textarea
+                                      id="edit-gp-json"
+                                      value={editGoogleForm.serviceAccountJson}
+                                      onChange={(e) => setEditGoogleForm({ ...editGoogleForm, serviceAccountJson: e.target.value })}
+                                      className="font-mono text-xs"
+                                      rows={5}
+                                      disabled={editLoading}
+                                    />
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="grid grid-cols-2 gap-sm">
+                                    <div className="space-y-sm">
+                                      <label htmlFor="edit-issuer" className="text-sm font-medium">
+                                        Issuer ID
+                                      </label>
+                                      <Input id="edit-issuer" value={editForm.issuerId} onChange={(e) => setEditForm({ ...editForm, issuerId: e.target.value })} disabled={editLoading} />
+                                    </div>
+                                    <div className="space-y-sm">
+                                      <label htmlFor="edit-keyid" className="text-sm font-medium">
+                                        Key ID
+                                      </label>
+                                      <Input id="edit-keyid" value={editForm.keyId} onChange={(e) => setEditForm({ ...editForm, keyId: e.target.value })} disabled={editLoading} />
+                                    </div>
+                                  </div>
+                                  <div className="space-y-sm">
+                                    <label htmlFor="edit-team" className="text-sm font-medium">
+                                      Team ID
+                                    </label>
+                                    <Input id="edit-team" value={editForm.teamId} onChange={(e) => setEditForm({ ...editForm, teamId: e.target.value })} disabled={editLoading} />
+                                  </div>
+                                  <div className="space-y-sm">
+                                    <label htmlFor="edit-key" className="text-sm font-medium">
+                                      Private Key (.p8)
+                                    </label>
+                                    <Textarea
+                                      id="edit-key"
+                                      value={editForm.privateKey}
+                                      onChange={(e) => setEditForm({ ...editForm, privateKey: e.target.value })}
+                                      className="font-mono text-xs"
+                                      rows={5}
+                                      disabled={editLoading}
+                                    />
+                                  </div>
+                                </>
+                              )}
                               {editError ? <p className="text-sm text-destructive">{editError}</p> : null}
                             </div>
                             <DialogFooter>

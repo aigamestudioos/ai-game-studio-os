@@ -6,6 +6,16 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.10 (Google Play Integration Foundation)
+- `packages/integrations/src/core/{types,http,errors}.ts` — framework compartilhado de adapters (`IntegrationAdapter`, `HealthResult`/`ListResult`/`ItemResult`, `fetchJson()` com timeout, sanitização de erro genérica por status HTTP), extraído do adapter Apple para nunca duplicar por provider (exigência explícita do usuário para este sprint).
+- `packages/integrations/src/google-play/{types,oauth,client,errors,adapter}.ts` — `GooglePlayPublishingAdapter` (connect/disconnect/health/listApps). Autenticação real via OAuth2 Service Account JWT Bearer flow (RFC 7523, RS256, `node:crypto`) trocado por access token em `oauth2.googleapis.com/token` — fluxo diferente do JWT-por-chamada da Apple, não uma cópia. "Validate Connection" cria e imediatamente apaga um draft edit (`POST`/`DELETE .../applications/{packageName}/edits`) contra a Android Publisher API v3, já que essa API não expõe nenhum endpoint de "listar apps".
+- `apps/web/app/settings/store-connections/{page,actions}.tsx` — seletor de provider (Apple/Google) no formulário de criação e edição; dispatch da Server Action por `platforms.name` (`platform_id` já existia, "Google Play" já estava seedado desde o schema original de Publishing).
+
+### Changed — Sprint 2.10
+- `packages/integrations/src/apple/{types,client,errors}.ts` — retrofit sobre `core/` (sem mudança de comportamento; `ListResult`/`ItemResult` compartilhados substituem os tipos locais `{apps}`/`{app}`).
+- `packages/integrations/src/index.ts` — exporta `GooglePlayPublishingAdapter`/`GoogleCredentials`/`GoogleApp` e os tipos de `core/`.
+- `DEFINITION_OF_DONE.md` — nova §11 "Checklist de Segurança SQL", 6 pontos obrigatórios para toda função `SECURITY DEFINER` nova, elevado a requisito permanente pelo usuário após o achado do Sprint 2.9.1.
+
 ### Security — Sprint 2.9.1
 - `supabase/migrations/20260807000002_store_connection_secret_grants_fix.sql` — `get_store_connection_secret()`/`set_store_connection_secret()`/`clear_store_connection_secret()` tinham `EXECUTE` concedido a `anon` em produção (`revoke ... from public` do Sprint 2.9 não bastou — grants diretos a roles nomeadas não são afetados por isso). Confirmado com chamada REST anônima real antes e depois da correção. Ver `DECISIONS.md`/`DEPLOY_RUNBOOK.md` §11 para causa raiz completa.
 

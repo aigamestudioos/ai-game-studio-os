@@ -3,16 +3,47 @@
 import { cookies } from "next/headers";
 import {
   createAdminClient,
+  createPlatformsRepository,
   createServerClient,
   createStoreConnectionsRepository,
   createStudioEventsRepository,
 } from "@agsos/database";
-import { createApplePublishingAdapter, type AppleCredentials } from "@agsos/integrations";
+import {
+  createApplePublishingAdapter,
+  createGooglePlayPublishingAdapter,
+  type AppleCredentials,
+  type GoogleCredentials,
+  type IntegrationAdapter,
+  type ListResult,
+} from "@agsos/integrations";
 import { storeConnectionEvent } from "../../../lib/domain-events";
 
-// Arquitetura (AGSOS-SPEC-008 §3, Sprint 2.9): UI → Server Action →
-// ApplePublishingAdapter → App Store Connect API → Resposta. Nunca chamar
-// a API da Apple da UI/página — só daqui.
+// Arquitetura (AGSOS-SPEC-008 §3, Sprint 2.9/2.10): UI → Server Action →
+// Adapter (Apple ou Google Play) → API do provider → Resposta. Nunca chamar
+// a API de um provider da UI/página — só daqui. Dispatch por provider é
+// feito pelo `platform_id` da conexão (join com `platforms.name`), não por
+// um campo separado — a tabela `platforms` já é a fonte de verdade.
+function buildAdapter(platformName: string, secret: string): { adapter: IntegrationAdapter & { listApps(): Promise<ListResult<{ id: string; name: string }>> } } | { error: string } {
+  if (platformName === "App Store") {
+    let credentials: AppleCredentials;
+    try {
+      credentials = JSON.parse(secret) as AppleCredentials;
+    } catch {
+      return { error: "Credencial armazenada em formato inválido." };
+    }
+    return { adapter: createApplePublishingAdapter(credentials) };
+  }
+  if (platformName === "Google Play") {
+    let credentials: GoogleCredentials;
+    try {
+      credentials = JSON.parse(secret) as GoogleCredentials;
+    } catch {
+      return { error: "Credencial armazenada em formato inválido." };
+    }
+    return { adapter: createGooglePlayPublishingAdapter(credentials) };
+  }
+  return { error: `Provider "${platformName}" ainda não tem um adapter implementado.` };
+}
 //
 // Duas etapas de autorização, propositalmente redundantes: (1) a consulta
 // via `serverClient` (RLS-bound à sessão real do cookie) confirma que o
@@ -47,6 +78,10 @@ export async function validateStoreConnection(
   const eventsRepo = createStudioEventsRepository(serverClient);
   const metadata = { store_connection_id: storeConnectionId };
 
+  const platforms = await createPlatformsRepository(serverClient).list();
+  const platform = platforms.find((p) => p.id === connection.platform_id);
+  if (!platform) return { error: "Platform não encontrada para esta conexão." };
+
   let secret: string | null;
   try {
     secret = await adminRepo.getSecret(storeConnectionId);
@@ -57,14 +92,9 @@ export async function validateStoreConnection(
     return { error: "Nenhuma credencial cadastrada para esta conexão ainda." };
   }
 
-  let credentials: AppleCredentials;
-  try {
-    credentials = JSON.parse(secret) as AppleCredentials;
-  } catch {
-    return { error: "Credencial armazenada em formato inválido." };
-  }
-
-  const adapter = createApplePublishingAdapter(credentials);
+  const built = buildAdapter(platform.name, secret);
+  if ("error" in built) return { error: built.error };
+  const adapter = built.adapter;
 
   const health = await adapter.health();
   await eventsRepo.create({
@@ -111,13 +141,13 @@ export async function validateStoreConnection(
 
   await serverRepo.markValidationResult(
     storeConnectionId,
-    { status: "CONNECTED", lastError: null, discoveredApps: appsResult.apps },
+    { status: "CONNECTED", lastError: null, discoveredApps: appsResult.items },
     { actorType: "USER", actorId: user.id },
   );
 
   await eventsRepo.create({
     studio_id: connection.studio_id,
-    ...storeConnectionEvent("StoreAppsDiscovered", { count: appsResult.apps.length }),
+    ...storeConnectionEvent("StoreAppsDiscovered", { count: appsResult.items.length }),
     event_version: 1,
     aggregate_type: "store_connection",
     aggregate_id: storeConnectionId,
@@ -137,5 +167,5 @@ export async function validateStoreConnection(
     actor_id: user.id,
   });
 
-  return { appsCount: appsResult.apps.length };
+  return { appsCount: appsResult.items.length };
 }

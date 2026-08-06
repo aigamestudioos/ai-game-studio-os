@@ -1446,3 +1446,63 @@ Aplicação das 2 migrations pendentes (2.8+2.9) em produção + achado e corre�
 | Vercel | ✅ deploy do commit `a30a6c7` confirmado `success` |
 | Supabase | ✅ 3 migrations aplicadas em produção (`20260806000001`, `20260807000001`, `20260807000002` — a última é a correção de segurança) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+## Sprint 2.10 — Google Play Integration Foundation
+
+**Data:** 2026-08-08
+
+`GooglePlayPublishingAdapter` (OAuth2 Service Account, RS256) sobre um framework compartilhado novo (`packages/integrations/src/core/`) — Apple retrofitado sobre o mesmo framework no mesmo sprint, sem duplicar adapter por provider. Sem migration nova (schema já agnóstico de provider desde o Sprint 2.8/2.9).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 337 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 12187 |
+| Commits totais | 70 |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Novos arquivos (`packages/integrations/src/core/`, `google-play/`) | 8 |
+| Packages modificados | 2 (`@agsos/integrations`, `web`) |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| `pnpm turbo run build lint typecheck` | ✅ 36/36 tasks |
+| Teste negativo real contra Google (Service Account fabricada, chamada real a `oauth2.googleapis.com/token`) | ✅ rejeitado pelo Google, erro sanitizado sem vazar a chave |
+| Vault local — `set_store_connection_secret()` autenticado | ✅ |
+| Vault local — `get_store_connection_secret()` como `authenticated` | ❌ bloqueado (`403`, esperado) |
+| Vault local — `get_store_connection_secret()` como `anon` | ❌ bloqueado (`401`, esperado) |
+| Vault local — `get_store_connection_secret()` como `service_role` | ✅ (`200`) |
+| SQL Security Checklist (`DEFINITION_OF_DONE.md` §11) | N/A — nenhuma função `SECURITY DEFINER` nova neste sprint |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 18 |
+| Rotas | 18 |
+| Componentes UI | 16 |
+| Providers | 1 |
+| Hooks | 18 |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo, cache quente) | 1s |
+| Tempo do build (apps/web isolado) | 78s |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não deployado nesta sessão — commit local, push pendente de autorização |
+| Supabase | nenhuma migration nova (schema reusado sem alteração) |
+| Ambientes | Local (Docker) validado; Production não tocado neste sprint |

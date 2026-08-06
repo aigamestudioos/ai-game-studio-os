@@ -151,3 +151,18 @@ Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicaç�
 4. Evidências de produção anexadas ao relatório e documentação (`IMPLEMENTATION_LOG.md`/`METRICS.md`) atualizada refletindo o resultado real.
 
 **Se qualquer um desses quatro falhar:** o sprint é relatado como **Parcialmente Concluído**, com o item faltante nomeado explicitamente — nunca como "Concluído" com uma ressalva escondida no meio do texto. Isso não é uma penalidade: é o relatório final continuar sendo uma fonte confiável do estado real do software, mesmo quando o bloqueio é operacional (falta de credencial, infraestrutura de terceiros fora do ar) e não um erro de código.
+
+## 11. Checklist de Segurança SQL — toda função `SECURITY DEFINER` nova (obrigatório desde o Sprint 2.9.1)
+
+**Origem:** Sprint 2.9.1 — `get_store_connection_secret()`/`set_store_connection_secret()`/`clear_store_connection_secret()` (Sprint 2.8/2.9) tinham `EXECUTE` concedido a `anon` em produção, mesmo com `revoke ... from public` nas três. Causa: este projeto Supabase concede `EXECUTE` em função nova diretamente às roles nomeadas (`anon`/`authenticated`/`service_role`), não ao pseudo-role `PUBLIC` — `revoke ... from public` nunca tocou esses grants. O Postgres local não reproduz esse comportamento, então 9/9 testes locais não pegaram o gap. Só uma chamada REST anônima real contra produção revelou o problema.
+
+**Regra permanente:** nenhum sprint que crie uma função `SECURITY DEFINER` nova (ou altere o `GRANT` de uma existente) pode ser declarado **Concluído** sem, todos os seis, confirmados no relatório final:
+
+1. `EXECUTE` concedido só às roles que de fato precisam chamar a função — nunca por padrão do Postgres/do projeto.
+2. `REVOKE EXECUTE ... FROM anon, authenticated` (ou o subconjunto que não deveria ter acesso) explícito na mesma migration — nunca só `FROM PUBLIC` (não é suficiente neste projeto).
+3. Teste autenticado com a role que **deveria** ter acesso — confirma que o caminho legítimo funciona.
+4. Teste anônimo real (`anon key`, sem login, via REST/RPC) contra o ambiente em que a função existe — confirma que quem não deveria ter acesso é bloqueado. **Local não substitui isso** — os comportamentos de `GRANT` padrão divergem entre o Postgres self-hosted e o projeto Supabase hospedado.
+5. `service_role` validado explicitamente quando a função for uma daquelas cujo acesso deveria ser exclusivo dele (ex.: leitura de segredo do Vault) — confirmar que `authenticated` é rejeitado, não só que `service_role` funciona.
+6. Evidência registrada no relatório final (resposta HTTP/mensagem de erro de cada teste, não só "testado").
+
+**Se qualquer um desses seis falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.

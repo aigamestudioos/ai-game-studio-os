@@ -4,6 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.10 — Conecte sua conta Google Play
+
+✨ A tela **Settings → Store Connections** agora também conecta sua conta **Google Play** — escolha o provider (Apple ou Google) e preencha o Package Name + a chave da Service Account
+✨ Botão **Validate** testa a conexão contra o Google de verdade
+🔧 A conexão de rede com o Google (autenticação, tratamento de erro) já está validada e testada; o resultado final com uma Service Account de um app real do Google Play Console ainda não foi confirmado, só falta essa credencial
+
 ## Sprint 2.9 — Conecte sua conta Apple
 
 ✨ Nova tela **Settings → Store Connections** — cadastre sua conta Apple App Store Connect (Issuer ID, Key ID, Team ID, Private Key)

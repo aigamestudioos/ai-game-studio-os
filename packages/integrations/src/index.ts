@@ -1,5 +1,11 @@
-// AGSOS-SPEC-008 §2 — um subdiretório por integração; Apple é a primeira
-// implementada de verdade (Sprint 2.9). `apps/web` nunca importa
-// `./apple/client`/`./apple/jwt` diretamente — só o que este barrel exporta.
+// AGSOS-SPEC-008 §2 — um subdiretório por integração; Apple (Sprint 2.9) e
+// Google Play (Sprint 2.10) compartilham o framework em `./core`. `apps/web`
+// nunca importa `./apple/client`/`./google-play/client` etc. diretamente —
+// só o que este barrel exporta.
 export { createApplePublishingAdapter } from "./apple/adapter";
 export type { AppleApp, AppleCredentials, ApplePublishingAdapter } from "./apple/types";
+
+export { createGooglePlayPublishingAdapter } from "./google-play/adapter";
+export type { GoogleApp, GoogleCredentials, GooglePlayPublishingAdapter } from "./google-play/types";
+
+export type { HealthResult, IntegrationAdapter, ItemResult, ListResult } from "./core/types";

@@ -1881,3 +1881,58 @@ Não realizada — sem conta Apple Developer de teste disponível nesta sessão 
 ### Próximo Sprint
 
 Sprint 2.10 — Google Play Adapter (mesma arquitetura do Apple), conforme decisão do usuário. Antes de declarar QUALQUER função `SECURITY DEFINER` nova seguramente restrita, validar com uma chamada REST anônima real contra produção — não só contra o ambiente local.
+
+## Sprint 2.10 — Google Play Integration Foundation
+
+**Escopo do usuário:** `GooglePlayPublishingAdapter` seguindo exatamente o contrato do Apple Adapter; armazenamento no Vault reusando o fluxo já validado; Validate Connection real contra a API do Google; persistir estado da conexão; eventos tipados; testar fluxos positivos e negativos; atualizar documentação. Fora de escopo (explícito): upload de AAB, criação de releases, publicação, edição da Play Store, screenshots, assets, reviews, analytics.
+
+**Condição arquitetural adicional do usuário:** não copiar o Apple Adapter — extrair tudo que é comum (auth, tratamento de erro, retries, logging, contrato de adapter) em componentes compartilhados em `packages/integrations`, para que Steam/Microsoft/Nintendo/etc. no futuro reusem um framework real, não adapters quase-duplicados.
+
+### Framework compartilhado (`packages/integrations/src/core/`)
+
+- `types.ts` — `IntegrationAdapter` (connect/disconnect/health), `HealthResult`, `ListResult<T>`, `ItemResult<T>`.
+- `http.ts` — `fetchJson()`, wrapper único de fetch+timeout (antes cada provider reimplementava seu próprio `AbortController`).
+- `errors.ts` — `sanitizeHttpError()` (mapeamento genérico por status HTTP: 401/403/404/429/5xx) e `sanitizeUnexpectedError()`, nunca ecoando corpo bruto de resposta nem stack trace que possa conter um segredo.
+
+Apple (Sprint 2.9) foi retrofitado sobre esse framework no mesmo sprint — `apple/{types,client,errors}.ts` passaram a usar os tipos/`fetchJson`/sanitização compartilhados, sem mudança de comportamento (só renomeação interna `apps`→`items`/`app`→`item` para bater com `ListResult`/`ItemResult`).
+
+### Diferença real de protocolo: Apple vs. Google (não é um "quase igual")
+
+A Apple assina um JWT novo (ES256) a cada chamada — API stateless por request. O Google usa Service Account OAuth2: assina um JWT de asserção (RS256, RFC 7523) uma vez, troca por um access token de curta duração em `oauth2.googleapis.com/token`, e usa esse access token (não o JWT) nas chamadas seguintes à Android Publisher API. `packages/integrations/src/google-play/oauth.ts` implementa esse fluxo com `node:crypto` puro, sem adicionar dependência nova (mesmo padrão do JWT da Apple no Sprint 2.9).
+
+### Limitação real da Android Publisher API (não uma limitação de implementação)
+
+Diferente da Apple (`GET /v1/apps` lista todos os apps do time), a Android Publisher API v3 **não tem nenhum endpoint "listar meus apps"** — todo recurso vive sob `applications/{packageName}/...`, exige saber o package name de antemão. Ajuste de design (aprovado pelo usuário via pergunta explícita antes de implementar): campo "Package Name" obrigatório no formulário de credencial Google; "Validate Connection" prova acesso criando um draft edit (`POST .../edits`) e apagando-o imediatamente (`DELETE .../edits/{id}`) — não uma `listApps()` fictícia. `fetchGoogleApps()` retorna, quando a validação passa, um único item com `id`/`name`/`packageName` iguais ao package name configurado (a API também não expõe o nome de exibição do app por nenhum endpoint simples) — documentado no código como limitação real da API, não um placeholder a corrigir depois.
+
+### UI e Server Action
+
+`apps/web/app/settings/store-connections/page.tsx` ganhou um seletor de provider (Apple App Store / Google Play) no diálogo de criação, com campos de credencial próprios de cada um (Apple: Issuer ID/Key ID/Team ID/.p8; Google: Package Name + JSON da Service Account), e o mesmo no diálogo de edição, decidido por qual plataforma (`platforms.name`, via `platform_id` da conexão) o card pertence.
+
+`apps/web/app/settings/store-connections/actions.ts` — `validateStoreConnection()` agora resolve o provider pela `platforms` table (join por `platform_id`) e monta o adapter certo (`buildAdapter()`); nenhuma mudança na estrutura de autorização (RLS via `serverClient` primeiro, `admin-client` só para ler o segredo) herdada do Sprint 2.9.
+
+Nenhuma migration nova foi necessária — `store_connections`/`set_store_connection_secret()`/`get_store_connection_secret()`/`clear_store_connection_secret()` (Sprint 2.8/2.9) já eram agnósticas de provider (guardam/devolvem uma string JSON opaca), e a platform "Google Play" já estava seedada desde o schema original de Publishing (`supabase/seed/01_global.sql`). Por não haver função `SECURITY DEFINER` nova, o Checklist de Segurança SQL (`DEFINITION_OF_DONE.md` §11) não se aplica a este sprint — confirmado, não pulado.
+
+### Testes executados
+
+**Positivo/negativo em rede real (sem Docker), Google Play adapter:**
+1. JSON de Service Account malformado → `health()` retorna erro sanitizado, sem nenhuma chamada de rede (`"JSON da Service Account inválido ou incompleto"`).
+2. Service Account sintaticamente válida (chave RSA 2048 gerada localmente) mas nunca registrada no Google, `packageName` fabricado → chamada real a `oauth2.googleapis.com/token` (confirmado: não é um mock), Google rejeita, adapter retorna erro sanitizado sem nenhum fragmento da chave privada ou do JWT no corpo da mensagem. Mesmo padrão usado para validar o Apple Adapter no Sprint 2.9 (credencial sintaticamente válida, mas fabricada, contra o provedor real).
+
+**Positivo/negativo no Supabase local (Docker), fluxo de Vault (reuso do Sprint 2.8/2.9.1):**
+1. Login real como `founder@aigamestudio.os` (senha local `demo-password-local-only`, seed) → `POST /rest/v1/store_connections` com `platform_id` = "Google Play" (`10000000-0000-0000-0000-000000000002`, já seedado) → criação bem-sucedida.
+2. `set_store_connection_secret()` autenticado com um JSON de credencial Google → sucesso.
+3. `get_store_connection_secret()` como `authenticated` → `403 permission denied` (bloqueado, como esperado desde a correção do Sprint 2.9.1).
+4. `get_store_connection_secret()` como `anon` (sem login) → `401 permission denied` (bloqueado).
+5. `get_store_connection_secret()` como `service_role` → `200`, segredo correto devolvido.
+
+Resultado: o mesmo comportamento de GRANT validado para a Apple no Sprint 2.9.1 se aplica sem nenhuma mudança para a Google Play, porque as três funções são genuinamente agnósticas de provider — nenhum SQL novo, nenhuma regressão.
+
+**Build/lint/typecheck:** `pnpm turbo run build lint typecheck` — 36/36 tasks (12 packages × 3), incluindo o build completo do Next.js (18 rotas, incluindo `/settings/store-connections`).
+
+### Pendência explícita
+
+Validação funcional real (`Validate Connection` bem-sucedido contra uma app de verdade no Google Play Console) não foi possível nesta sessão — sem Service Account real associada a um app no Play Console disponível. Mesmo vocabulário do Sprint 2.9 (`DECISIONS.md`): **integração de transporte validada** (conectividade, protocolo OAuth2, autenticação, tratamento de erro — provado contra o Google real) vs. **integração funcional pendente** (um `Validate Connection` que de fato retorna sucesso, com uma Service Account real).
+
+### Próximo Sprint
+
+Sprint 2.11 — UI consolidada de Store Connections (conforme sequência definida pelo usuário após o Sprint 2.9.1), ou validação funcional real do Google Play assim que uma Service Account de teste existir.
