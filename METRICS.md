@@ -1506,3 +1506,65 @@ Aplicação das 2 migrations pendentes (2.8+2.9) em produção + achado e corre�
 | Vercel | não deployado nesta sessão — commit local, push pendente de autorização |
 | Supabase | nenhuma migration nova (schema reusado sem alteração) |
 | Ambientes | Local (Docker) validado; Production não tocado neste sprint |
+
+## Sprint 2.10.1 — Integration Health / Observability
+
+**Data:** 2026-08-09
+
+Painel de Integration Health por Store Connection, sobre um evento operacional novo (`StoreConnectionCallCompleted`) agregado em read-side sobre `studio_events` já existente — sem migration, sem tabela de métricas nova.
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 345 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 12731 |
+| Commits totais | 71 |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Arquivos alterados/novos neste sprint | 13 (3 novos: `integration-health.ts`, `health-actions.ts`, `use-integration-health.ts`) |
+| Packages modificados | 2 (`@agsos/database`, `@agsos/integrations`) + `web` |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| `pnpm turbo run build lint typecheck` | ✅ 36/36 tasks |
+| Fixtures de agregação (`node --experimental-strip-types`) | ✅ 21/21 assertions, 12 cenários (10 pedidos + 2 extras) |
+| Supabase local — insert autenticado `StoreConnectionCallCompleted` | ✅ `201` (sucesso e falha) |
+| Supabase local — insert com `studio_id` de outro Studio | ❌ bloqueado (`403`, RLS também cobre insert) |
+| Supabase local — isolamento de leitura entre Studios | ✅ segundo Studio vê `[]`, founder vê só as suas 2 linhas |
+| Playwright — clique real em Validate atualiza o painel ao vivo | ✅ (Google Play, credencial fabricada, chamada real ao Google) |
+| Playwright — light/dark, desktop/tablet/mobile | ✅ sem overflow, contraste ok nos dois temas |
+| Playwright — erros de console | ✅ nenhum reproduzível (um `401` isolado não se repetiu numa segunda execução idêntica) |
+| SQL Security Checklist (`DEFINITION_OF_DONE.md` §11) | N/A — nenhuma função `SECURITY DEFINER` nova |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Páginas | 18 |
+| Rotas | 18 |
+| Componentes UI | 16 |
+| Providers | 1 |
+| Hooks | 19 |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Tempo do build (monorepo completo, cache quente) | 0s |
+| Tempo do build (apps/web isolado) | 69s |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não deployado nesta sessão — commit local, push pendente de autorização |
+| Supabase | nenhuma migration nova |
+| Ambientes | Local (Docker, serviços reduzidos) validado; Production não tocado neste sprint |

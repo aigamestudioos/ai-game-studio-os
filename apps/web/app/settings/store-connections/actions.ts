@@ -44,6 +44,58 @@ function buildAdapter(platformName: string, secret: string): { adapter: Integrat
   }
   return { error: `Provider "${platformName}" ainda não tem um adapter implementado.` };
 }
+
+// Sprint 2.10.1 — Integration Health. Mapeia `platforms.name` (schema,
+// Sprint 2.8) para o vocabulário estável usado em métricas/eventos
+// operacionais (`StoreConnectionCallCompletedPayload.provider`) — nunca o
+// nome de exibição direto, que é texto livre editável no schema.
+function providerCode(platformName: string): "APPLE" | "GOOGLE_PLAY" | null {
+  if (platformName === "App Store") return "APPLE";
+  if (platformName === "Google Play") return "GOOGLE_PLAY";
+  return null;
+}
+
+// Mede a duração real da chamada e emite `StoreConnectionCallCompleted` —
+// nunca chama o adapter de novo (isso duplicaria a chamada externa), só
+// envolve a chamada já feita pelo call site. `isRetry` sempre `false`
+// nesta versão: não existe ainda nenhum caminho de retry explícito para
+// Validate Connection (diferente do Retry Build do Release Pipeline) —
+// documentado como limitação conhecida, nunca inferido por heurística de
+// timestamp (instrução explícita do usuário).
+async function recordCallCompleted<T extends { ok: boolean; code?: string }>(
+  params: {
+    eventsRepo: ReturnType<typeof createStudioEventsRepository>;
+    studioId: string;
+    storeConnectionId: string;
+    provider: "APPLE" | "GOOGLE_PLAY";
+    operation: "HEALTH" | "LIST_APPS" | "CONNECT" | "DISCONNECT";
+    actorId: string;
+    metadata: Record<string, unknown>;
+  },
+  fn: () => Promise<T>,
+): Promise<T> {
+  const startedAt = Date.now();
+  const result = await fn();
+  const durationMs = Date.now() - startedAt;
+  await params.eventsRepo.create({
+    studio_id: params.studioId,
+    ...storeConnectionEvent("StoreConnectionCallCompleted", {
+      provider: params.provider,
+      operation: params.operation,
+      success: result.ok,
+      durationMs,
+      isRetry: false,
+      errorCode: result.ok ? undefined : (result.code ?? "UNKNOWN"),
+    }),
+    event_version: 1,
+    aggregate_type: "store_connection",
+    aggregate_id: params.storeConnectionId,
+    metadata: params.metadata,
+    actor_type: "USER",
+    actor_id: params.actorId,
+  });
+  return result;
+}
 //
 // Duas etapas de autorização, propositalmente redundantes: (1) a consulta
 // via `serverClient` (RLS-bound à sessão real do cookie) confirma que o
@@ -96,7 +148,13 @@ export async function validateStoreConnection(
   if ("error" in built) return { error: built.error };
   const adapter = built.adapter;
 
-  const health = await adapter.health();
+  const provider = providerCode(platform.name);
+  if (!provider) return { error: `Provider "${platform.name}" sem código estável para métricas.` };
+
+  const health = await recordCallCompleted(
+    { eventsRepo, studioId: connection.studio_id, storeConnectionId, provider, operation: "HEALTH", actorId: user.id, metadata },
+    () => adapter.health(),
+  );
   await eventsRepo.create({
     studio_id: connection.studio_id,
     ...storeConnectionEvent("StoreConnectionHealthChecked", { ok: health.ok }),
@@ -123,7 +181,10 @@ export async function validateStoreConnection(
     return { error: health.error };
   }
 
-  const appsResult = await adapter.listApps();
+  const appsResult = await recordCallCompleted(
+    { eventsRepo, studioId: connection.studio_id, storeConnectionId, provider, operation: "LIST_APPS", actorId: user.id, metadata },
+    () => adapter.listApps(),
+  );
   if (!appsResult.ok) {
     await serverRepo.markValidationResult(storeConnectionId, { status: "ERROR", lastError: appsResult.error }, { actorType: "USER", actorId: user.id });
     await eventsRepo.create({

@@ -1,4 +1,5 @@
 import { fetchJson } from "../core/http";
+import { classifyHttpStatus } from "../core/errors";
 import type { HealthResult, ListResult } from "../core/types";
 import { getGoogleAccessToken, parseServiceAccount } from "./oauth";
 import { sanitizeGoogleError, sanitizeUnexpectedError } from "./errors";
@@ -27,15 +28,17 @@ async function deleteEdit(packageName: string, editId: string, accessToken: stri
 
 export async function checkGoogleHealth(credentials: GoogleCredentials): Promise<HealthResult> {
   const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
-  if (!serviceAccount) return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key)." };
+  if (!serviceAccount) {
+    return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
+  }
 
   const tokenResult = await getGoogleAccessToken(serviceAccount);
-  if (!tokenResult.ok) return { ok: false, error: tokenResult.error };
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
 
   try {
     const created = await createDraftEdit(credentials.packageName, tokenResult.accessToken);
     if (created.status < 200 || created.status >= 300) {
-      return { ok: false, error: sanitizeGoogleError(created.status) };
+      return { ok: false, error: sanitizeGoogleError(created.status), code: classifyHttpStatus(created.status) };
     }
     const editId = (created.body as { id?: string } | null)?.id;
     if (editId) {
@@ -45,7 +48,7 @@ export async function checkGoogleHealth(credentials: GoogleCredentials): Promise
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: sanitizeUnexpectedError() };
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
   }
 }
 
@@ -55,7 +58,7 @@ export async function checkGoogleHealth(credentials: GoogleCredentials): Promise
 // verdade (ver nota em `types.ts`).
 export async function fetchGoogleApps(credentials: GoogleCredentials): Promise<ListResult<GoogleApp>> {
   const health = await checkGoogleHealth(credentials);
-  if (!health.ok) return { ok: false, error: health.error };
+  if (!health.ok) return { ok: false, error: health.error, code: health.code };
   const app: GoogleApp = { id: credentials.packageName, name: credentials.packageName, packageName: credentials.packageName };
   return { ok: true, items: [app] };
 }

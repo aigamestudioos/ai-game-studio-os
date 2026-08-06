@@ -4,6 +4,13 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.10.1 — Veja a saúde das suas integrações
+
+✨ Cada conexão em **Settings → Store Connections** agora mostra um painel **Integration Health**: está funcionando agora? Quando foi a última vez que funcionou? Com que frequência tem falhado nas últimas 24h e 7 dias? Quanto tempo cada chamada está levando?
+✨ Status visual rápido: Saudável, Degradado, Com erro, Nunca validado ou Desconectado
+✨ Histórico das últimas chamadas, com horário e resultado de cada uma
+🔧 Tudo calculado a partir do que já acontece quando você clica em Validate — nada de configuração nova, nenhuma chamada extra às lojas
+
 ## Sprint 2.10 — Conecte sua conta Google Play
 
 ✨ A tela **Settings → Store Connections** agora também conecta sua conta **Google Play** — escolha o provider (Apple ou Google) e preencha o Package Name + a chave da Service Account

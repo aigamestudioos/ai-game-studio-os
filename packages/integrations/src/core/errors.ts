@@ -24,6 +24,23 @@ export function sanitizeHttpError(status: number | null): string {
   return "Não foi possível validar a conexão.";
 }
 
+// Código estável (Sprint 2.10.1 — Integration Health) para instrumentação
+// de métricas (`errorCode` em `StoreConnectionCallCompleted`) — nunca a
+// mensagem sanitizada em si (que pode mudar de texto sem aviso) nem o
+// status HTTP cru (não é estável entre providers: a Apple pode retornar
+// 200 com um código de erro no corpo). Só os buckets abaixo, sempre os
+// mesmos independente do provider.
+export type ErrorCode = "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "RATE_LIMITED" | "SERVER_ERROR" | "UNEXPECTED_ERROR" | "UNKNOWN";
+
+export function classifyHttpStatus(status: number | null): ErrorCode {
+  if (status === 401) return "UNAUTHORIZED";
+  if (status === 403) return "FORBIDDEN";
+  if (status === 404) return "NOT_FOUND";
+  if (status === 429) return "RATE_LIMITED";
+  if (status !== null && status >= 500) return "SERVER_ERROR";
+  return "UNKNOWN";
+}
+
 // Nunca deixar exceções vazarem uma credencial via stack trace/message
 // (ex.: erro de parsing de chave/JSON inválido costuma ecoar parte do
 // input). Chamado sempre que uma exceção NÃO vinda de uma resposta HTTP

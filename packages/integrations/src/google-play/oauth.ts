@@ -1,5 +1,6 @@
 import { createSign } from "node:crypto";
 import { fetchJson } from "../core/http";
+import { classifyHttpStatus } from "../core/errors";
 import { sanitizeGoogleError, sanitizeUnexpectedError } from "./errors";
 
 // Autenticação Google (diferente da Apple): Service Account OAuth2 JWT
@@ -33,7 +34,7 @@ export function parseServiceAccount(serviceAccountJson: string): ServiceAccount 
   }
 }
 
-export type AccessTokenResult = { ok: true; accessToken: string } | { ok: false; error: string };
+export type AccessTokenResult = { ok: true; accessToken: string } | { ok: false; error: string; code?: string };
 
 export async function getGoogleAccessToken(serviceAccount: ServiceAccount): Promise<AccessTokenResult> {
   const tokenUri = serviceAccount.token_uri || DEFAULT_TOKEN_URI;
@@ -65,12 +66,12 @@ export async function getGoogleAccessToken(serviceAccount: ServiceAccount): Prom
     });
 
     if (status < 200 || status >= 300) {
-      return { ok: false, error: sanitizeGoogleError(status) };
+      return { ok: false, error: sanitizeGoogleError(status), code: classifyHttpStatus(status) };
     }
     const accessToken = (body as { access_token?: string } | null)?.access_token;
-    if (!accessToken) return { ok: false, error: sanitizeUnexpectedError() };
+    if (!accessToken) return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
     return { ok: true, accessToken };
   } catch {
-    return { ok: false, error: sanitizeUnexpectedError() };
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
   }
 }

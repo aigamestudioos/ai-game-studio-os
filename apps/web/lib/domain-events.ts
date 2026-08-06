@@ -56,13 +56,33 @@ export type StoreConnectionDeletedPayload = Record<string, never>;
 export type StoreConnectionHealthCheckedPayload = { ok: boolean };
 export type StoreAppsDiscoveredPayload = { count: number };
 
+// Sprint 2.10.1 — evento OPERACIONAL (Integration Health), não de domínio:
+// os eventos acima (`StoreConnectionValidated`, `StoreConnectionHealthChecked`,
+// `StoreAppsDiscovered`) narram o que aconteceu com a Store Connection
+// como entidade de negócio; `StoreConnectionCallCompleted` narra uma
+// chamada externa individual (Apple/Google), para alimentar métricas
+// (latência, success/failure/retry rate) — os dois nunca deveriam ser
+// confundidos nem fundidos num só. Nunca inclui credencial, JWT, Private
+// Key, Service Account JSON, corpo bruto de resposta ou stack trace —
+// `errorCode` é sempre um código estável e sanitizado (nunca a mensagem
+// completa nem a resposta do provider).
+export type StoreConnectionCallCompletedPayload = {
+  provider: "APPLE" | "GOOGLE_PLAY";
+  operation: "HEALTH" | "LIST_APPS" | "CONNECT" | "DISCONNECT";
+  success: boolean;
+  durationMs: number;
+  isRetry: boolean;
+  errorCode?: string;
+};
+
 export type StoreConnectionEvent =
   | { name: "StoreConnectionCreated"; payload: StoreConnectionCreatedPayload }
   | { name: "StoreConnectionUpdated"; payload: StoreConnectionUpdatedPayload }
   | { name: "StoreConnectionValidated"; payload: StoreConnectionValidatedPayload }
   | { name: "StoreConnectionDeleted"; payload: StoreConnectionDeletedPayload }
   | { name: "StoreConnectionHealthChecked"; payload: StoreConnectionHealthCheckedPayload }
-  | { name: "StoreAppsDiscovered"; payload: StoreAppsDiscoveredPayload };
+  | { name: "StoreAppsDiscovered"; payload: StoreAppsDiscoveredPayload }
+  | { name: "StoreConnectionCallCompleted"; payload: StoreConnectionCallCompletedPayload };
 
 export type StoreConnectionEventName = StoreConnectionEvent["name"];
 

@@ -1936,3 +1936,78 @@ Validação funcional real (`Validate Connection` bem-sucedido contra uma app de
 ### Próximo Sprint
 
 Sprint 2.11 — UI consolidada de Store Connections (conforme sequência definida pelo usuário após o Sprint 2.9.1), ou validação funcional real do Google Play assim que uma Service Account de teste existir.
+
+## Sprint 2.10.1 — Integration Health / Observability
+
+**Escopo do usuário:** com Apple e Google Adapters prontos, o gargalo deixou de ser infraestrutura e passou a ser observabilidade — visibilidade do comportamento das integrações antes de conectar contas reais. Escopo fixado pelo usuário com definições formais de produto (nunca decididas pelo Claude): janelas oficiais 24h/7d (sem janela configurável), 6 métricas oficiais (Success/Failure/Retry Rate, Call Count, Latência, Last Check), 5 status oficiais (`NOT_VALIDATED`/`HEALTHY`/`DEGRADED`/`ERROR`/`DISCONNECTED`) com regras de transição exatas, um evento operacional novo (`StoreConnectionCallCompleted`) com payload e regras de segurança explícitas. Fora de escopo (explícito): retry automático, cron, queue, worker, alertas externos, e-mail, Slack, observabilidade genérica, OpenTelemetry, nova integração.
+
+### Auditoria inicial (item 1 do escopo)
+
+`studio_events` já existia (Sprint 1.7, append-only, RLS por Studio) e já era usado para os eventos de domínio de Store Connection (`StoreConnectionValidated`/`HealthChecked`/`StoreAppsDiscovered`, Sprint 2.8/2.9) — mas nenhum desses eventos carregava duração, código de erro estável, ou uma marcação explícita de retry, então nenhuma métrica pedida (latência, success/failure/retry rate, call count) era computável a partir do que já existia. Decisão: um evento operacional novo, não reaproveitar/estender os de domínio (ver `DECISIONS.md` — distinção formal entre os dois tipos).
+
+### Evento operacional novo: `StoreConnectionCallCompleted`
+
+```
+{
+  provider: "APPLE" | "GOOGLE_PLAY";
+  operation: "HEALTH" | "LIST_APPS" | "CONNECT" | "DISCONNECT";
+  success: boolean;
+  durationMs: number;
+  isRetry: boolean;
+  errorCode?: string;
+}
+```
+
+Emitido em `apps/web/app/settings/store-connections/actions.ts` (`recordCallCompleted()`), envolvendo — nunca duplicando — as chamadas já existentes a `adapter.health()`/`adapter.listApps()` dentro de `validateStoreConnection()`: mede `Date.now()` antes/depois da mesma chamada, não faz uma segunda chamada externa só para medir. `isRetry` é sempre `false` nesta versão — não existe ainda nenhum botão de retry explícito para Validate Connection (diferente do Retry Build do Release Pipeline, Sprint 2.5) — documentado como limitação conhecida, nunca inferido por heurística de timestamp (instrução explícita do usuário: "Não inferir retry por timestamps").
+
+`errorCode` vem de um classificador novo e estável, `classifyHttpStatus()` (`packages/integrations/src/core/errors.ts`) — buckets fixos (`UNAUTHORIZED`/`FORBIDDEN`/`NOT_FOUND`/`RATE_LIMITED`/`SERVER_ERROR`/`UNEXPECTED_ERROR`/`UNKNOWN`), nunca o texto da mensagem sanitizada (que pode mudar) nem o status HTTP cru (não é estável entre providers — a Apple pode responder `200` com um código de erro no corpo). `HealthResult`/`ListResult`/`ItemResult` (`core/types.ts`) ganharam um campo `code?: string` opcional só para isso — nunca faz parte do que é exibido ao usuário (`error` continua sendo só a mensagem sanitizada).
+
+### Agregação read-side (`apps/web/lib/integration-health.ts`)
+
+Funções puras, sem nenhuma dependência de banco — testadas com fixtures, não integração:
+- `computeIntegrationHealthStatus()` — implementa as 5 regras oficiais exatamente como especificadas pelo usuário (`DISCONNECTED` > `NOT_VALIDATED` > `ERROR` > `DEGRADED`/`HEALTHY`, nessa ordem de prioridade).
+- `aggregateCallWindow()` — Success/Failure/Retry Rate, Call Count, latência média e p95 (por índice sobre o array ordenado — sem biblioteca, correto para o volume esperado de chamadas de Validate Connection, não telemetria de alto volume). Taxas são `null` (não `0`) quando a janela não tem nenhuma chamada — "sem dado" é uma resposta diferente de "sempre falhou".
+- `lastCheckOf()` — provider, sucesso, horário, duração, `errorCode` sanitizado da chamada mais recente.
+- `buildConnectionHealthSummary()` — combina os três acima por Store Connection.
+
+`apps/web/app/settings/store-connections/health-actions.ts` (`getIntegrationHealthSummary()`) busca os dados reais (conexões + platforms + `studio_events` dos últimos 7 dias, via `serverClient` — a mesma sessão de cookie de sempre) e chama as funções puras — só leitura, nenhuma chamada externa, nenhuma escrita. Isolação por Studio vem inteiramente da RLS já existente (`studio_events_isolation`), não é refeita manualmente.
+
+### UI
+
+Painel "Integration Health" dentro de cada card de Store Connection em `/settings/store-connections` (não um widget novo no Dashboard) — decisão de local: os dados são inerentemente por-conexão (Apple vs. Google têm métricas separadas), e a tela já tem o contexto de cada conexão renderizado; um widget de Dashboard resumindo tudo pode vir depois se/quando fizer sentido agregação cross-Studio, fora de escopo aqui. Badge de status (vocabulário `IntegrationHealthStatus`, cores/labels em `apps/web/lib/store-connection-status.ts`, deliberadamente separado do badge de `IntegrationStatus` já existente — nunca confundir os dois), grid de métricas 24h/7d, última duração/chamada, lista das 5 chamadas mais recentes. `handleValidate()` chama `refreshHealth()` no `finally`, então o painel reflete a chamada que acabou de acontecer sem esperar nenhum poll.
+
+### Testes executados
+
+**Fixtures (função pura, sem banco)** — `node --experimental-strip-types` rodando `integration-health.ts` diretamente contra 12 cenários (os 10 pedidos pelo usuário + 2 extras de latência/retry), 21 assertions, todas verdes: sucesso simulado via fixture (Apple), erro real sanitizado (Apple e Google, com `errorCode` propagado), cálculo 24h (ignora fora da janela), cálculo 7d (ignora fora da janela), conexão sem histórico (`NOT_VALIDATED`, `successRate` `null`), última chamada falhou (`ERROR` mesmo com sucesso anterior), última chamada passou após falha anterior (`DEGRADED`), ausência de eventos, isolamento entre Studios (ver abaixo — não é um teste de função pura, é de banco), `DISCONNECTED` tem prioridade sobre o histórico.
+
+**Supabase local (Docker, `-x realtime,storage-api,imgproxy,studio,edge-runtime,logflare,vector` — os serviços pesados não excluídos causaram falha repetida de health-check neste ambiente por pressão de memória; excluí-los não afeta nada testado aqui, que usa só Postgres/PostgREST/GoTrue):**
+1. Inserção autenticada de `StoreConnectionCallCompleted` (sucesso, Apple) → `201`.
+2. Inserção autenticada (falha, Google, `errorCode: UNAUTHORIZED`) → `201`.
+3. Inserção autenticada com `studio_id` de outro Studio (adulterado) → `403 permission denied` (RLS bloqueia insert também, não só select).
+4. **Isolamento entre Studios:** criado um segundo Studio + usuário via Admin API; logado como esse segundo usuário, `GET /studio_events?event_name=eq.StoreConnectionCallCompleted` retornou `[]` — enquanto o founder, autenticado, via exatamente as 2 linhas dele. RLS (`studio_events_isolation`, já existente desde o Sprint 1.7) cobre o evento novo sem nenhuma alteração de schema.
+
+**Playwright (contra Supabase local, nunca produção — `.env.local` trocado temporariamente e restaurado ao final da sessão de teste, confirmado com `diff`):**
+- Clique real em "Validate" (conexão Google Play com credencial fabricada, Sprint 2.10) → chamada de rede real ao Google, rejeitada, painel de Integration Health atualizado ao vivo (`Call Count` 1→2, novo item no histórico recente, badge mudou para "Com erro") sem esperar reload.
+- Tema claro e escuro (desktop) — contraste e badges legíveis nos dois.
+- Mobile (390×844) e tablet (768×1024) — grid de métricas colapsa para 2 colunas sem overflow horizontal.
+- Zero erros de console reproduzíveis (um erro `401` isolado apareceu numa única execução e não se repetiu numa segunda rodada idêntica com captura de todas as respostas HTTP — não rastreável a nenhuma chamada deste sprint, já que toda chamada externa acontece no processo Node do servidor, nunca exposta como fetch do browser).
+
+**Build/lint/typecheck:** `pnpm turbo run build lint typecheck` — 36/36 tasks, incluindo o build completo do Next.js.
+
+### Segurança
+
+Nenhuma credencial, JWT, Service Account JSON, resposta bruta ou stack trace passa pelo evento novo ou pelo painel — confirmado por construção (o payload só tem `provider`/`operation`/`success`/`durationMs`/`isRetry`/`errorCode`, nenhum campo de texto livre vindo direto de uma exceção ou resposta de API) e por revisão manual de cada ponto onde `error`/`code` são atribuídos em `apple/client.ts` e `google-play/{client,oauth}.ts`. Nenhuma função `SECURITY DEFINER` nova — Checklist de Segurança SQL (`DEFINITION_OF_DONE.md` §11) não se aplica, confirmado, não pulado.
+
+### Sem migration nova
+
+Todo o sprint roda sobre `studio_events` (já existente desde o Sprint 1.7) — sem tabela de métricas dedicada, sem alteração de schema. `listByEventNameSince()` (`studio-events-repository.ts`) é só um novo método de leitura sobre a tabela existente.
+
+### Débitos técnicos registrados
+
+- `isRetry` é sempre `false` nesta versão — Retry Rate hoje sempre mostra `0%`, corretamente refletindo a realidade (nenhum retry explícito existe ainda), não um bug. Quando/se um botão de retry para Validate Connection for adicionado, ele precisa marcar `isRetry: true` explicitamente na chamada instrumentada.
+- p95 de latência calculado por índice sobre o array já ordenado (sem biblioteca de percentil) — correto para o volume esperado (chamadas de Validate Connection, não telemetria de alto volume); reavaliar só se isso deixar de ser verdade.
+- Painel de Integration Health vive em `/settings/store-connections`, não no Dashboard — decisão de escopo deste sprint (dados são por-conexão); um resumo agregado no Dashboard é trabalho futuro, não decidido aqui.
+
+### Próximo Sprint
+
+Retomar a sequência definida pelo usuário antes deste sprint: 2.11 — Upload real (AAB/IPA), depois 2.12 (Releases automáticos), 2.13 (Publicação), 2.14 (Reviews Sync), 2.15 (Crash & Analytics) — ou validação funcional real do Google Play assim que uma Service Account de teste existir, o que vier primeiro.

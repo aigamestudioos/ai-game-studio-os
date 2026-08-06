@@ -6,6 +6,18 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.10.1 (Integration Health / Observability)
+- `apps/web/lib/integration-health.ts` — funções puras de agregação (`computeIntegrationHealthStatus`, `aggregateCallWindow`, `lastCheckOf`, `buildConnectionHealthSummary`), sem nenhuma dependência de banco; janelas oficiais 24h/7d, status `NOT_VALIDATED`/`HEALTHY`/`DEGRADED`/`ERROR`/`DISCONNECTED`.
+- Evento operacional novo `StoreConnectionCallCompleted` (`apps/web/lib/domain-events.ts`) — uma linha por chamada externa real (Apple/Google), nunca inclui credencial/JWT/Service Account/resposta bruta/stack trace; `errorCode` sempre um código estável (`packages/integrations/src/core/errors.ts` — `classifyHttpStatus()`).
+- `apps/web/app/settings/store-connections/health-actions.ts` — Server Action `getIntegrationHealthSummary()`, só leitura, agrega `studio_events` (RLS já isola por Studio) sobre as funções puras acima.
+- `apps/web/hooks/use-integration-health.ts` + painel "Integration Health" em `apps/web/app/settings/store-connections/page.tsx` — status por provider, Success/Failure Rate 24h e 7d, Call Count, Retry Rate, latência média/p95, última duração, último check, histórico recente.
+
+### Changed — Sprint 2.10.1
+- `packages/integrations/src/core/types.ts` — `HealthResult`/`ListResult`/`ItemResult` ganham `code?: string` opcional (só para instrumentação, nunca exibido ao usuário).
+- `packages/integrations/src/apple/client.ts`, `google-play/{client,oauth}.ts` — passam a classificar cada erro num `code` estável, além da mensagem sanitizada já existente.
+- `packages/database/src/repositories/studio-events-repository.ts` — novo método `listByEventNameSince()`.
+- `apps/web/app/settings/store-connections/actions.ts` — `validateStoreConnection()` mede a duração real de cada chamada ao adapter e emite `StoreConnectionCallCompleted` (sem duplicar a chamada externa).
+
 ### Added — Sprint 2.10 (Google Play Integration Foundation)
 - `packages/integrations/src/core/{types,http,errors}.ts` — framework compartilhado de adapters (`IntegrationAdapter`, `HealthResult`/`ListResult`/`ItemResult`, `fetchJson()` com timeout, sanitização de erro genérica por status HTTP), extraído do adapter Apple para nunca duplicar por provider (exigência explícita do usuário para este sprint).
 - `packages/integrations/src/google-play/{types,oauth,client,errors,adapter}.ts` — `GooglePlayPublishingAdapter` (connect/disconnect/health/listApps). Autenticação real via OAuth2 Service Account JWT Bearer flow (RFC 7523, RS256, `node:crypto`) trocado por access token em `oauth2.googleapis.com/token` — fluxo diferente do JWT-por-chamada da Apple, não uma cópia. "Validate Connection" cria e imediatamente apaga um draft edit (`POST`/`DELETE .../applications/{packageName}/edits`) contra a Android Publisher API v3, já que essa API não expõe nenhum endpoint de "listar apps".

@@ -21,9 +21,15 @@ import { Textarea } from "../../../components/ui/textarea";
 import { useAuth } from "../../../hooks/use-auth";
 import { useCurrentStudio } from "../../../hooks/use-current-studio";
 import { useStoreConnections } from "../../../hooks/use-store-connections";
+import { useIntegrationHealth } from "../../../hooks/use-integration-health";
 import { toast } from "../../../hooks/use-toast";
 import { getBrowserClient } from "../../../lib/supabase-client";
-import { storeConnectionStatusLabel, storeConnectionStatusVariant } from "../../../lib/store-connection-status";
+import {
+  integrationHealthStatusLabel,
+  integrationHealthStatusVariant,
+  storeConnectionStatusLabel,
+  storeConnectionStatusVariant,
+} from "../../../lib/store-connection-status";
 
 // Sprint 2.9 (Apple) + Sprint 2.10 (Google Play) — seletor de provider no
 // formulário de criação; cada provider tem seus próprios campos de
@@ -39,11 +45,29 @@ const EMPTY_GOOGLE_FORM: GoogleForm = { displayName: "", packageName: "", servic
 
 type DiscoveredApp = { id: string; name: string; bundleId?: string; sku?: string; packageName?: string };
 
+// Sprint 2.10.1 — Integration Health. `null` (janela sem chamadas) vira
+// "—", nunca "0%" — 0% de sucesso de 0 chamadas seria uma afirmação falsa.
+function formatPercent(rate: number | null): string {
+  return rate === null ? "—" : `${Math.round(rate * 100)}%`;
+}
+
+function formatMs(ms: number | null): string {
+  return ms === null ? "—" : `${Math.round(ms)}ms`;
+}
+
+const OPERATION_LABELS: Record<string, string> = {
+  HEALTH: "Health check",
+  LIST_APPS: "Listar Apps",
+  CONNECT: "Conectar",
+  DISCONNECT: "Desconectar",
+};
+
 export default function StoreConnectionsPage() {
   const { session } = useAuth();
   const { studio } = useCurrentStudio(session);
   const { connections, error, createConnection, updateDisplayName, reconnect, disconnect, removeConnection, validate } =
     useStoreConnections(session, studio?.id);
+  const { summaries: healthSummaries, refresh: refreshHealth } = useIntegrationHealth(session);
 
   const [platforms, setPlatforms] = useState<PlatformsRow[] | undefined>(undefined);
   const [createOpen, setCreateOpen] = useState(false);
@@ -162,6 +186,9 @@ export default function StoreConnectionsPage() {
       }
     } finally {
       setValidatingId(null);
+      // Refletir a chamada que acabou de acontecer no painel de Integration
+      // Health, sucesso ou falha — nunca esperar um poll para isso.
+      await refreshHealth();
     }
   }
 
@@ -338,6 +365,7 @@ export default function StoreConnectionsPage() {
             {connections.map((connection) => {
               const apps = (connection.metadata?.apps as DiscoveredApp[] | undefined) ?? [];
               const isGoogle = platformName(connection.platform_id) === "Google Play";
+              const health = healthSummaries?.find((h) => h.storeConnectionId === connection.id);
               return (
                 <Card key={connection.id}>
                   <CardHeader className="flex flex-row items-start justify-between gap-sm">
@@ -359,6 +387,77 @@ export default function StoreConnectionsPage() {
                     </div>
 
                     {connection.last_error ? <p className="text-sm text-destructive">{connection.last_error}</p> : null}
+
+                    {health ? (
+                      <div className="space-y-sm rounded-sm border border-border p-sm">
+                        <div className="flex items-center justify-between gap-sm">
+                          <span className="text-xs font-medium text-muted-foreground">Integration Health</span>
+                          <Badge variant={integrationHealthStatusVariant(health.status)}>{integrationHealthStatusLabel(health.status)}</Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-sm text-xs sm:grid-cols-4">
+                          <div>
+                            <div className="text-text-tertiary">Success 24h</div>
+                            <div className="font-medium">{formatPercent(health.window24h.successRate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Failure 24h</div>
+                            <div className="font-medium">{formatPercent(health.window24h.failureRate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Success 7d</div>
+                            <div className="font-medium">{formatPercent(health.window7d.successRate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Failure 7d</div>
+                            <div className="font-medium">{formatPercent(health.window7d.failureRate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Call Count (7d)</div>
+                            <div className="font-medium">{health.window7d.totalCalls}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Retry Rate (7d)</div>
+                            <div className="font-medium">{formatPercent(health.window7d.retryRate)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Latência média (7d)</div>
+                            <div className="font-medium">{formatMs(health.window7d.avgLatencyMs)}</div>
+                          </div>
+                          <div>
+                            <div className="text-text-tertiary">Última duração</div>
+                            <div className="font-medium">{formatMs(health.lastCheck?.durationMs ?? null)}</div>
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-text-tertiary">
+                          {health.lastCheck ? (
+                            <>
+                              Última chamada: {new Date(health.lastCheck.occurredAt).toLocaleString("pt-BR")} —{" "}
+                              {health.lastCheck.success ? "sucesso" : `erro (${health.lastCheck.errorCode ?? "desconhecido"})`}
+                            </>
+                          ) : (
+                            "Nenhuma chamada registrada ainda."
+                          )}
+                        </div>
+
+                        {health.recentCalls.length > 0 ? (
+                          <ul className="space-y-1 text-xs">
+                            {health.recentCalls.slice(0, 5).map((call, idx) => (
+                              <li key={idx} className="flex items-center justify-between gap-sm text-text-tertiary">
+                                <span>
+                                  {OPERATION_LABELS[call.payload.operation] ?? call.payload.operation} —{" "}
+                                  {new Date(call.occurred_at).toLocaleTimeString("pt-BR")}
+                                </span>
+                                <span className={call.payload.success ? "text-success" : "text-destructive"}>
+                                  {call.payload.success ? "OK" : (call.payload.errorCode ?? "ERRO")} · {formatMs(call.payload.durationMs)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {apps.length > 0 ? (
                       <ul className="space-y-1 rounded-sm border border-border p-sm">
