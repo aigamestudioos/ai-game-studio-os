@@ -4,12 +4,12 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
-## Sprint 2.9 — Conecte sua conta Apple de verdade
+## Sprint 2.9 — Conecte sua conta Apple
 
 ✨ Nova tela **Settings → Store Connections** — cadastre sua conta Apple App Store Connect (Issuer ID, Key ID, Team ID, Private Key)
-✨ Botão **Validate** confirma a conexão de verdade com a Apple e mostra seus Apps reais
+✨ Botão **Validate** testa a conexão contra a Apple de verdade; quando aprovada, mostra seus Apps
 ✨ Botões **Disconnect**, **Editar** e **Remover** para gerenciar suas conexões
-🔧 Validação com uma conta Apple real de verdade ainda não confirmada — a infraestrutura está pronta e testada, só falta uma credencial real para o primeiro teste de ponta a ponta
+🔧 A conexão de rede com a Apple (endereço, segurança, autenticação, tratamento de erro) já está validada e testada; o resultado final com uma conta Apple Developer real — a lista de Apps de verdade — ainda não foi confirmado, só falta essa credencial
 
 ## Sprint 2.8 — Preparação para conectar Apple/Google (bastidores)
 

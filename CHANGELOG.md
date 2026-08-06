@@ -6,7 +6,7 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
-### Added — Sprint 2.9 (Apple App Store Connect — integração real)
+### Added — Sprint 2.9 (Apple App Store Connect — infraestrutura da integração completa)
 - `packages/integrations/src/apple/{types,jwt,client,errors,adapter}.ts` — `ApplePublishingAdapter` completo (connect/disconnect/health/listApps/getApp), JWT ES256 via `node:crypto`.
 - `supabase/migrations/20260807000001_store_connection_secret_read.sql` — `get_store_connection_secret()` (GRANT só `service_role`), `clear_store_connection_secret()` ("Disconnect").
 - `apps/web/app/settings/store-connections/{page,actions}.tsx`, `hooks/use-store-connections.ts`, `lib/store-connection-status.ts`.

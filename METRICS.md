@@ -1363,7 +1363,7 @@ Primeiro dos 3 incrementos do Store Connections (Apple/Google). Auditoria de Fas
 
 ---
 
-## Sprint 2.9 — Apple App Store Connect (integração real)
+## Sprint 2.9 — Apple App Store Connect (infraestrutura da integração completa)
 
 **Data:** 2026-08-06
 

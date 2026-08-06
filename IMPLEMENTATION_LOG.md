@@ -1755,7 +1755,7 @@ Sprint 2.9 — adapters Apple/Google reais (`packages/integrations/`), conforme 
 
 ---
 
-## Sprint 2.9 — Apple App Store Connect (integração real)
+## Sprint 2.9 — Apple App Store Connect (infraestrutura da integração completa)
 
 **Status:** Concluído (validado localmente, produção pendente de credencial); Google Play e publicação de verdade explicitamente fora de escopo, por instrução do usuário
 **Período:** 2026-08-06
