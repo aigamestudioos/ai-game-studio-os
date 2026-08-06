@@ -88,3 +88,10 @@ Quando finalmente testado com uma credencial real pela primeira vez (Sprint 2.7.
 **Lição:** um script de verificação nunca testado contra o caso real que ele deveria pegar é só uma suposição de que funciona. Da próxima vez que este script (ou qualquer verificação de schema) for escrito ou alterado, validar contra uma execução real com credencial antes de confiar nele como parte do gate — não só revisar o código.
 
 **Nota:** este runbook formaliza o processo; ele não aplica, sozinho, a migration pendente do Sprint 2.4 — isso continua exigindo a credencial (seção 4), que não estava disponível nas sessões em que este documento foi escrito. Ver `IMPLEMENTATION_LOG.md` (Sprint 2.5.1) para o status atual dessa pendência específica.
+
+## 8. Supabase Vault (Sprint 2.8)
+
+`store_connections` (e qualquer domínio futuro que precise guardar um segredo de terceiro — tokens de outras integrações de `AGSOS-SPEC-008`) usa a extensão `supabase_vault` para o padrão de ponteiro já documentado (`credentials_ref` nunca é o segredo, é o UUID de um registro no Vault). Duas coisas específicas de Vault que não se aplicam a migrations "normais":
+
+- **Testar contra a documentação não basta.** A suposição inicial de que existiria `vault.delete_secret()` (por analogia com `create_secret`/`update_secret`) estava errada na versão instalada (`0.3.1`) — só as duas primeiras existem como função; apagar um segredo é um `DELETE` direto em `vault.secrets` (a tabela real por trás da view `vault.decrypted_secrets`). Antes de assumir que uma função de uma extensão existe, checar com `\df vault.*` (ou o schema equivalente) contra o Postgres real primeiro.
+- **`vault.secrets`/`vault.decrypted_secrets` nunca são acessíveis via PostgREST/API, para nenhum role** (nem `service_role`) — só via conexão direta ao Postgres (`psql`, ou uma função `SECURITY DEFINER` que roda dentro do banco). Isso é uma propriedade de segurança desejada, não uma limitação a contornar: é exatamente o que garante "nunca expor credenciais ao frontend" no nível do banco, não só por ausência de um endpoint.

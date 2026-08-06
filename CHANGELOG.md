@@ -6,6 +6,14 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.8 (Store Connections: schema + RLS + Vault, sem UI)
+- `supabase/migrations/20260806000001_store_connections_vault.sql` — colunas novas em `store_connections` (`display_name`/`last_validation_at`/`last_error`/`metadata`); `create extension supabase_vault`; função `set_store_connection_secret()` (SECURITY DEFINER); trigger `store_connections_delete_secret`; permissão `studio.manage_store_connections` + RLS dividida (`_select`/`_insert`/`_update`/`_delete`).
+- `packages/database/src/repositories/store-connections-repository.ts` — `listByStudio()`, `getById()`, `create()`, `update()`, `setSecret()`, `markValidationResult()`, `delete()`.
+- `apps/web/lib/domain-events.ts` — payloads tipados de `StoreConnectionCreated`/`Updated`/`Validated`/`Deleted` (sem call site ainda — Sprint 2.9/2.10).
+
+### Fixed — Sprint 2.8
+- `vault.delete_secret(uuid)` não existe na versão instalada de `supabase_vault` (0.3.1) — corrigido para `delete from vault.secrets` direto na trigger, antes de qualquer commit.
+
 ### Added — Sprint 2.7 (Gerenciar membros existentes)
 - `supabase/migrations/20260805000001_member_management_permissions.sql` — fecha um gap de RLS pré-existente em `users`/`user_roles` (sem gate de permissão desde o Sprint 1.7) e adiciona os gates `studio.manage_members` necessários para trocar papel/remover membro.
 - `packages/database/src/repositories/roles-repository.ts` — `listByStudio()`, `changeMemberRole()`.

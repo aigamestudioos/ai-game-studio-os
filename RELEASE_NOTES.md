@@ -4,6 +4,10 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.8 — Preparação para conectar Apple/Google (bastidores)
+
+_Nenhuma mudança visível ainda — a base para conectar contas reais da Apple App Store Connect e do Google Play Console foi construída (guarda segura de credenciais, permissões de acesso). A tela para usar isso chega em um sprint futuro._
+
 ## Sprint 2.7 — Gerencie membros do seu time
 
 ✨ Em **Settings → Studio**, agora dá para **trocar o papel** de um membro já convidado (Admin ⇄ Member) direto na lista

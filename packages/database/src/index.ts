@@ -26,3 +26,4 @@ export { createStudioEventsRepository } from "./repositories/studio-events-repos
 export { createKnowledgeDocumentsRepository } from "./repositories/knowledge-documents-repository";
 export { createSubmissionsRepository } from "./repositories/submissions-repository";
 export type { SubmissionWithDetails } from "./repositories/submissions-repository";
+export { createStoreConnectionsRepository } from "./repositories/store-connections-repository";

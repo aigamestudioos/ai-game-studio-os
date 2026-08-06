@@ -34,3 +34,4 @@ Uma linha por sprint: o Product Delta — o que o usuário consegue ver ou fazer
 | 2.5.1 | _Nenhum — sprint de processo/infraestrutura (processo e ferramenta para nunca mais deployar código sobre um schema de produção desatualizado, depois de o Sprint 2.5 ter revelado esse risco na prática)_ |
 | 2.6 | O **Dashboard agora mostra dados reais** de builds e releases: "Latest Builds", "Failed Builds" e "Pending Releases" — os primeiros widgets do Dashboard conectados ao banco de verdade |
 | 2.7 | Em **Settings → Studio**, agora dá para **trocar o papel de um membro já no time** (Admin ⇄ Member) e **removê-lo do Studio** — antes só dava para definir o papel no momento do convite |
+| 2.8 | _Nenhum ainda visível — infraestrutura para conectar contas Apple/Google de verdade (guarda de credenciais via Supabase Vault, permissões), sem tela ainda (chega no 2.10)_ |

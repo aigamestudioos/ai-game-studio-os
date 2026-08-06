@@ -1301,3 +1301,62 @@ Aplicação/confirmação das 2 migrations pendentes em produção + validação
 | Vercel | ✅ deploy do commit `1a06e77` (status `success`) |
 | Supabase | ✅ Sprint 2.4 e Sprint 2.7 confirmadas aplicadas em produção. Golden Path *funcional* (não só schema) do Release Pipeline (2.4/2.5/2.6) ainda não reexecutado em produção nesta sessão — próximo passo, sem bloqueio de credencial |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.8 — Store Connections: schema + RLS + Vault (sem UI)
+
+**Data:** 2026-08-06
+
+Primeiro dos 3 incrementos do Store Connections (Apple/Google). Auditoria de Fase 1 obrigatória encontrou 2 conflitos de arquitetura reais (resolvidos antes de qualquer código) e confirmou a divisão em 3 sprints. Sem funcionalidade visível — só backend (RLS + Vault + repository).
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Sprints concluídos | Sprint 0–1 completos + Sprint 2.0–2.8 |
+| Apps | 1 (`apps/web`) |
+| Packages | 11 |
+| Arquivos (git-tracked) | 326 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 10907 |
+| Commits totais | 66 (antes deste commit) |
+| Build | ✅ |
+| Typecheck | ✅ |
+| Lint | ✅ |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários | 0 |
+| Testes E2E | 0 |
+| Cobertura (%) | 0% |
+| Migration validada contra Postgres real | ✅ (`supabase db reset`, reconstrução completa do zero) — colunas/policies/trigger/extensão confirmados via `\d`/`\dx`/`\df` no psql |
+| Validação funcional (script Node, 2 contas reais, Studio de teste descartável) | 18/18 checks — RLS positiva/negativa (create/select/update/delete), Vault grava/lê/limpa corretamente, segredo nunca em texto puro na tabela nem acessível via API |
+| Bug real corrigido | 1 (`vault.delete_secret()` não existe na versão instalada — corrigido para `DELETE` direto em `vault.secrets`, achado testando contra Postgres real) |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Nenhum Product Delta | sprint de backend/infraestrutura — UI chega no Sprint 2.10 (`DEFINITION_OF_DONE.md` §9) |
+| Repositories implementados | 11 (+ `StoreConnections`) |
+| Mecanismo de segredo implementado | Supabase Vault (extensão nativa) — primeira vez usado no projeto |
+| Conflitos de arquitetura resolvidos antes de codificar | 2 (`encrypted_credentials` vs `credentials_ref`; chamadas ad hoc vs Adapter Pattern de `AGSOS-SPEC-008`) |
+| ADRs | 4 |
+| SPECs | 9 |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Stack Supabase local (Docker) | testada e parada ao final — não fica rodando entre sessões |
+| Extensões novas | `supabase_vault` |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não aplicável — sem mudança de UI/frontend neste sprint |
+| Supabase | migration validada localmente; aplicação em produção pendente de credencial (mesmo processo do `DEPLOY_RUNBOOK.md`) |
+| Ambientes | Production (`main`, deploy automático a cada push) |

@@ -1681,3 +1681,74 @@ Não reexecutado nesta sessão (o usuário priorizou fechar a validação de RLS
 ### Próximo Sprint
 
 A definir com o usuário — Sprint 2.6 original (Services/use cases/eventos formais além do que já foi feito) ou o Golden Path de produção pendente listado acima.
+
+---
+
+## Sprint 2.8 — Store Connections: schema + RLS + Vault (sem UI)
+
+**Status:** Concluído (validado localmente); produção pendente de credencial
+**Período:** 2026-08-06
+
+### Objetivo
+
+Primeiro dos 3 incrementos em que "Store Connections" (conectar contas reais da Apple/Google) foi dividido, após uma Fase 1 de auditoria obrigatória revelar que o escopo pedido (Vault + 2 adapters de API externa reais + RLS + UI + eventos, tudo num sprint) excedia os limites deste repositório — e que duas peças do pedido contradiziam decisões de arquitetura já congeladas. Ver "Conflitos de arquitetura" abaixo. Divisão confirmada com o usuário: **2.8** (este) = RLS com gate + mecanismo de segredo (Vault) + repository, sem UI. **2.9** = adapters Apple/Google reais em `packages/integrations/` (Adapter Pattern, `AGSOS-SPEC-008`). **2.10** = UI (`Settings → Store Connections`) + eventos emitidos de verdade + Playwright + produção completa.
+
+### Fase 1 — Auditoria (resumo; auditoria completa feita via agente de pesquisa antes de qualquer código)
+
+**O que já existia:** `store_connections`/`certificates`/`provision_profiles` desde `20260716000006_publishing.sql`, nunca usadas por nenhum repository/UI. `store_connections.credentials_ref text` já vinha com o comentário original *"referência a Supabase Secrets; nunca a credencial em si"* — mesmo texto em `DATA_MODEL.md` e citando `AGSOS-SPEC-004 §13`. `platforms` (App Store/Google Play/Steam, já seedada) já é o relacionamento pretendido — `store_connections.platform_id` já existe, não um enum `provider` novo. `AGSOS-SPEC-008` (frozen) já especifica Adapter Pattern obrigatório para toda integração externa, com pasta dedicada `packages/integrations/{apple,google-play,...}/` — o pacote já existe no monorepo (buildável), só vazio (`export {}`).
+
+**O que estava parcialmente pronto:** schema existia mas sem RLS com gate de permissão (só o `*_isolation` genérico antigo — mesmo padrão que o Sprint 2.7 já tinha encontrado furado em `users`/`user_roles`); `packages/integrations` scaffolded mas sem nenhum adapter.
+
+**O que realmente faltava:** RLS com gate, o mecanismo real por trás de `credentials_ref` (documentado mas nunca implementado — sem Vault, sem `supabase/functions/`), repository, adapters, UI, eventos.
+
+### Conflitos de arquitetura encontrados e resolvidos ANTES de escrever código (parado e explicado ao usuário, conforme instruído)
+
+1. **`encrypted_credentials` (pedido) vs `credentials_ref` (já decidido e congelado).** Adicionar uma coluna nova de credencial "criptografada" teria contradito o padrão de ponteiro já documentado em `DATA_MODEL.md`/`AGSOS-SPEC-004 §13` e já materializado no nome da coluna existente. Resolvido: mantido `credentials_ref`, implementado o mecanismo que faltava com **Supabase Vault** (extensão `supabase_vault`, nativa do Postgres do Supabase — é literalmente "Supabase Secrets").
+2. **Chamar as APIs da Apple/Google direto numa Server Action vs Adapter Pattern (`AGSOS-SPEC-008`, frozen).** Adiado para o Sprint 2.9 — os adapters (`IntegrationAdapter.connect()/validate()`, `ApplePublishingAdapter`) vivem em `packages/integrations/`, não em código de `apps/web`.
+
+### Arquivos criados
+
+- `supabase/migrations/20260806000001_store_connections_vault.sql` — colunas novas em `store_connections` (`display_name`, `last_validation_at`, `last_error`, `metadata`); `create extension supabase_vault`; função `set_store_connection_secret()` (SECURITY DEFINER — valida posse do Studio + `studio.manage_store_connections` inteiramente dentro da função antes de tocar `vault.*`, nunca expõe o segredo de volta); trigger `store_connections_delete_secret` (limpa o Vault num DELETE de verdade); permissão `studio.manage_store_connections` no catálogo + RLS dividida (`_select`/`_insert`/`_update`/`_delete`, mesmo padrão de `studio.manage_members`); `bootstrap_studio_for_current_user()` recriado só para incluir a permissão nova na lista fixa do Admin (senão todo Studio criado a partir de agora teria Admin sem essa permissão, apesar do backfill cobrir os Studios já existentes).
+- `packages/database/src/repositories/store-connections-repository.ts` — `listByStudio()`, `getById()`, `create()` (sem credencial ainda), `update()` (campos não-sensíveis), `setSecret()` (chama a RPC, nunca grava `credentials_ref` via `update()` direto), `markValidationResult()`, `delete()`.
+
+### Arquivos alterados
+
+- `packages/database/src/generated/database.types.ts` — `StoreConnectionsRow` com as colunas novas; `Functions.set_store_connection_secret` registrada (necessário para `.rpc()` tipar — achado ao rodar `pnpm build`, não hipotético).
+- `packages/database/src/index.ts` — export do repository novo.
+- `apps/web/lib/domain-events.ts` — payloads tipados dos 4 eventos pedidos (`StoreConnectionCreated`/`Updated`/`Validated`/`Deleted`) + helper `storeConnectionEvent()`, união separada de `ReleasePipelineEvent` (domínio diferente). **Nenhum call site emite estes eventos ainda** — não existe UI/hook que crie/edite/valide/remova uma Store Connection nesta sprint; os tipos ficam prontos para os Sprints 2.9/2.10 usarem.
+
+### Bugs reais encontrados e corrigidos (achados testando contra Postgres real, não hipotéticos)
+
+1. **`vault.delete_secret(uuid)` não existe** nesta versão da extensão (`supabase_vault 0.3.1`) — só `vault.create_secret()`/`vault.update_secret()` são expostas como função. A suposição inicial (baseada só na documentação) estava incorreta. Corrigido: a trigger de limpeza apaga direto de `vault.secrets` (a tabela real por trás da view `vault.decrypted_secrets`), não chama uma função inexistente. Corrigido antes de qualquer commit (a migration nunca tinha sido compartilhada).
+2. **`Database["public"]["Functions"]` precisa registrar toda RPC nova** — sem isso, `client.rpc("set_store_connection_secret", ...)` falha o `pnpm build` do `packages/database` com erro de tipo (a lista de nomes válidos vem só das funções já registradas). Não é um bug do código em si, é um lembrete de processo: toda migration que adiciona uma função `RPC`-callable precisa de uma entrada correspondente em `database.types.ts`.
+
+### Débitos técnicos / decisões em aberto (registradas, não escondidas)
+
+- **Remoção de Store Connection é DELETE real (limpa o Vault via trigger), não soft-delete** — diferente do resto do projeto (`archived_at`). Decisão provisória: como não há UI nesta sprint, "remover" foi definido do jeito mais simples que já cobre a limpeza do segredo. Revisar no Sprint 2.10 (UI) se soft-delete reversível (arquivar sem apagar o segredo, permitir reconectar) faz mais sentido para a experiência do usuário — nesse caso a trigger de limpeza precisaria ser condicionada a um DELETE de verdade, não a um archive.
+- `AGSOS-SPEC-008 §9` também define uma tabela `integration_jobs` (fila de retry/rate-limiting) — não criada nesta sprint; só necessária quando os adapters do Sprint 2.9 de fato chamarem APIs externas com retry.
+- Eventos tipados (`StoreConnectionEvent`) definidos mas não emitidos por nenhum código ainda — ver acima.
+
+### Validações executadas
+
+`pnpm build`/`lint`/`typecheck` verdes (12/12). Migration aplicada contra Postgres real (local, Docker, `supabase db reset` — reconstrução completa do zero, não incremental) — confirmado via `\d store_connections` (colunas/policies/trigger) e `\dx`/`\df vault.*` (extensão e funções disponíveis de verdade, não só assumidas pela documentação).
+
+Fluxo completo validado com 2 contas reais (Owner/Member) num Studio de teste criado especificamente para isso (deletado ao final, sem resíduo): **18/18 checks** — Owner cria Store Connection; Member não consegue (RLS bloqueia INSERT); Member consegue listar (SELECT aberto ao Studio); Owner grava o segredo via `setSecret()`/RPC; `credentials_ref` fica preenchido mas nunca contém o segredo em texto puro; o segredo real só é legível via `psql` direto no schema `vault` (nunca via PostgREST/API, nenhum role tem acesso a esse schema pela API) — confirmando que "nunca expor credenciais ao frontend" é garantido pelo banco, não só pela ausência de um endpoint; Member tenta sobrescrever o segredo via RPC → bloqueado (a função verifica a permissão internamente); segredo original permanece intacto; Owner atualiza `display_name`; Member não consegue (RLS bloqueia UPDATE); Owner marca uma validação simulada (`status=CONNECTED`); Member não consegue remover (RLS bloqueia DELETE); Owner remove → linha e segredo no Vault ambos removidos (trigger confirmada funcionando).
+
+### Validação em produção
+
+**Não executada nesta sessão** — sem `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` disponíveis (o token usado no Sprint 2.7.1 foi apagado ao final daquela sessão, como deveria). Migration ainda não commitada/pushada neste ponto do relatório — ver seção de fechamento após o commit para o que foi de fato enviado a produção nesta sessão.
+
+### Golden Path / Playwright
+
+Não aplicável — este sprint não tem UI (por decisão explícita da divisão). A validação funcional equivalente é o script de 18 checks contra Postgres real descrito acima.
+
+### Pendências
+
+- Aplicar esta migration em produção (mesmo processo do `DEPLOY_RUNBOOK.md` — precisa de credencial).
+- Sprint 2.9 — adapters Apple (Issuer ID/Key ID/Private Key/.p8/Team ID) e Google Play (Service Account JSON) em `packages/integrations/`, seguindo `AGSOS-SPEC-008`.
+- Sprint 2.10 — UI `Settings → Store Connections`, eventos emitidos de verdade, Playwright, validação de produção completa (schema + funcional).
+- Revisar a decisão de DELETE-real-vs-soft-delete quando a UI existir (acima).
+
+### Próximo Sprint
+
+Sprint 2.9 — adapters Apple/Google reais (`packages/integrations/`), conforme divisão confirmada com o usuário.

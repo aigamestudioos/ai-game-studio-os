@@ -41,3 +41,34 @@ export function releasePipelineEvent<Name extends ReleasePipelineEventName>(
   // acima, que já força `payload` a combinar com `name` em todo call site.
   return { event_name: name, payload } as never;
 }
+
+// Sprint 2.8 — mesmos tipos/helper, domínio diferente (Store Connections,
+// não Release Pipeline — união separada por bounded context, AGSOS-SPEC-002
+// §8). Definidos agora porque o contrato do evento já é conhecido, mas
+// **nenhum call site existe ainda** — este sprint é só schema/RLS/Vault,
+// sem UI (Sprint 2.10) nem adapters que de fato validam a conexão (Sprint
+// 2.9). Emitir estes eventos é trabalho desses sprints futuros.
+export type StoreConnectionCreatedPayload = { platform_id: string; display_name: string | null };
+export type StoreConnectionUpdatedPayload = { fields: string[] };
+export type StoreConnectionValidatedPayload = { status: "CONNECTED" | "ERROR"; error: string | null };
+export type StoreConnectionDeletedPayload = Record<string, never>;
+
+export type StoreConnectionEvent =
+  | { name: "StoreConnectionCreated"; payload: StoreConnectionCreatedPayload }
+  | { name: "StoreConnectionUpdated"; payload: StoreConnectionUpdatedPayload }
+  | { name: "StoreConnectionValidated"; payload: StoreConnectionValidatedPayload }
+  | { name: "StoreConnectionDeleted"; payload: StoreConnectionDeletedPayload };
+
+export type StoreConnectionEventName = StoreConnectionEvent["name"];
+
+type StoreConnectionPayloadFor<Name extends StoreConnectionEventName> = Extract<
+  StoreConnectionEvent,
+  { name: Name }
+>["payload"];
+
+export function storeConnectionEvent<Name extends StoreConnectionEventName>(
+  name: Name,
+  payload: StoreConnectionPayloadFor<Name>,
+): { event_name: Name; payload: StoreConnectionPayloadFor<Name> } {
+  return { event_name: name, payload } as never;
+}

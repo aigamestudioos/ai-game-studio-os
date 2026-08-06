@@ -182,7 +182,15 @@ export type GameLocalizationsRow = {
 
 export type CertificatesRow = WithStudio & { platform_id: string; name: string; expires_at: string | null };
 export type ProvisionProfilesRow = WithStudio & { platform_id: string; certificate_id: string; name: string; expires_at: string | null };
-export type StoreConnectionsRow = WithStudio & { platform_id: string; status: IntegrationStatus; credentials_ref: string | null };
+export type StoreConnectionsRow = WithStudio & {
+  platform_id: string;
+  status: IntegrationStatus;
+  credentials_ref: string | null;
+  display_name: string | null;
+  last_validation_at: string | null;
+  last_error: string | null;
+  metadata: Record<string, unknown>;
+};
 
 export type SubmissionsRow = WithStudio & {
   release_id: string;
@@ -312,6 +320,10 @@ export type Database = {
       current_user_has_permission: {
         Args: { p_key: string };
         Returns: boolean;
+      };
+      set_store_connection_secret: {
+        Args: { p_store_connection_id: string; p_secret: string; p_actor_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;
