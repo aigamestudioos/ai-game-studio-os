@@ -1568,3 +1568,35 @@ Painel de Integration Health por Store Connection, sobre um evento operacional n
 | Vercel | não deployado nesta sessão — commit local, push pendente de autorização |
 | Supabase | nenhuma migration nova |
 | Ambientes | Local (Docker, serviços reduzidos) validado; Production não tocado neste sprint |
+
+## Fase 0 do Sprint 2.11 — Fechamento de produção do Sprint 2.10.1
+
+**Data:** 2026-08-09
+
+Smoke-check de produção do painel Integration Health (conta de teste), que revelou e corrigiu um achado crítico pré-existente desde o Sprint 2.8 (`platforms` vazia em produção — ninguém nunca conseguiu criar uma Store Connection real).
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Achado crítico encontrado e corrigido no mesmo ciclo | 1 — `platforms` vazia em produção desde o Sprint 2.8 |
+| `pnpm check:schema` (produção, pós-migration) | ✅ verde |
+| Verificação independente (REST autenticado) | ✅ 3 linhas de `platforms` confirmadas |
+| Smoke-check Playwright produção — golden path completo (criar → validate → status/erro/métricas → limpeza) | ✅ Apple e Google, sem vazamento de segredo, zero erros de console |
+| Conta de teste restaurada ao estado original | ✅ confirmado por screenshot |
+
+### Migrations
+
+| Métrica | Valor |
+|---|---|
+| Migrations novas | 1 (`20260809000001_platforms_seed_backfill.sql`) |
+| Testada localmente antes de produção | ✅ `supabase db reset` completo |
+| Aplicada em produção | ✅ `supabase db push --linked` (dry-run revisado antes) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | não redeployado (mudança é só de dados via migration, sem alteração de código de app) |
+| Supabase | 1 migration aplicada em produção |
+| Ambientes | Production tocado e validado nesta entrada — smoke-check real de ponta a ponta pela UI, primeira vez na história do projeto |

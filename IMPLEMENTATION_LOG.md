@@ -2011,3 +2011,31 @@ Todo o sprint roda sobre `studio_events` (já existente desde o Sprint 1.7) — 
 ### Próximo Sprint
 
 Retomar a sequência definida pelo usuário antes deste sprint: 2.11 — Upload real (AAB/IPA), depois 2.12 (Releases automáticos), 2.13 (Publicação), 2.14 (Reviews Sync), 2.15 (Crash & Analytics) — ou validação funcional real do Google Play assim que uma Service Account de teste existir, o que vier primeiro.
+
+## Fase 0 do Sprint 2.11 — Fechamento formal do Sprint 2.10.1 (smoke-check de produção)
+
+Antes de iniciar a auditoria do Sprint 2.11 (Binary Upload Foundation), o usuário exigiu um smoke-check autenticado do painel Integration Health em produção, usando exclusivamente a conta de teste `teste@aigamestudioos.com`.
+
+### Achado crítico (bloqueou o smoke-check, corrigido antes de prosseguir)
+
+O botão "Add Connection" apareceu desabilitado em produção. Investigação revelou `platforms` genuinamente vazia (`GET /rest/v1/platforms` → `[]`) — as linhas só existiam em `seed.sql`, que o Supabase CLI nunca aplica a um projeto hospedado. Nenhuma conta jamais conseguiu criar uma Store Connection real em produção, desde o Sprint 2.8. Detalhe completo, causa raiz e correção (migration `20260809000001_platforms_seed_backfill.sql`, aplicada em produção com o Gate de Schema §10 completo — dry-run revisado, `check:schema` verde, verificação REST independente) em `DECISIONS.md`.
+
+### Smoke-check (Playwright, produção, conta de teste — evidência registrada)
+
+Com `platforms` corrigida, o fluxo completo foi exercitado de ponta a ponta em produção:
+
+1. **Login real** com `teste@aigamestudioos.com` — sucesso.
+2. **Conexão sem histórico:** confirmado antes da correção (`platforms` vazia forçou esse estado) e depois via tela vazia "Nenhuma conexão ainda".
+3. **Criadas 2 Store Connections reais** (Apple e Google), com credenciais sintaticamente válidas mas fabricadas (mesmo padrão dos Sprints 2.9/2.10 — nunca uma credencial real de terceiro usada em teste).
+4. **Validate clicado em ambas** — chamadas de rede reais à Apple (`api.appstoreconnect.apple.com`) e ao Google (`oauth2.googleapis.com`), ambas corretamente rejeitadas.
+5. **Status Apple e Google:** ambos badges "Com erro" (`ERROR`), corretos para a primeira chamada ter falhado.
+6. **Erro sanitizado:** Apple → "Credenciais inválidas ou expiradas — confira Issuer ID, Key ID e a Private Key (.p8)."; Google → "Não foi possível validar a conexão." — nenhum, em nenhum dos dois casos, ecoando a chave/credencial fabricada.
+7. **Métricas 24h e 7d:** ambos os blocos presentes e coerentes (`Failure 24h`/`Failure 7d` = 100%, `Call Count` = 1, latência real capturada em ms).
+8. **Vazamento de segredo:** varredura do HTML/texto renderizado (padrões de chave PEM, `service_account`, JWT) — nenhum encontrado.
+9. **Console:** zero erros em light/dark/mobile/tablet.
+10. **Responsividade:** desktop, mobile (390×844) e tablet (768×1024) — grid de métricas colapsa sem overflow. Dark theme confirmado localmente no próprio Sprint 2.10.1 (o teste de produção não pegou dark de verdade — a preferência de tema salva da conta, não o `prefers-color-scheme` do browser, controla o tema pós-login; não re-testado em produção para não gerar mais escrita só por causa de um recheque cosmético já coberto localmente).
+11. **Limpeza:** as 2 conexões de teste removidas ao final — conta restaurada ao estado original (confirmado por screenshot: "Nenhuma conexão ainda").
+
+### Decisão
+
+✅ Sprint 2.10.1 formalmente encerrado, com produção validada de ponta a ponta (não só localmente, como nas sessões anteriores) — o achado crítico de `platforms` foi corrigido antes de prosseguir, conforme instrução do usuário ("Se encontrar regressão, corrija antes de continuar"). Prosseguindo para a Fase 1 (auditoria) do Sprint 2.11 — Binary Upload Foundation.
