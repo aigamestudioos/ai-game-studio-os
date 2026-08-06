@@ -1833,3 +1833,51 @@ Não executada nesta sessão — sem `SUPABASE_ACCESS_TOKEN`/`SUPABASE_DB_URL` d
 ### Próximo Sprint
 
 Aguardando aprovação explícita do usuário antes de iniciar qualquer novo sprint (Sprint 2.10 NÃO iniciado automaticamente, por instrução). Quando aprovado: possíveis focos são Google Play (mesma arquitetura de adapter), validação com credenciais Apple reais quando disponíveis, ou aplicar as 2 migrations pendentes em produção.
+
+---
+
+## Sprint 2.9.1 — Fechamento de produção + correção de segurança crítica
+
+**Status:** Concluído
+**Período:** 2026-08-07
+
+### Objetivo
+
+Fechar a validação de produção do Sprint 2.9 (aplicar as 2 migrations pendentes, `check:schema`, confirmar deploy) — nada de desenvolvimento novo, por decisão do usuário. Também corrigido: reclassificação de linguagem ("integração real" → "infraestrutura da integração completa") pedida em revisão externa, registrada em `DECISIONS.md` como vocabulário padrão para sprints futuros de integração.
+
+### Achado crítico de segurança (não em código local — só apareceu validando produção de verdade)
+
+Ao aplicar as migrations do Sprint 2.8/2.9 em produção e inspecionar os `GRANT`s reais (via `supabase db dump --linked`, não confiando só no ledger), `get_store_connection_secret()`/`set_store_connection_secret()`/`clear_store_connection_secret()` estavam com `EXECUTE` concedido a `anon` (e `get_store_connection_secret()` também a `authenticated`) — quando o design pretendia `get_store_connection_secret()` restrita só a `service_role`. **Confirmado com uma chamada REST anônima real contra produção antes de qualquer correção** (não foi uma suposição a partir do dump): a chamada executou sem erro de permissão.
+
+**Causa raiz:** o projeto Supabase de produção concede `EXECUTE` em toda função nova diretamente às roles nomeadas `anon`/`authenticated`/`service_role` (privilégio padrão do projeto) — `revoke execute ... from public` (a regra estabelecida no Sprint 2.9 para `set_store_connection_secret()`) só remove o grant implícito do pseudo-role `PUBLIC`, nunca toca grants explícitos já concedidos a roles nomeadas. **O Postgres local (Docker) não reproduz esse comportamento** — confirmado que a mesma função, testada localmente 9/9 vezes no Sprint 2.9, já ficava corretamente restrita a `service_role` sem ajuste nenhum. É por isso que toda a validação local (extensa, incluindo o teste explícito "Owner autenticado não consegue chamar `get_store_connection_secret`") nunca pegou isso — o ambiente local e o hospedado divergem nesse comportamento específico de grants padrão.
+
+**Correção:** `supabase/migrations/20260807000002_store_connection_secret_grants_fix.sql` — `revoke ... from anon, authenticated` explícito (não só `public`) nas três funções, aplicada em produção no mesmo ciclo em que foi descoberta, sem esperar um sprint novo. Confirmado depois com uma nova chamada REST anônima: as três funções agora retornam `401 permission denied` para `anon`.
+
+Documentado com detalhe em `DEPLOY_RUNBOOK.md` §11 — regra nova para todo `SECURITY DEFINER` futuro: `revoke ... from anon, authenticated` explícito, e validar com uma chamada REST anônima real contra produção antes de considerar o gate de segurança fechado (testar só localmente não é suficiente para este tipo de verificação).
+
+### Ações executadas
+
+1. `git push origin main` do commit `a30a6c7` (Sprint 2.9) — já estava pronto, só não tinha sido enviado.
+2. Deploy Vercel confirmado `success`.
+3. Reclassificação de linguagem ("infraestrutura da integração completa") em `IMPLEMENTATION_LOG.md`/`METRICS.md`/`CHANGELOG.md`/`DECISIONS.md`/`PRODUCT_PROGRESS.md`/`RELEASE_NOTES.md`, com o vocabulário padrão ("transporte validado" vs. "funcional pendente") registrado em `DECISIONS.md` para sprints futuros.
+4. Token de acesso obtido com segurança (arquivo fora do repositório, nunca colado na conversa — mesmo processo do Sprint 2.7.1).
+5. `supabase migration list --linked` confirmou exatamente as 2 migrations esperadas como pendentes (`20260806000001`, `20260807000001`) — nenhuma surpresa desta vez.
+6. `supabase db push --dry-run` revisado antes de aplicar de verdade.
+7. `supabase db push` — as 2 migrations aplicadas.
+8. Verificação independente via PostgREST (colunas novas) e `supabase db dump --linked` (texto das políticas/funções) — foi essa verificação que revelou o achado crítico acima.
+9. Migration de correção (`20260807000002`) escrita, validada localmente, aplicada em produção imediatamente.
+10. `pnpm check:schema` verde (3 migrations agora sincronizadas).
+11. Token apagado (`shred -u`) ao final.
+
+### Validação com credenciais Apple reais
+
+Não realizada — sem conta Apple Developer de teste disponível nesta sessão também. Continua pendência explícita.
+
+### Pendências
+
+- Validação funcional real (`listApps()` com credenciais Apple verdadeiras) segue pendente.
+- Vale uma auditoria dos `GRANT`s de TODAS as funções `SECURITY DEFINER` já existentes em produção (não só as do Sprint 2.8/2.9) para confirmar que nenhuma outra tem o mesmo problema de `anon`/`authenticated` indevido — não feita nesta sessão, por escopo (o usuário pediu só o fechamento do Sprint 2.9, não uma auditoria geral), mas registrada como recomendação de alta prioridade.
+
+### Próximo Sprint
+
+Sprint 2.10 — Google Play Adapter (mesma arquitetura do Apple), conforme decisão do usuário. Antes de declarar QUALQUER função `SECURITY DEFINER` nova seguramente restrita, validar com uma chamada REST anônima real contra produção — não só contra o ambiente local.

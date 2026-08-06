@@ -6,6 +6,9 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Security — Sprint 2.9.1
+- `supabase/migrations/20260807000002_store_connection_secret_grants_fix.sql` — `get_store_connection_secret()`/`set_store_connection_secret()`/`clear_store_connection_secret()` tinham `EXECUTE` concedido a `anon` em produção (`revoke ... from public` do Sprint 2.9 não bastou — grants diretos a roles nomeadas não são afetados por isso). Confirmado com chamada REST anônima real antes e depois da correção. Ver `DECISIONS.md`/`DEPLOY_RUNBOOK.md` §11 para causa raiz completa.
+
 ### Added — Sprint 2.9 (Apple App Store Connect — infraestrutura da integração completa)
 - `packages/integrations/src/apple/{types,jwt,client,errors,adapter}.ts` — `ApplePublishingAdapter` completo (connect/disconnect/health/listApps/getApp), JWT ES256 via `node:crypto`.
 - `supabase/migrations/20260807000001_store_connection_secret_read.sql` — `get_store_connection_secret()` (GRANT só `service_role`), `clear_store_connection_secret()` ("Disconnect").

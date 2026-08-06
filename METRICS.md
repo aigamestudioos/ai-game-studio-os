@@ -1420,3 +1420,29 @@ Primeira integração externa real do AGSOS (`AGSOS-SPEC-008`) — adapter Apple
 | Vercel | não deployado nesta sessão — usuário pediu para parar ao final do Sprint 2.9 sem push automático |
 | Supabase | 2 migrations pendentes de produção (Sprint 2.8 + esta) |
 | Ambientes | Production (`main`, deploy automático a cada push) |
+
+---
+
+## Sprint 2.9.1 — Fechamento de produção + correção de segurança crítica
+
+**Data:** 2026-08-07
+
+Aplicação das 2 migrations pendentes (2.8+2.9) em produção + achado e correção de um gap de segurança real (`anon` conseguia chamar `get_store_connection_secret()`) — não detectável localmente, só validando produção de verdade.
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| `pnpm check:schema` (produção) | ✅ verde, 3 migrations em sincronia |
+| Verificação independente pós-deploy (PostgREST + `db dump --linked`) | ✅ — foi essa verificação que revelou o gap de `GRANT` |
+| Chamada REST anônima real (antes da correção) | ❌ `get_store_connection_secret` executava sem erro — gap confirmado |
+| Chamada REST anônima real (depois da correção) | ✅ `401 permission denied` nas 3 funções |
+| Achado crítico de segurança | 1 — `anon` com `EXECUTE` indevido em 3 funções `SECURITY DEFINER`, corrigido no mesmo ciclo |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ deploy do commit `a30a6c7` confirmado `success` |
+| Supabase | ✅ 3 migrations aplicadas em produção (`20260806000001`, `20260807000001`, `20260807000002` — a última é a correção de segurança) |
+| Ambientes | Production (`main`, deploy automático a cada push) |
