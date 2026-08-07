@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "prebuild": "pnpm --filter @agsos/database build && pnpm --filter @agsos/integrations build",
+    "prebuild": "pnpm --filter @agsos/database build && pnpm --filter @agsos/integrations build && pnpm --filter @agsos/storage build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app providers hooks lib components",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@agsos/database": "workspace:*",
     "@agsos/integrations": "workspace:*",
+    "@agsos/storage": "workspace:*",
     "@radix-ui/react-accordion": "1.2.16",
     "@radix-ui/react-alert-dialog": "1.1.19",
     "@radix-ui/react-avatar": "1.2.2",
@@ -31,7 +32,8 @@
     "next": "15.5.20",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "tailwind-merge": "3.6.0"
+    "tailwind-merge": "3.6.0",
+    "tus-js-client": "4.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.2",

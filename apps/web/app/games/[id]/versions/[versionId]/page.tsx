@@ -4,6 +4,7 @@ import { createPlatformsRepository, type PlatformsRow } from "@agsos/database";
 import { notFound, useParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "../../../../../components/layout/app-shell";
+import { BuildArtifactPanel } from "../../../../../components/builds/build-artifact-panel";
 import { Badge } from "../../../../../components/ui/badge";
 import { Button } from "../../../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../../components/ui/card";
@@ -256,6 +257,7 @@ export default function GameVersionDetailsPage() {
                           </Button>
                         </div>
                       ) : null}
+                      <BuildArtifactPanel session={session} buildId={build.id} />
                     </div>
                   );
                 })

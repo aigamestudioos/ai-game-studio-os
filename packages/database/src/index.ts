@@ -27,3 +27,4 @@ export { createKnowledgeDocumentsRepository } from "./repositories/knowledge-doc
 export { createSubmissionsRepository } from "./repositories/submissions-repository";
 export type { SubmissionWithDetails } from "./repositories/submissions-repository";
 export { createStoreConnectionsRepository } from "./repositories/store-connections-repository";
+export { createBuildArtifactsRepository } from "./repositories/build-artifacts-repository";

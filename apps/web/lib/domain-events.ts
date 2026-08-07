@@ -97,3 +97,37 @@ export function storeConnectionEvent<Name extends StoreConnectionEventName>(
 ): { event_name: Name; payload: StoreConnectionPayloadFor<Name> } {
   return { event_name: name, payload } as never;
 }
+
+// Sprint 2.11a — Artifact Storage Foundation. Eventos NUNCA incluem
+// conteúdo do binário, signed URL, token ou qualquer credencial — mesma
+// disciplina de StoreConnectionEvent. Um evento por transição de estado
+// (upload iniciado/armazenado/falhou, validação iniciada/concluída/falhou,
+// removido) — nunca um evento por chunk de upload resumível (decisão do
+// sprint: eventos narram estado de negócio, não progresso técnico de rede).
+export type BuildArtifactUploadStartedPayload = { build_id: string; original_filename: string; size_bytes: number };
+export type BuildArtifactStoredPayload = { build_id: string };
+export type BuildArtifactUploadFailedPayload = { build_id: string; reason: string };
+export type BuildArtifactValidationStartedPayload = { build_id: string };
+export type BuildArtifactValidatedPayload = { build_id: string };
+export type BuildArtifactValidationFailedPayload = { build_id: string; error_code: string };
+export type BuildArtifactRemovedPayload = { build_id: string };
+
+export type BuildArtifactEvent =
+  | { name: "BuildArtifactUploadStarted"; payload: BuildArtifactUploadStartedPayload }
+  | { name: "BuildArtifactStored"; payload: BuildArtifactStoredPayload }
+  | { name: "BuildArtifactUploadFailed"; payload: BuildArtifactUploadFailedPayload }
+  | { name: "BuildArtifactValidationStarted"; payload: BuildArtifactValidationStartedPayload }
+  | { name: "BuildArtifactValidated"; payload: BuildArtifactValidatedPayload }
+  | { name: "BuildArtifactValidationFailed"; payload: BuildArtifactValidationFailedPayload }
+  | { name: "BuildArtifactRemoved"; payload: BuildArtifactRemovedPayload };
+
+export type BuildArtifactEventName = BuildArtifactEvent["name"];
+
+type BuildArtifactPayloadFor<Name extends BuildArtifactEventName> = Extract<BuildArtifactEvent, { name: Name }>["payload"];
+
+export function buildArtifactEvent<Name extends BuildArtifactEventName>(
+  name: Name,
+  payload: BuildArtifactPayloadFor<Name>,
+): { event_name: Name; payload: BuildArtifactPayloadFor<Name> } {
+  return { event_name: name, payload } as never;
+}

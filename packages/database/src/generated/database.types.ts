@@ -24,6 +24,9 @@ export type BuildType = "DEBUG" | "RELEASE" | "INTERNAL" | "PRODUCTION";
 export type ReleaseChannel = "INTERNAL" | "ALPHA" | "BETA" | "PRODUCTION";
 export type KnowledgeDocumentType = "SPEC" | "ADR" | "SOP" | "GUIDE" | "PLAYBOOK" | "TEMPLATE" | "POLICY" | "LESSON_LEARNED" | "TECHNICAL_DOCUMENT";
 export type KnowledgeDocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "OBSOLETE" | "ARCHIVED";
+export type ArtifactUploadStatus = "PENDING" | "UPLOADING" | "STORED" | "FAILED" | "CANCELED";
+export type ArtifactValidationStatus = "PENDING" | "VALIDATING" | "VALID" | "INVALID" | "FAILED";
+export type ChecksumAlgorithm = "SHA256";
 
 /** Colunas presentes em toda tabela de negócio (AGSOS-SPEC-003 §3). */
 type AuditColumns = {
@@ -192,6 +195,23 @@ export type StoreConnectionsRow = WithStudio & {
   metadata: Record<string, unknown>;
 };
 
+export type BuildArtifactsRow = WithStudio & {
+  build_id: string;
+  storage_bucket: string;
+  storage_path: string;
+  original_filename: string;
+  file_extension: string;
+  mime_type_reported: string | null;
+  size_bytes: number;
+  checksum_algorithm: ChecksumAlgorithm;
+  checksum: string;
+  upload_status: ArtifactUploadStatus;
+  validation_status: ArtifactValidationStatus;
+  validation_error_code: string | null;
+  uploaded_at: string | null;
+  validated_at: string | null;
+};
+
 export type SubmissionsRow = WithStudio & {
   release_id: string;
   platform_id: string;
@@ -306,6 +326,7 @@ export type Database = {
       studio_events: Table<StudioEventsRow, Partial<StudioEventsRow>, Partial<StudioEventsRow>>;
       user_dashboard_preferences: Table<UserDashboardPreferencesRow, Partial<UserDashboardPreferencesRow>, Partial<UserDashboardPreferencesRow>>;
       invites: Table<InvitesRow, Partial<InvitesRow>, Partial<InvitesRow>>;
+      build_artifacts: Table<BuildArtifactsRow, Partial<BuildArtifactsRow>, Partial<BuildArtifactsRow>>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -332,6 +353,18 @@ export type Database = {
       clear_store_connection_secret: {
         Args: { p_store_connection_id: string; p_actor_id: string };
         Returns: undefined;
+      };
+      create_pending_build_artifact: {
+        Args: {
+          p_build_id: string;
+          p_original_filename: string;
+          p_file_extension: string;
+          p_size_bytes: number;
+          p_checksum: string;
+          p_mime_type_reported: string | null;
+          p_actor_id: string;
+        };
+        Returns: BuildArtifactsRow;
       };
     };
     Enums: Record<string, never>;

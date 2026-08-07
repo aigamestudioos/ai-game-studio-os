@@ -10,5 +10,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1"
   }
 }
