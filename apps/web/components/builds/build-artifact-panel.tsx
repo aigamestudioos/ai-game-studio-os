@@ -131,7 +131,7 @@ export function BuildArtifactPanel({ session, buildId }: { session: Session | nu
   function handleCancel() {
     if (!uploadState) return;
     uploadState.upload.abort(true);
-    markArtifactUploadFailed(uploadState.artifactId, "Cancelado pelo usuário").then(reload);
+    markArtifactUploadFailed(uploadState.artifactId, "Cancelado pelo usuário", true).then(reload);
     setUploadState(null);
   }
 

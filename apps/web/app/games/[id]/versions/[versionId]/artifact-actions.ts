@@ -90,7 +90,16 @@ export async function createPendingArtifact(input: {
   }
 }
 
-export async function markArtifactUploadFailed(artifactId: string, reason: string): Promise<{ error?: string }> {
+// `wasCanceled` distingue as duas entradas de `artifact_upload_status` que
+// terminam um upload sem sucesso: `CANCELED` (usuário clicou "Cancelar",
+// `handleCancel` no client) vs `FAILED` (erro real do `tus-js-client`,
+// `onError`) — a UI mostra textos diferentes ("Upload cancelado" vs "Upload
+// falhou") e misturar os dois estados esconderia a diferença real de causa.
+export async function markArtifactUploadFailed(
+  artifactId: string,
+  reason: string,
+  wasCanceled = false,
+): Promise<{ error?: string }> {
   const serverClient = await getAuthorizedServerClient();
   const {
     data: { user },
@@ -101,7 +110,11 @@ export async function markArtifactUploadFailed(artifactId: string, reason: strin
   const artifact = await repo.getById(artifactId).catch(() => null);
   if (!artifact) return { error: "Artefato não encontrado." };
 
-  await repo.update(artifactId, { upload_status: "FAILED", updated_actor_type: "USER", updated_actor_id: user.id });
+  await repo.update(artifactId, {
+    upload_status: wasCanceled ? "CANCELED" : "FAILED",
+    updated_actor_type: "USER",
+    updated_actor_id: user.id,
+  });
   await createStudioEventsRepository(serverClient).create({
     studio_id: artifact.studio_id,
     ...buildArtifactEvent("BuildArtifactUploadFailed", { build_id: artifact.build_id, reason: reason.slice(0, 200) }),
