@@ -131,3 +131,47 @@ export function buildArtifactEvent<Name extends BuildArtifactEventName>(
 ): { event_name: Name; payload: BuildArtifactPayloadFor<Name> } {
   return { event_name: name, payload } as never;
 }
+
+// Sprint 2.11b — Google Play AAB Upload. "provider" segue o mesmo
+// vocabulário estável já usado em `StoreConnectionCallCompletedPayload`
+// (Sprint 2.10.1) — nunca o nome de exibição livre da platform. Payload
+// nunca inclui JWT/access token/Service Account JSON/private key/signed
+// Storage URL — só o resultado (`editId`/`versionCode`) e metadados de
+// observabilidade (`durationMs`/`attempt`/`errorCode` sanitizado).
+export type ProviderUploadStartedPayload = { provider: "GOOGLE_PLAY"; buildArtifactId: string; storeConnectionId: string; attempt: number };
+export type ProviderUploadSucceededPayload = {
+  provider: "GOOGLE_PLAY";
+  buildArtifactId: string;
+  storeConnectionId: string;
+  editId: string;
+  versionCode: number;
+  durationMs: number;
+  attempt: number;
+};
+export type ProviderUploadFailedPayload = {
+  provider: "GOOGLE_PLAY";
+  buildArtifactId: string;
+  storeConnectionId: string;
+  editId: string | null;
+  durationMs: number;
+  errorCode: string;
+  attempt: number;
+};
+export type ProviderUploadRetriedPayload = { provider: "GOOGLE_PLAY"; buildArtifactId: string; storeConnectionId: string; attempt: number };
+
+export type ProviderUploadEvent =
+  | { name: "ProviderUploadStarted"; payload: ProviderUploadStartedPayload }
+  | { name: "ProviderUploadSucceeded"; payload: ProviderUploadSucceededPayload }
+  | { name: "ProviderUploadFailed"; payload: ProviderUploadFailedPayload }
+  | { name: "ProviderUploadRetried"; payload: ProviderUploadRetriedPayload };
+
+export type ProviderUploadEventName = ProviderUploadEvent["name"];
+
+type ProviderUploadPayloadFor<Name extends ProviderUploadEventName> = Extract<ProviderUploadEvent, { name: Name }>["payload"];
+
+export function providerUploadEvent<Name extends ProviderUploadEventName>(
+  name: Name,
+  payload: ProviderUploadPayloadFor<Name>,
+): { event_name: Name; payload: ProviderUploadPayloadFor<Name> } {
+  return { event_name: name, payload } as never;
+}

@@ -6,6 +6,6 @@ export { createApplePublishingAdapter } from "./apple/adapter";
 export type { AppleApp, AppleCredentials, ApplePublishingAdapter } from "./apple/types";
 
 export { createGooglePlayPublishingAdapter } from "./google-play/adapter";
-export type { GoogleApp, GoogleCredentials, GooglePlayPublishingAdapter } from "./google-play/types";
+export type { GoogleApp, GoogleBundle, GoogleCredentials, GooglePlayPublishingAdapter } from "./google-play/types";
 
 export type { HealthResult, IntegrationAdapter, ItemResult, ListResult } from "./core/types";

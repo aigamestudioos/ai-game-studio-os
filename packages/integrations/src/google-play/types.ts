@@ -1,4 +1,4 @@
-import type { HealthResult, IntegrationAdapter, ListResult } from "../core/types";
+import type { HealthResult, IntegrationAdapter, ItemResult, ListResult } from "../core/types";
 
 // Google Play Developer API (Android Publisher API v3) — Adapter Pattern
 // (AGSOS-SPEC-008 §3). Sprint 2.10.
@@ -24,8 +24,26 @@ export type GoogleApp = {
   packageName: string;
 };
 
+// Sprint 2.11b — Google Play AAB Upload. `GoogleBundle` espelha o recurso
+// `Bundle` da Android Publisher API v3 (resposta de `edits.bundles.upload`)
+// — só os campos que este sprint de fato usa (`versionCode`), nunca o
+// corpo bruto da resposta (nenhum outro campo é persistido/exibido).
+export type GoogleBundle = { versionCode: number };
+
 export interface GooglePlayPublishingAdapter extends IntegrationAdapter {
   listApps(): Promise<ListResult<GoogleApp>>;
+  // Cria um Edit rascunho — obrigatório antes de qualquer upload
+  // (`edits.bundles.upload` sempre exige um `editId` existente).
+  createEdit(): Promise<ItemResult<{ editId: string }>>;
+  // Upload simples (não resumível) do AAB para o Edit — decisão do
+  // sprint (DECISIONS.md): resumível de verdade exigiria rastrear estado
+  // de sessão entre requests, fora de escopo sem worker/queue.
+  uploadBundle(editId: string, bundle: Buffer): Promise<ItemResult<GoogleBundle>>;
+  // Sempre chamado depois do upload (sucesso ou falha) — nunca deixa um
+  // Edit pendurado (DECISIONS.md: Play Console permite só 1 Edit ativo
+  // por app). Best-effort: falha aqui nunca deveria mascarar o resultado
+  // real do upload.
+  deleteEdit(editId: string): Promise<void>;
 }
 
-export type { HealthResult };
+export type { HealthResult, ItemResult };

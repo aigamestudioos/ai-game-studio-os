@@ -11,6 +11,7 @@ import { ALLOWED_ARTIFACT_EXTENSIONS, ARTIFACT_MAX_SIZE_BYTES } from "../../lib/
 import { formatBytes, uploadStatusLabel, validationErrorLabel, validationStatusLabel } from "../../lib/artifact-status";
 import { useBuildArtifacts } from "../../hooks/use-build-artifacts";
 import { toast } from "../../hooks/use-toast";
+import { GooglePlaySendSection } from "./google-play-send-section";
 import {
   archiveArtifact,
   confirmArtifactStored,
@@ -37,7 +38,15 @@ async function computeSha256(file: File): Promise<string> {
 
 type UploadState = { artifactId: string; progress: number; upload: tus.Upload } | null;
 
-export function BuildArtifactPanel({ session, buildId }: { session: Session | null | undefined; buildId: string }) {
+export function BuildArtifactPanel({
+  session,
+  buildId,
+  gameId,
+}: {
+  session: Session | null | undefined;
+  buildId: string;
+  gameId: string;
+}) {
   const { artifacts, loading, reload } = useBuildArtifacts(session, buildId);
   const [uploadState, setUploadState] = useState<UploadState>(null);
   const [preparing, setPreparing] = useState(false);
@@ -213,6 +222,7 @@ export function BuildArtifactPanel({ session, buildId }: { session: Session | nu
                     Remover
                   </Button>
                 </div>
+                <GooglePlaySendSection session={session} gameId={gameId} artifact={artifact} />
               </div>
             );
           })}

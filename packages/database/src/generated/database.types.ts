@@ -27,6 +27,7 @@ export type KnowledgeDocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBL
 export type ArtifactUploadStatus = "PENDING" | "UPLOADING" | "STORED" | "FAILED" | "CANCELED";
 export type ArtifactValidationStatus = "PENDING" | "VALIDATING" | "VALID" | "INVALID" | "FAILED";
 export type ChecksumAlgorithm = "SHA256";
+export type ProviderUploadStatus = "PENDING" | "UPLOADING" | "SUCCEEDED" | "FAILED";
 
 /** Colunas presentes em toda tabela de negócio (AGSOS-SPEC-003 §3). */
 type AuditColumns = {
@@ -212,6 +213,18 @@ export type BuildArtifactsRow = WithStudio & {
   validated_at: string | null;
 };
 
+export type ProviderUploadsRow = WithStudio & {
+  build_artifact_id: string;
+  store_connection_id: string;
+  status: ProviderUploadStatus;
+  edit_id: string | null;
+  version_code: number | null;
+  error_code: string | null;
+  attempt: number;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
 export type SubmissionsRow = WithStudio & {
   release_id: string;
   platform_id: string;
@@ -327,6 +340,7 @@ export type Database = {
       user_dashboard_preferences: Table<UserDashboardPreferencesRow, Partial<UserDashboardPreferencesRow>, Partial<UserDashboardPreferencesRow>>;
       invites: Table<InvitesRow, Partial<InvitesRow>, Partial<InvitesRow>>;
       build_artifacts: Table<BuildArtifactsRow, Partial<BuildArtifactsRow>, Partial<BuildArtifactsRow>>;
+      provider_uploads: Table<ProviderUploadsRow, Partial<ProviderUploadsRow>, Partial<ProviderUploadsRow>>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -365,6 +379,10 @@ export type Database = {
           p_actor_id: string;
         };
         Returns: BuildArtifactsRow;
+      };
+      create_pending_provider_upload: {
+        Args: { p_build_artifact_id: string; p_store_connection_id: string; p_actor_id: string };
+        Returns: ProviderUploadsRow;
       };
     };
     Enums: Record<string, never>;

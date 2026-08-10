@@ -25,5 +25,15 @@ export function createGamesRepository(client: SupabaseClient<Database>) {
       if (error) throw error;
       return data;
     },
+
+    // Sprint 2.11b — precisa existir `package_name` para enviar um AAB à
+    // Google Play (a API não aceita upload sem um packageName real); nunca
+    // exposto como editor genérico de Game, só usado pelo fluxo mínimo de
+    // "Enviar ao Google Play" quando o campo ainda está vazio.
+    async update(id: string, patch: Partial<GamesRow>): Promise<GamesRow> {
+      const { data, error } = await client.from("games").update(patch).eq("id", id).select("*").single();
+      if (error) throw error;
+      return data;
+    },
   };
 }

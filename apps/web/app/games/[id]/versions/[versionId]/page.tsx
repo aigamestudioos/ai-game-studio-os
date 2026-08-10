@@ -257,7 +257,7 @@ export default function GameVersionDetailsPage() {
                           </Button>
                         </div>
                       ) : null}
-                      <BuildArtifactPanel session={session} buildId={build.id} />
+                      <BuildArtifactPanel session={session} buildId={build.id} gameId={params.id} />
                     </div>
                   );
                 })

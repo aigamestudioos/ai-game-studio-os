@@ -1,4 +1,4 @@
-import { checkGoogleHealth, fetchGoogleApps } from "./client";
+import { checkGoogleHealth, createGoogleEdit, deleteGoogleEdit, fetchGoogleApps, uploadGoogleBundle } from "./client";
 import type { GoogleCredentials, GooglePlayPublishingAdapter } from "./types";
 
 export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials): GooglePlayPublishingAdapter {
@@ -15,6 +15,15 @@ export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials
     },
     async listApps() {
       return fetchGoogleApps(credentials);
+    },
+    async createEdit() {
+      return createGoogleEdit(credentials);
+    },
+    async uploadBundle(editId, bundle) {
+      return uploadGoogleBundle(credentials, editId, bundle);
+    },
+    async deleteEdit(editId) {
+      return deleteGoogleEdit(credentials, editId);
     },
   };
 }

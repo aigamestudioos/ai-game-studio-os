@@ -28,3 +28,4 @@ export { createSubmissionsRepository } from "./repositories/submissions-reposito
 export type { SubmissionWithDetails } from "./repositories/submissions-repository";
 export { createStoreConnectionsRepository } from "./repositories/store-connections-repository";
 export { createBuildArtifactsRepository } from "./repositories/build-artifacts-repository";
+export { createProviderUploadsRepository } from "./repositories/provider-uploads-repository";
