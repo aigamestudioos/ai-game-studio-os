@@ -27,6 +27,22 @@ import { createGooglePlayPublishingAdapter, type GoogleCredentials } from "@agso
 import { downloadObject } from "@agsos/storage";
 import { providerUploadEvent } from "../../../../../lib/domain-events";
 
+// Limite TEMPORÁRIO deste sprint (menor que o limite de 500MiB do bucket
+// `builds`, Sprint 2.11a) — medido, não assumido: `downloadObject()` +
+// `Buffer.from(await blob.arrayBuffer())` custam ~2.5-2.8x o tamanho do
+// arquivo em RSS (medido localmente: 200MiB de arquivo → +550MiB de RSS;
+// 100MiB → +279MiB), porque o cliente Storage materializa o objeto como
+// Blob antes de expor `arrayBuffer()`, e essa conversão copia os bytes
+// (não é zero-copy). Sem saber a memória real configurada na função
+// Vercel de produção (não há override em `vercel.json`/dashboard
+// documentado neste repo — DECISIONS.md), 150MiB é o teto que mantém
+// margem segura mesmo no cenário mais provável (default de 1024MiB menos
+// o overhead do runtime Next.js + admin client + o restante do request).
+// Resolver isso de verdade (streaming real, sem materializar o objeto
+// inteiro) é trabalho do Sprint 2.11d — aqui só evitamos OOM enquanto essa
+// solução não existe. Nunca aumentar sem remedir.
+const MAX_PROVIDER_UPLOAD_SIZE_BYTES = 150 * 1024 * 1024;
+
 async function getAuthorizedServerClient() {
   const cookieStore = await cookies();
   return createServerClient({
@@ -87,6 +103,24 @@ async function performUpload(
 
   const artifact = await createBuildArtifactsRepository(serverClient).getById(providerUpload.build_artifact_id);
   if (!artifact) return { error: "Artefato não encontrado." };
+
+  if (artifact.size_bytes > MAX_PROVIDER_UPLOAD_SIZE_BYTES) {
+    const eventsRepoEarly = createStudioEventsRepository(serverClient);
+    return await fail(
+      repo,
+      eventsRepoEarly,
+      providerUpload.studio_id,
+      providerUploadId,
+      artifact.id,
+      providerUpload.store_connection_id,
+      null,
+      "ARTIFACT_TOO_LARGE",
+      Date.now(),
+      attempt,
+      userId,
+      "Artefato acima do limite temporário de 150MB para envio ao Google Play (Sprint 2.11b) — suportado apenas para arquivos menores até o Sprint 2.11d.",
+    );
+  }
 
   const resolved = await resolveGamePackageName(serverClient, artifact.build_id);
   if (!resolved || !resolved.packageName) {

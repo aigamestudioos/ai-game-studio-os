@@ -22,6 +22,7 @@ const PROVIDER_UPLOAD_ERROR_LABEL: Record<string, string> = {
   NOT_FOUND: "Package name não encontrado no Google Play Console para esta credencial.",
   RATE_LIMITED: "Limite de requisições do Google atingido — tente novamente em alguns minutos.",
   SERVER_ERROR: "Google Play indisponível no momento — tente novamente mais tarde.",
+  ARTIFACT_TOO_LARGE: "Artefato acima do limite temporário de 150MB para envio ao Google Play (suporte a arquivos maiores chega no Sprint 2.11d).",
   MISSING_CREDENTIAL: "Nenhuma credencial cadastrada para esta Store Connection.",
   INVALID_CREDENTIAL: "Credencial armazenada em formato inválido.",
   UNEXPECTED_ERROR: "Erro inesperado ao enviar o artefato ao Google Play.",
