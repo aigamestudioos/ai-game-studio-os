@@ -240,6 +240,60 @@ releases (
   status            release_status NOT NULL DEFAULT 'DRAFT'
 )
 
+build_artifacts (
+  -- padrão (§2) — inclui archived_actor_type/archived_actor_id, que a
+  -- lista original do sprint não citou explicitamente; incluídos por
+  -- consistência com toda outra tabela de negócio do projeto.
+  build_id               UUID NOT NULL REFERENCES builds(id),
+  storage_bucket         TEXT NOT NULL DEFAULT 'builds',
+  storage_path           TEXT NOT NULL,  -- gerado só server-side (RPC create_pending_build_artifact), nunca aceito do browser
+  original_filename      TEXT NOT NULL,
+  file_extension         TEXT NOT NULL,
+  mime_type_reported     TEXT NULL,      -- reportado pelo browser, nunca confiável isoladamente
+  size_bytes             BIGINT NOT NULL,
+  checksum_algorithm     checksum_algorithm NOT NULL DEFAULT 'SHA256',
+  checksum               TEXT NOT NULL,  -- calculado no cliente; nunca recalculado server-side neste sprint
+  upload_status          artifact_upload_status NOT NULL DEFAULT 'PENDING',
+  validation_status      artifact_validation_status NOT NULL DEFAULT 'PENDING',
+  validation_error_code  TEXT NULL,
+  uploaded_at            TIMESTAMPTZ NULL,
+  validated_at           TIMESTAMPTZ NULL,
+  UNIQUE (storage_bucket, storage_path)
+)
+```
+
+**Build 1 → N BuildArtifacts** (Sprint 2.11a — Artifact Storage Foundation). `upload_status`
+(`PENDING`/`UPLOADING`/`STORED`/`FAILED`/`CANCELED`) e `validation_status`
+(`PENDING`/`VALIDATING`/`VALID`/`INVALID`/`FAILED`) são duas máquinas de
+estado independentes — a primeira sobre "o objeto chegou ao Storage", a
+segunda sobre "a estrutura interna do arquivo é coerente com o tipo
+declarado" (nunca uma validação de assinatura). `builds.artifact_url`/
+`artifact_size`/`checksum` (Sprint 2.4) continuam existindo como legado —
+não migrados nem removidos neste sprint (decisão do usuário), sempre 100%
+simulados client-side, nunca uma referência real a `build_artifacts`.
+
+**ENUMs novos** (`build_artifacts`): `artifact_upload_status`,
+`artifact_validation_status`, `checksum_algorithm` (`'SHA256'` único valor
+por ora).
+
+**Storage:** bucket privado `builds` (já previsto em AGSOS-SPEC-003 §8),
+path oficial `{studio_id}/{build_id}/{artifact_id}/{sanitized_filename}`,
+sempre gerado pela RPC `create_pending_build_artifact`. Upload direto do
+browser via protocolo TUS (resumível), gated por uma policy de RLS em
+`storage.objects` (`build_artifacts_object_insert`) que restringe o INSERT
+ao primeiro segmento do path = `studio_id` do usuário + permissão
+`builds.manage_artifacts` — nunca por um token assinado por objeto (Supabase
+Storage não emite esse tipo de token para upload resumível). Download e
+remoção nunca passam por RLS de Storage — só via `service_role`
+(signed URL de curta duração / admin client), nunca expondo a secret key ao
+browser.
+
+**Permission nova:** `builds.manage_artifacts` — primeiro namespace de
+permission fora de `studio.*` (decisão do usuário, início deliberado de um
+domínio de permissions próprio para Build/Publishing).
+
+```sql
+
 game_localizations (
   -- já especificado literalmente em AGSOS-SPEC-003 §12
   id, studio_id, game_id, language_code,

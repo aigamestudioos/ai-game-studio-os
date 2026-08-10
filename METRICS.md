@@ -1600,3 +1600,78 @@ Smoke-check de produção do painel Integration Health (conta de teste), que rev
 | Vercel | não redeployado (mudança é só de dados via migration, sem alteração de código de app) |
 | Supabase | 1 migration aplicada em produção |
 | Ambientes | Production tocado e validado nesta entrada — smoke-check real de ponta a ponta pela UI, primeira vez na história do projeto |
+
+## Sprint 2.11a — Artifact Storage Foundation
+
+**Data:** 2026-08-07
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 349 (antes de commitar este sprint) |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 13084 (antes de commitar este sprint) |
+| Commits | 73 |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Build | ✅ (73s monorepo completo) |
+| Migrations novas | 1 (`20260810000001_build_artifacts.sql`) |
+| Packages tocados | 3 (`@agsos/database`, `@agsos/storage`, `web`) — dentro do limite de 3 do `CLAUDE.md` |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Casos de validação estrutural testados manualmente | 7/7 corretos (AAB válido, IPA válido, ZIP corrompido, AAB sem manifest base, oversized, extensão inválida) |
+| Casos de segurança testados contra Postgres/Storage real local | 12/12 confirmados via REST/RPC/Storage API (anon bloqueado, permission gate, isolamento cross-Studio em tabela e em Storage, download/remoção só via service_role) |
+| Checklist de Segurança SQL (`DEFINITION_OF_DONE.md` §11) | ✅ aplicado e confirmado (`pg_proc.proacl` sem `anon`) |
+| Testes automatizados (unit/E2E) | 0 — nenhuma suíte existe no repositório para nenhum package/app (gap pré-existente, fora do escopo deste sprint) |
+
+### Produto
+
+| Métrica | Valor |
+|---|---|
+| Novo componente de UI | `BuildArtifactPanel` (upload/progresso/cancelamento/download/remoção por Build) |
+| Novo hook | `useBuildArtifacts` |
+| Novas Server Actions | 5 (`createPendingArtifact`, `markArtifactUploadFailed`, `confirmArtifactStored`, `getArtifactDownloadUrl`, `archiveArtifact`) |
+| Eventos novos | 7 (`BuildArtifactUploadStarted/Stored/UploadFailed/ValidationStarted/Validated/ValidationFailed/Removed`) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Supabase (local) | migration aplicada e revalidada 2x via `supabase db reset` completo, incluindo bucket `builds` e policy de `storage.objects` |
+| Supabase (produção) | ✅ `20260810000001_build_artifacts.sql` aplicada via `supabase db push`; `check-schema-sync.sh` verde 2x (antes e depois do restante do trabalho) |
+| Vercel | ✅ commits `8b3680c` e `925ba09` deployados e confirmados via `gh api .../status` (`state: success`) |
+
+## Sprint 2.11a — Fechamento do Gate de Produção
+
+**Data:** 2026-08-07 (sessão separada, credenciais fornecidas via arquivo local)
+
+### Segurança (produção real)
+
+| Métrica | Valor |
+|---|---|
+| Casos de segurança testados contra produção real (REST/RPC/Storage) | 14/14 confirmados |
+| Checklist de Segurança SQL (`create_pending_build_artifact`) | ✅ 6/6 itens, `anon` sem EXECUTE confirmado em produção |
+| Golden Path backend (sem UI) | ✅ upload→confirmação→validação→persistência→cancelamento→retry→arquivamento, dados reais de produção |
+| Golden Path E2E/UI real (Playwright contra a app deployada) | ✅ 22/22 itens, TUS real via `tus-js-client`, 0 erros de console, 0 padrão de secret, 0 overflow (light/dark × desktop/mobile) |
+| Bugs encontrados pelo E2E e corrigidos no mesmo ciclo | 1 — cancelamento gravava `FAILED` em vez de `CANCELED` (commit `925ba09`) |
+
+### Cleanup de dados de teste
+
+| Métrica | Valor |
+|---|---|
+| Studios/Users QA residuais ao final | 0 (3 pares limpos — 2 da suíte de segurança, 1 do E2E) |
+| Achado de infraestrutura no cleanup | FK circular `studios.owner_user_id` ↔ `users.studio_id`; resolvido via script SQL administrativo com guardrails (rodado pelo usuário no SQL Editor), incluindo prova de que todo `studio_events` residual era de teste antes de removê-lo |
+| Verificação final independente | ✅ zero resíduo em `auth.users`, `public.users`, `studios`, `build_artifacts`, `studio_events`, `roles`, `invites`, `projects`, `games`, `builds`, `game_versions`, `user_roles`, `role_permissions`, e no bucket `builds` |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Supabase | migration aplicada em produção, schema sync verde |
+| Vercel | 2 deploys confirmados (`8b3680c`, `925ba09`) |
+| Classificação final | **Sprint 2.11a — CONCLUÍDO** |

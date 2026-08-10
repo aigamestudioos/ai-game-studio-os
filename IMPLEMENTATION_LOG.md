@@ -2039,3 +2039,119 @@ Com `platforms` corrigida, o fluxo completo foi exercitado de ponta a ponta em p
 ### Decisão
 
 ✅ Sprint 2.10.1 formalmente encerrado, com produção validada de ponta a ponta (não só localmente, como nas sessões anteriores) — o achado crítico de `platforms` foi corrigido antes de prosseguir, conforme instrução do usuário ("Se encontrar regressão, corrija antes de continuar"). Prosseguindo para a Fase 1 (auditoria) do Sprint 2.11 — Binary Upload Foundation.
+
+## Sprint 2.11a — Artifact Storage Foundation
+
+**Escopo:** primeiro dos quatro sub-sprints em que o Sprint 2.11 (Binary Upload Foundation) foi dividido antes de qualquer código (Fase 1, auditado contra Git/docs/schema real — ver troca com o usuário). Este sub-sprint cobre só a fundação de armazenamento: entidade `build_artifacts`, bucket privado `builds`, upload direto do browser (resumível/TUS), validação estrutural (nunca de assinatura) e UI mínima. Explicitamente fora de escopo (adiado para 2.11b/c/d): upload real à Apple/Google, `integration_jobs`/worker/queue, Edge Function de processamento, status de provider, publicação.
+
+### Schema
+
+- Migration `20260810000001_build_artifacts.sql`: tabela `build_artifacts` (Build 1→N BuildArtifacts, padrão de colunas de auditoria completo — incluindo `archived_actor_type/archived_actor_id`, não citados na lista original do usuário mas incluídos por consistência com toda outra tabela de negócio); enums `artifact_upload_status`, `artifact_validation_status`, `checksum_algorithm`; bucket privado `storage.buckets` `builds` (500MiB, `public=false`); função `SECURITY DEFINER` `create_pending_build_artifact()` (gera `storage_path` server-side, nunca aceito do browser); permission nova `builds.manage_artifacts` (primeiro namespace fora de `studio.*`, decisão explícita do usuário); policy de RLS em `storage.objects` (`build_artifacts_object_insert`) restringindo o upload TUS ao Studio do usuário + permissão.
+- Checklist de Segurança SQL (`DEFINITION_OF_DONE.md` §11) aplicado à função nova: `revoke execute ... from public, anon` explícito antes do `grant ... to authenticated` — confirmado via `pg_proc.proacl` local (`{postgres=X/postgres,authenticated=X/postgres}`, sem `anon`).
+
+### Decisão de arquitetura: TUS em vez de signed-URL para upload resumível
+
+O plano inicial previa emitir um token assinado por objeto (`createSignedUploadUrl`) também para o caminho resumível. Corrigido durante a implementação: Supabase Storage não emite token assinado por objeto para uploads resumíveis (só para upload simples, não-resumível) — a única forma real de autorizar um upload TUS direto do browser é uma policy de RLS real em `storage.objects`, avaliada contra a sessão do próprio usuário (`anon key` + JWT), nunca a `service_role`. Por isso a policy `build_artifacts_object_insert` restringe o INSERT ao primeiro segmento do path (`storage.foldername(name)[1]`) = `current_user_studio_id()` + `current_user_has_permission('builds.manage_artifacts')`. Download e remoção continuam exclusivamente via `service_role` (nenhuma policy de SELECT/DELETE existe para `authenticated`).
+
+### `packages/storage` — de stub a implementação real
+
+Primeira implementação de verdade (`export {}` até este sprint): `sanitizeFilename`/`buildArtifactStoragePath` (espelha a lógica da RPC, para o client poder prever o path), `createSignedUploadUrl`/`createSignedDownloadUrl`/`objectExists`/`getObjectMetadata`/`removeObject`/`downloadObject` (Supabase Storage), `buildResumableUploadConfig` (monta a configuração TUS — endpoint/headers/metadata — para o `tus-js-client` no browser). Deliberadamente sem nenhum tipo de `@agsos/database` importado (AGSOS-SPEC-008 §6/AGSOS-SPEC-004: abstração agnóstica de provider, Supabase hoje, S3/R2 no futuro).
+
+### Validação estrutural (nunca "assinatura validada")
+
+`apps/web/lib/artifact-validation.ts` implementa parsing de Central Directory de ZIP (sem lib externa — formato pequeno o bastante, ZIP64 fora de escopo dado o limite de 500MiB) e checa estrutura mínima: AAB precisa de `BundleConfig.pb` + `base/manifest/AndroidManifest.xml`; IPA precisa de `Payload/*.app/`. Testado manualmente (sem suíte de testes automatizada no repositório — nenhuma existe hoje para nenhum package/app, gap pré-existente, fora do escopo deste sprint introduzir Vitest/Playwright) com fixtures sintéticas geradas ad-hoc: AAB válido → `valid`; IPA válido → `valid`; ZIP corrompido → `ZIP_STRUCTURE_INVALID`; AAB sem o manifest do módulo `base` → `AAB_STRUCTURE_INVALID`; tamanho acima de 500MB → `SIZE_LIMIT_EXCEEDED`; extensão fora de `.aab`/`.ipa` → `EXTENSION_NOT_ALLOWED`. 7/7 casos corretos.
+
+### Segurança — validado contra Postgres/Storage real local (não só revisão de código)
+
+Ambiente local com `storage-api` habilitado (`supabase start -x realtime,imgproxy,studio,edge-runtime,logflare,vector` — só esses excluídos, diferente do Sprint 2.10.1 que também excluía `storage-api`), dois Studios reais (`Studio A`/`Studio B`) + um Member sem a permissão nova, criados via signup real (não Admin API mockada):
+
+1. `anon` chamando `create_pending_build_artifact` via RPC → `403`/`42501 permission denied for function` (função nunca alcançável por `anon`, confirmado via `pg_proc.proacl`, não só por comportamento observado).
+2. `anon` fazendo `SELECT` em `build_artifacts` → `401`.
+3. Owner do Studio A criando artifact no próprio build → `200`, `storage_path` gerado server-side com o formato correto (`{studio_id}/{build_id}/{artifact_id}/{filename}`).
+4. Studio B tentando criar artifact num build do Studio A (RPC) → `403`, mensagem `"build não pertence ao Studio do usuário atual"`.
+5. Studio B lendo (`SELECT`) o artifact do Studio A → `[]` (RLS bloqueia leitura cross-Studio).
+6. Member do Studio A (sem `builds.manage_artifacts`) tentando criar artifact → `403`, `"sem permissão builds.manage_artifacts"`; o mesmo Member consegue `SELECT` (política aberta ao Studio, como Store Connections/Invites).
+7. Owner do Studio A fazendo upload direto (via `POST /storage/v1/object/builds/...`, simulando o passo final do TUS) no próprio path → `200`.
+8. Studio B tentando `POST` no path do Studio A (`storage.objects`) → `400`/`"new row violates row-level security policy"`.
+9. `anon` tentando `POST` em qualquer path do bucket `builds` → `400`/RLS.
+10. `authenticated` (sem nenhuma policy de SELECT em `storage.objects`) tentando baixar o objeto direto → `404`/`"Object not found"` (download direto sempre bloqueado, só signed URL funciona).
+11. `service_role` gerando signed URL e baixando o conteúdo → `200`.
+12. `service_role` removendo o objeto → `200`, `"Successfully deleted"`.
+
+Todos os 12 casos de segurança do escopo do sprint confirmados via chamada real (REST/RPC/Storage API), não assumidos por revisão de código.
+
+### Build/lint/typecheck
+
+`pnpm --filter @agsos/storage build`, `pnpm --filter @agsos/database build`, `pnpm --filter web typecheck/lint/build` — todos verdes. `./scripts/metrics.sh`: typecheck ✅, lint ✅, build ✅ (73s monorepo completo).
+
+### UI
+
+`BuildArtifactPanel` (novo, em cada Build da tela de Version) — seleção de arquivo, checksum SHA-256 calculado no browser (`crypto.subtle`), upload TUS com barra de progresso e cancelamento, confirmação pós-upload, badges de `upload_status`/`validation_status` com os textos exigidos ("Enviando para o AGSOS", "Armazenado no AGSOS", "Validando artefato", "Artefato válido (estrutural)", "Artefato inválido"), erro sanitizado (nunca o código bruto sem tradução), download via signed URL, remoção (archive + best-effort remove do objeto físico). Nenhum texto menciona Apple/Google/publicação, conforme decisão do sprint.
+
+### Fechamento do Gate de Produção (`DEFINITION_OF_DONE.md` §10) — sessão separada, credencial fornecida via arquivo
+
+A sessão que implementou o código (acima) terminou com o sprint **parcialmente concluído**, sem `SUPABASE_ACCESS_TOKEN` disponível. Numa sessão seguinte, o usuário forneceu o token e a `SUPABASE_SECRET_KEY` via arquivo local (nunca colados na conversa, seguindo `DEPLOY_RUNBOOK.md` §4) e pediu o fechamento explícito do gate — distinguindo deliberadamente **evidência de backend/Storage** de **evidência de UI real (E2E)**, para que uma nunca fosse relatada como a outra.
+
+**Migration aplicada em produção:** `supabase db push` (dry-run revisado antes) aplicou `20260810000001_build_artifacts.sql`. `npx supabase migration list` e `./scripts/check-schema-sync.sh` confirmaram, em duas rodadas separadas (antes e depois de todo o resto do trabalho desta sessão), que as 21 migrations locais batem exatamente com as aplicadas em produção — zero drift.
+
+**Verificação independente do schema (não só o ledger de migrations):** `supabase db dump --linked --schema public,storage` confirmado contendo a tabela `build_artifacts` com todas as colunas esperadas, os 3 enums novos, o bucket `builds` (`public=false`, `file_size_limit=524288000`), as 4 policies de RLS em `build_artifacts`, a policy `build_artifacts_object_insert` em `storage.objects`, e os grants da função `create_pending_build_artifact` (`REVOKE ALL FROM PUBLIC` + `GRANT ... TO authenticated, service_role` — sem `anon`).
+
+**Matriz de segurança contra produção real (REST/RPC/Storage API, com 2 Studios QA descartáveis + 1 Member sem a permission, criados via Admin API com `email_confirm: true` para não gerar tráfego de email real):**
+
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | `anon` chama RPC `create_pending_build_artifact` | `401`/`42501 permission denied for function` |
+| 2 | `anon` faz `SELECT build_artifacts` | `200`, `[]` |
+| 3 | Member sem `builds.manage_artifacts` chama a RPC | `403`, mensagem da própria função |
+| 4 | Owner do próprio Studio chama a RPC | `200`, `storage_path` gerado server-side |
+| 5 | Studio B chama a RPC no build do Studio A | `403`, "build não pertence ao Studio do usuário atual" |
+| 6 | Studio B faz `SELECT` no artifact do Studio A | `200`, `[]` |
+| 7 | Studio A faz `SELECT` no próprio artifact (controle) | `200`, 1 linha |
+| 8 | Studio B faz upload em `storage.objects` no path do Studio A | `400`, RLS ("new row violates row-level security policy") |
+| 9 | `anon` faz upload em `storage.objects` | `400`, RLS |
+| 10 | Owner faz upload real no próprio path | `200` |
+| 11 | `authenticated` tenta baixar direto (sem signed URL) | `400`/`404 Object not found` |
+| 12 | `service_role` gera signed URL e baixa | `200` |
+| 13 | Acesso público não autenticado ao bucket | bloqueado ("Bucket not found" — sem rota pública, bucket privado) |
+| 14 | `authenticated` tenta `DELETE` direto no objeto (sem policy) | `403`/`400` |
+
+14/14 confirmados via chamada real, não por inspeção de código.
+
+**Golden Path backend (REST/RPC/Storage, sem UI):** upload de conteúdo inválido → download real dos bytes de produção → `validateArtifactStructure` → `ZIP_STRUCTURE_INVALID` corretamente detectado; upload de um AAB sintético válido → download real → validação → `VALID`; persistência confirmada após "reload" (novo `SELECT`) e após "logout/login" (novo login, novo token); cancelamento, retry e arquivamento/remoção exercitados diretamente sobre as linhas.
+
+**Golden Path E2E/UI real (Playwright, Chromium, contra a aplicação Next.js deployada em produção — não substitui nem é substituído pelo backend acima):** ao tentar este teste, descoberto que **o código do app nunca tinha sido commitado/pushado** — só a migration do banco tinha ido para produção; o Vercel ainda servia a versão anterior, sem `BuildArtifactPanel`. Corrigido com `git push` (autorizado explicitamente pelo usuário para viabilizar o teste): commit `8b3680c`. Confirmado via `gh api .../commits/8b3680c/status` (`Vercel`, `state: success`, "Deployment has completed") — não só um HTTP 200 na URL, que não distinguiria deploy novo de cache.
+
+Com o código real em produção, Playwright (instalado em diretório de scratch, reaproveitando o Chromium já em cache do Codespace — não precisou reinstalar) executou, contra uma Version/Build QA reais: login → painel `Artefatos (AAB/IPA)` visível → seleção de AAB sintético válido → SHA-256 calculado no browser → **upload TUS real via `tus-js-client`** (não simulado, não substituído por POST simples) → progresso visível → cancelamento → retry → `STORED` → validação estrutural → `VALID` → reload → persistência → logout/login → persistência → signed download (nome do arquivo confirmado, URL sem padrão de secret) → upload de arquivo inválido → `Artefato inválido` → remoção → 0 erros de console → 0 padrão de secret (`service_role`/`sb_secret_`) em console/URLs/downloads → 0 overflow horizontal em light/dark × desktop/mobile (4 combinações).
+
+**Bug real encontrado pelo E2E (não pelo backend, que não exercitava esse caminho) e corrigido no mesmo ciclo:** `handleCancel()` chamava `markArtifactUploadFailed()` sem distinguir cancelamento de erro real — os dois caíam em `upload_status = FAILED`, escondendo que o usuário cancelou (a UI mostrava "Upload falhou" em vez de "Upload cancelado"). Corrigido adicionando um parâmetro `wasCanceled` que grava `CANCELED` quando o cancelamento é explícito do usuário. Commit `925ba09`, deployado (`gh api .../commits/925ba09/status` confirmado `success`), e o badge correto ("Upload cancelado") confirmado via novo teste Playwright antes de re-rodar o Golden Path completo do zero — 22/22 itens, sem regressão.
+
+**Cleanup dos dados de teste em produção:** todo dado de negócio (`build_artifacts`, `builds`, `game_versions`, `games`, `projects`, `invites`, `roles`, `role_permissions`, `user_roles`, objetos do bucket `builds`) foi removido via REST (`service_role`) ao final de cada rodada. Um achado à parte, não específico deste sprint: `public.studios.owner_user_id` e `public.users.studio_id` formam uma FK circular `NOT NULL` nos dois lados — o último par Studio+User de um lote nunca pode ser removido via PostgREST sozinho (nenhuma ordem de `DELETE` satisfaz as duas constraints simultaneamente). Resolvido com um script SQL administrativo (rodado pelo usuário no SQL Editor, não pelo agente — sem acesso a `psql` de produção nesta sessão): guardrails que provam, antes de apagar qualquer coisa, que os 3 pares residuais (2 da suíte de segurança, 1 do E2E) têm nome/email inequivocamente QA, que nenhum dado de negócio ainda pendura neles, e que **todo `studio_events` desses Studios tem `actor_id` dentro do conjunto exato de usuários QA e `event_name` dentro da lista fechada de eventos que este sprint poderia ter emitido** (achado numa segunda tentativa — a primeira versão do script quebrou em `studio_events_studio_id_fkey`, que a v1 não previa) — a transação torna as duas FKs `DEFERRABLE` só durante sua própria execução, resolve os deletes, e reverte antes do commit, sem deixar nenhuma alteração de schema permanente. Os 3 `auth.users` correspondentes foram removidos depois, via Admin API (`service_role`, nunca exposta fora do arquivo local). Verificação final independente, via REST, confirmou **zero** resíduo em `auth.users`, `public.users`, `studios`, `build_artifacts`, `studio_events`, `roles`, `invites`, `projects`, `games`, `builds`, `game_versions`, `user_roles`, `role_permissions`, e zero objetos sob os 3 prefixos de Studio no bucket `builds`.
+
+**Deploy Checklist (schema) — ver `DEPLOY_RUNBOOK.md`:**
+```
+[x] Migration criada em supabase/migrations/ com nome timestamped
+[x] Migration validada localmente (supabase db reset, Postgres real, 2x)
+[x] Migration aplicada em produção (supabase db push)
+[x] scripts/check-schema-sync.sh rodado e verde (2x, início e fim)
+[x] Golden Path executado contra produção — backend E UI real
+[x] Evidências de produção anexadas ao relatório (tabela acima, IDs, HTTP codes reais)
+[x] IMPLEMENTATION_LOG.md / METRICS.md atualizados com o resultado real
+```
+
+**Checklist de Segurança SQL (`DEFINITION_OF_DONE.md` §11) — função `create_pending_build_artifact`:**
+```
+[x] EXECUTE concedido só a authenticated (e service_role, sempre implícito)
+[x] REVOKE EXECUTE explícito de anon (e de public)
+[x] Teste autenticado com role que deveria ter acesso — sucesso confirmado
+[x] Teste anônimo real (sem login) — 401/42501 confirmado
+[x] service_role validado onde exclusivo — n/a aqui (função é de authenticated, não de service_role exclusivo)
+[x] Evidência registrada (tabela de 14 casos acima, HTTP/código reais)
+```
+
+### Sprint 2.11a — CONCLUÍDO
+
+Todos os gates obrigatórios passaram: schema sync, segurança em produção, Storage em produção, Golden Path backend, Golden Path E2E/UI real (com 1 bug encontrado e corrigido no processo), build/lint/typecheck, e cleanup de dados de teste — sem nenhum resíduo conhecido. Ver `METRICS.md` (entrada correspondente) para o snapshot numérico completo.
+
+### Próximo sub-sprint
+
+2.11b — Google AAB real (`edits.bundles.upload`), aguardando autorização explícita do usuário para começar.
