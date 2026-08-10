@@ -1,0 +1,31 @@
+-- HOTFIX CRÍTICO — regressão real de produção causada pelo script SQL
+-- administrativo de cleanup do GATE 9 do Sprint 2.11a.
+--
+-- `bootstrap_studio_for_current_user()` sempre insere em `studios`
+-- (owner_user_id = v_user_id) ANTES de inserir em `users` (mesma ordem
+-- desde o Sprint 1.8d-1, nunca alterada por nenhuma migration) — isso só
+-- funciona se `fk_studios_owner_user_id` for DEFERRABLE INITIALLY DEFERRED
+-- (checada só no commit da transação inteira, não a cada INSERT
+-- individual). Essa constraint SEMPRE precisou ser deferível para o
+-- bootstrap nunca ter falhado em nenhum sprint anterior — não era o
+-- default do Postgres por acaso, era uma propriedade real e necessária do
+-- schema, nunca documentada explicitamente em nenhuma migration anterior
+-- (achado tardio, só perceptível ao investigar esta regressão).
+--
+-- O script de cleanup do GATE 9 (Sprint 2.11a) tornou as duas constraints
+-- circulares (`fk_studios_owner_user_id`, `users_studio_id_fkey`)
+-- deferíveis SÓ dentro da própria transação de cleanup, e as revertia para
+-- NOT DEFERRABLE ao final — assumindo (incorretamente) que esse era o
+-- estado original. Era o estado original de `users_studio_id_fkey`
+-- (nunca precisou ser deferível, só é referenciada depois de `studios` já
+-- existir em todo outro caminho de código) mas NÃO de
+-- `fk_studios_owner_user_id`, que ficou permanentemente NOT DEFERRABLE
+-- desde aquele cleanup — bloqueando silenciosamente todo onboarding de
+-- conta nova sem convite pendente em produção a partir daquele momento.
+--
+-- Corrige as duas para DEFERRABLE INITIALLY DEFERRED (comportamento mais
+-- seguro para ambas, dado que fazem parte do mesmo par circular
+-- studios↔users) — restaura o bootstrap e evita que o mesmo tipo de
+-- cleanup futuro precise reaprender esta lição da forma difícil.
+alter table public.studios alter constraint fk_studios_owner_user_id deferrable initially deferred;
+alter table public.users alter constraint users_studio_id_fkey deferrable initially deferred;

@@ -2155,3 +2155,60 @@ Todos os gates obrigatórios passaram: schema sync, segurança em produção, St
 ### Próximo sub-sprint
 
 2.11b — Google AAB real (`edits.bundles.upload`), aguardando autorização explícita do usuário para começar.
+
+## Sprint 2.11b — Google Play AAB Upload (TRANSPORTE VALIDADO / FUNCIONAL PENDENTE)
+
+**Escopo:** primeiro fluxo real de envio de um `BuildArtifact` AAB já `STORED`+`VALID` (Sprint 2.11a) para um Google Play Edit rascunho via `edits.bundles.upload`. Termina no upload bem-sucedido + persistência — nunca commita/publica o Edit, nunca implementa `integration_jobs`/worker/queue (reservado ao Sprint 2.11d), nunca implementa upload resumível de verdade (decisão registrada em `DECISIONS.md`).
+
+### Auditoria e decisões (Fase 0)
+Confirmado contra a documentação oficial atual da Google (não por memória): `edits.bundles.upload` suporta upload simples (`uploadType=media`) e resumível (`uploadType=resumable`, chunks múltiplos de 256KB); Google recomenda timeout de 2 minutos. Decidido usar upload simples — resumível de verdade exigiria rastrear estado de sessão entre requests, fora de escopo sem worker. Quatro decisões registradas em `DECISIONS.md`: (1) transferência síncrona Storage→Google numa única Server Action, `maxDuration=120` alinhado ao timeout de "Upload" já congelado em AGSOS-SPEC-008 §10; (2) Edit sempre descartado após o upload (Play Console só permite 1 Edit ativo por app); (3) nova entidade `provider_uploads` (não reaproveita `submissions`, que é sobre revisão de loja); (4) nova permission `publishing.upload_build` (namespace novo).
+
+### Bug de infraestrutura encontrado e corrigido durante a implementação
+`export const maxDuration` num arquivo `"use server"` quebra o build — Next.js só permite funções async nesse tipo de arquivo; route segment config só é lido de Server Components. Corrigido criando `layout.tsx` escopado só à rota de Version.
+
+### Production-readiness review (antes do push, a pedido do usuário)
+1. **`maxDuration=120` aceito em produção:** confirmado contra a documentação oficial da Vercel — com Fluid Compute (padrão hoje), o limite é 300s por padrão em Hobby/Pro/Enterprise, extensível a 800s. `120` está bem dentro de qualquer plano.
+2. **Runtime Node.js, não Edge:** confirmado — nenhuma rota do app exporta `runtime = "edge"`; o código usa `node:crypto`/`Buffer`/admin client, incompatíveis com Edge.
+3. **Cópias de memória:** medido com fixtures sintéticas locais (10/50/100/200MB) — `downloadObject()`+`Buffer.from(await blob.arrayBuffer())` custa **~2.5-2.8x o tamanho do arquivo em RSS** (200MB → +550MB de RSS), porque o cliente Storage materializa o objeto como Blob antes de expor `arrayBuffer()` (cópia, não zero-copy). Achado real, não assumido.
+4. **Limite temporário adotado:** sem override de memória documentado para a função Vercel deste projeto, **150MB** — guard implementado em `provider-upload-actions.ts`, rejeita antes de tentar o download/OAuth, erro sanitizado `ARTIFACT_TOO_LARGE`. Commit `905bd6f`.
+
+### Deploy e migration
+Push dos commits `ab1448e`/`905bd6f`. Deploy Vercel confirmado (`gh api .../status`, `state: success`). Migration `20260811000001_provider_uploads.sql` aplicada em produção (`supabase db push`), `check-schema-sync.sh` verde. Verificação independente via `supabase db dump`: tabela, enum, RPC, permission, RLS (4 policies), grants da função (`REVOKE ALL FROM PUBLIC`, `GRANT` só a `authenticated`+`service_role`, sem `anon`) — tudo confirmado.
+
+### CRÍTICO — regressão de produção descoberta e corrigida durante a validação
+Ao tentar `bootstrap_studio_for_current_user()` para contas QA novas, **toda conta nova falhava** com `23503` em `fk_studios_owner_user_id`. Causa raiz: o script de cleanup do GATE 9 do Sprint 2.11a tinha alterado essa constraint para `NOT DEFERRABLE` ao "reverter" ao fim da própria transação — mas o estado original real (nunca documentado antes) sempre foi `DEFERRABLE INITIALLY DEFERRED`, exigido pela ordem de inserts do bootstrap (studios antes de users, mesma transação). **Isso bloqueou todo onboarding de conta nova em produção desde aquele cleanup até esta correção.** Detalhe completo, causa raiz e decisão de política de cleanup revisada em `DECISIONS.md` [2026-08-10] e `DEPLOY_RUNBOOK.md` §17/§18.
+
+**Correção:** `20260811000002_fix_studios_users_deferrable_fk.sql` — restaura `DEFERRABLE INITIALLY DEFERRED` nas duas constraints circulares. Testada localmente (bootstrap volta a funcionar) e aplicada em produção com autorização explícita do usuário fora do escopo original do 2.11b (bloqueante, não podia esperar). Revalidado com uma conta nova real em produção após a correção: `bootstrap_studio_for_current_user()` → `200`, Studio criado.
+
+### Matriz de segurança em produção (REST/RPC real)
+| # | Caso | Resultado |
+|---|---|---|
+| 1 | `anon` chama RPC `create_pending_provider_upload` | `401`/`42501 permission denied for function` |
+| 2 | `anon` faz `SELECT provider_uploads` | `200`, `[]` |
+| 3 | Member sem `publishing.upload_build` chama a RPC | `403`, mensagem da própria função |
+| 4 | Studio B usa `build_artifact`/Store Connection do Studio A | `403`, "build_artifact não pertence ao Studio do usuário atual" |
+| 5 | Studio B lê `provider_uploads` do Studio A | `200`, `[]` |
+| 6 | Owner do Studio A cria `provider_upload` (Artifact `STORED`+`VALID`) | `200` |
+
+6/6 confirmados via chamada real. Gate `STORED`+`VALID` da RPC também confirmado rejeitando artifact `PENDING`/`validation_status != VALID` antes de existir o `provider_upload` de sucesso.
+
+### Golden Path de produção (backend real + UI real via Playwright)
+Artifact AAB real (`STORED`+`VALID`) via REST+Storage; Store Connection Google real (credencial Service Account **sintética**, nunca real, gerada localmente); login real via UI em `https://ai-game-studio-os-web.vercel.app`; clique real em "Enviar ao Google Play" → **OAuth real contra `oauth2.googleapis.com`, rejeitado** (JWT assertion sintética, `errorCode: UNKNOWN`, `durationMs` real ~700ms) → erro sanitizado "Falha no envio" na UI (nunca a mensagem bruta do Google) → persistência confirmada após reload → persistência confirmada após logout/login → Retry manual clicado → `attempt` incrementado de 1 para 2 (confirmado via `studio_events`: `ProviderUploadStarted(1)`→`Failed(1)`→`Retried`→`Started(2)`→`Failed(2)`) → limite de 150MB testado com artifact sintético de 200MB → `ARTIFACT_TOO_LARGE`, `started_at: null` (bloqueado antes de qualquer tentativa de rede) → zero erros de console em ambas as rodadas Playwright → zero padrão de secret (`service_role`/`sb_secret_`/`private_key`/PEM) em console, URLs de rede, ou payloads de `studio_events`.
+
+### Cleanup de dados QA — política revisada (não "zero resíduo")
+Todo dado operacional mutável removido e confirmado vazio: `provider_uploads`, `build_artifacts`, `builds`, `game_versions`, `games`, `projects`, `store_connections`(+Vault), `invites`, `roles`, `role_permissions`, `user_roles`, objetos do bucket `builds`. **Studios QA, `public.users` owners e os 8 `studio_events` `ProviderUpload*` permanecem intencionalmente** — hard-delete de Studio é incompatível com o Event Store append-only + FK circular entre transações separadas (ver `DECISIONS.md`). Os 2 `auth.users` owners QA foram **banidos** via Admin API (`ban_duration` ≈100 anos) em vez de apagados — login confirmado rejeitado (`400 user_banned`) após o ban.
+
+### Débitos técnicos
+- Limite de 150MB é temporário (Sprint 2.11d resolve com streaming real).
+- OAuth sem cache de token (pré-existente, não deste sprint).
+- **Novo:** falta política oficial de lifecycle/deletion de Studio (soft-delete, tombstone, retenção de Event Store) — registrado em `DECISIONS.md`, necessário antes de qualquer sprint futuro que precise remover um Studio de verdade.
+
+### Build/lint/typecheck
+`pnpm build`/`pnpm lint`/`pnpm typecheck` — todos verdes, incluindo após o guard de 150MB.
+
+### Classificação final
+**TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** — nenhum AAB real chegou a um app real no Google Play Console ainda (sem credencial real disponível). Sprint 2.11b **CONCLUÍDO** dentro desse limite explícito.
+
+### Próximo sub-sprint
+
+2.11c — Apple IPA / Build Uploads API, aguardando autorização explícita do usuário para começar.

@@ -1675,3 +1675,49 @@ Smoke-check de produção do painel Integration Health (conta de teste), que rev
 | Supabase | migration aplicada em produção, schema sync verde |
 | Vercel | 2 deploys confirmados (`8b3680c`, `925ba09`) |
 | Classificação final | **Sprint 2.11a — CONCLUÍDO** |
+
+## Sprint 2.11b — Google Play AAB Upload (TRANSPORTE VALIDADO / FUNCIONAL PENDENTE)
+
+**Data:** 2026-08-10/11
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados (2 commits de código) | 20 |
+| Migrations novas | 2 (`20260811000001_provider_uploads.sql`, `20260811000002_fix_studios_users_deferrable_fk.sql` — hotfix) |
+| Packages tocados | 3 (`database`, `integrations`, `web`) |
+| Build/lint/typecheck | ✅ 13/13 tasks |
+
+### Segurança (produção real)
+
+| Métrica | Valor |
+|---|---|
+| Casos de segurança confirmados via chamada real | 6/6 |
+| Grants da função `create_pending_provider_upload` | ✅ sem `anon`, confirmado via dump independente |
+| Golden Path backend + UI real (Playwright) | ✅ OAuth real rejeitado, erro sanitizado, persistência, retry, limite de 150MB, 0 console errors, 0 secret leak |
+
+### Incidente crítico e correção
+
+| Métrica | Valor |
+|---|---|
+| Regressão encontrada | `bootstrap_studio_for_current_user()` bloqueado para toda conta nova desde o cleanup do GATE 9 do Sprint 2.11a |
+| Causa raiz | `ALTER CONSTRAINT ... NOT DEFERRABLE` incorreto num script de cleanup anterior |
+| Correção | `20260811000002_fix_studios_users_deferrable_fk.sql`, aplicada em produção, revalidada com conta real (`200`) |
+| Débito novo registrado | política oficial de lifecycle/deletion de Studio (`DECISIONS.md`) |
+
+### Cleanup
+
+| Métrica | Valor |
+|---|---|
+| Dado operacional mutável removido | 100% (11 tabelas + Storage + Vault) |
+| Studios/Users QA residuais (intencional, auditável) | 2 Studios + 2 `public.users` owner + 8 `studio_events` — nunca removíveis por design (Event Store append-only) |
+| `auth.users` QA | banidos (`ban_duration` ≈100 anos), login confirmado rejeitado |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Vercel | ✅ commits `ab1448e`, `905bd6f` (`state: success`) |
+| Supabase | ✅ 2 migrations aplicadas, `check:schema` verde |
+| Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** — Sprint 2.11b CONCLUÍDO |
