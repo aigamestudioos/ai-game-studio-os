@@ -12,6 +12,7 @@ import { formatBytes, uploadStatusLabel, validationErrorLabel, validationStatusL
 import { useBuildArtifacts } from "../../hooks/use-build-artifacts";
 import { toast } from "../../hooks/use-toast";
 import { GooglePlaySendSection } from "./google-play-send-section";
+import { AppleSendSection } from "./apple-send-section";
 import {
   archiveArtifact,
   confirmArtifactStored,
@@ -223,6 +224,7 @@ export function BuildArtifactPanel({
                   </Button>
                 </div>
                 <GooglePlaySendSection session={session} gameId={gameId} artifact={artifact} />
+                <AppleSendSection session={session} gameId={gameId} artifact={artifact} />
               </div>
             );
           })}

@@ -26,22 +26,7 @@ import {
 import { createGooglePlayPublishingAdapter, type GoogleCredentials } from "@agsos/integrations";
 import { downloadObject } from "@agsos/storage";
 import { providerUploadEvent } from "../../../../../lib/domain-events";
-
-// Limite TEMPORÁRIO deste sprint (menor que o limite de 500MiB do bucket
-// `builds`, Sprint 2.11a) — medido, não assumido: `downloadObject()` +
-// `Buffer.from(await blob.arrayBuffer())` custam ~2.5-2.8x o tamanho do
-// arquivo em RSS (medido localmente: 200MiB de arquivo → +550MiB de RSS;
-// 100MiB → +279MiB), porque o cliente Storage materializa o objeto como
-// Blob antes de expor `arrayBuffer()`, e essa conversão copia os bytes
-// (não é zero-copy). Sem saber a memória real configurada na função
-// Vercel de produção (não há override em `vercel.json`/dashboard
-// documentado neste repo — DECISIONS.md), 150MiB é o teto que mantém
-// margem segura mesmo no cenário mais provável (default de 1024MiB menos
-// o overhead do runtime Next.js + admin client + o restante do request).
-// Resolver isso de verdade (streaming real, sem materializar o objeto
-// inteiro) é trabalho do Sprint 2.11d — aqui só evitamos OOM enquanto essa
-// solução não existe. Nunca aumentar sem remedir.
-const MAX_PROVIDER_UPLOAD_SIZE_BYTES = 150 * 1024 * 1024;
+import { MAX_PROVIDER_UPLOAD_SIZE_BYTES } from "../../../../../lib/provider-upload-limits";
 
 async function getAuthorizedServerClient() {
   const cookieStore = await cookies();

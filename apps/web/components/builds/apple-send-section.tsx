@@ -15,14 +15,24 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { getBrowserClient } from "../../lib/supabase-client";
 import { useProviderUploads } from "../../hooks/use-provider-uploads";
-import { providerUploadErrorLabel, providerUploadStatusLabel } from "../../lib/provider-upload-status";
+import { appleUploadStateLabel, providerUploadErrorLabel, providerUploadStatusLabel } from "../../lib/provider-upload-status";
 import { toast } from "../../hooks/use-toast";
-import { retryProviderUpload, sendArtifactToGooglePlay, setGamePackageName } from "../../app/games/[id]/versions/[versionId]/provider-upload-actions";
+import {
+  retryAppleProviderUpload,
+  sendArtifactToAppStore,
+  setGameBundleIdentifier,
+} from "../../app/games/[id]/versions/[versionId]/apple-provider-upload-actions";
 
-// Sprint 2.11b — seção pequena, só para Artifacts AAB já STORED+VALID.
-// Nunca menciona "Publicado"/"release" — este sprint termina no upload
-// bem-sucedido a um Google Play Edit rascunho (DECISIONS.md).
-export function GooglePlaySendSection({
+// Sprint 2.11c — seção pequena, só para Artifacts IPA já STORED+VALID.
+// Mesmo padrão de `GooglePlaySendSection` (Sprint 2.11b), mas NÃO
+// compartilhada como componente único — os dois protocolos (Edit do
+// Google vs BuildUpload multi-arquivo/multi-chunk da Apple) são
+// materialmente diferentes o suficiente para não justificar uma
+// mega-abstração provider-agnostic na UI (decisão do sprint). O que é
+// genuinamente compartilhável (badges de status, hook de listagem,
+// labels de erro) já vive em `lib/provider-upload-status.ts` e
+// `hooks/use-provider-uploads.ts`.
+export function AppleSendSection({
   session,
   gameId,
   artifact,
@@ -31,15 +41,15 @@ export function GooglePlaySendSection({
   gameId: string;
   artifact: BuildArtifactsRow;
 }) {
-  const eligible = artifact.file_extension === "aab" && artifact.upload_status === "STORED" && artifact.validation_status === "VALID";
+  const eligible = artifact.file_extension === "ipa" && artifact.upload_status === "STORED" && artifact.validation_status === "VALID";
   const { uploads, loading: uploadsLoading, reload } = useProviderUploads(session, eligible ? artifact.id : undefined);
 
   const [connections, setConnections] = useState<StoreConnectionsRow[] | undefined>(undefined);
-  const [packageName, setPackageName] = useState<string | null | undefined>(undefined);
-  const [packageNameInput, setPackageNameInput] = useState("");
+  const [bundleIdentifier, setBundleIdentifier] = useState<string | null | undefined>(undefined);
+  const [bundleIdentifierInput, setBundleIdentifierInput] = useState("");
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [savingPackageName, setSavingPackageName] = useState(false);
+  const [savingBundleIdentifier, setSavingBundleIdentifier] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,28 +64,28 @@ export function GooglePlaySendSection({
           createPlatformsRepository(client).list().catch(() => []),
           createGamesRepository(client).getById(gameId).catch(() => null),
         ]);
-        const googlePlatform = platforms.find((p) => p.name === "Google Play");
-        const googleConnections = googlePlatform ? storeConnections.filter((c) => c.platform_id === googlePlatform.id) : [];
-        setConnections(googleConnections);
-        if (googleConnections.length === 1) setSelectedConnectionId(googleConnections[0]!.id);
-        setPackageName(game?.package_name ?? null);
+        const applePlatform = platforms.find((p) => p.name === "App Store");
+        const appleConnections = applePlatform ? storeConnections.filter((c) => c.platform_id === applePlatform.id) : [];
+        setConnections(appleConnections);
+        if (appleConnections.length === 1) setSelectedConnectionId(appleConnections[0]!.id);
+        setBundleIdentifier(game?.bundle_identifier ?? null);
       });
   }, [session, eligible, gameId]);
 
   if (!eligible) return null;
 
-  async function handleSavePackageName() {
-    setSavingPackageName(true);
+  async function handleSaveBundleIdentifier() {
+    setSavingBundleIdentifier(true);
     try {
-      const result = await setGamePackageName(gameId, packageNameInput);
+      const result = await setGameBundleIdentifier(gameId, bundleIdentifierInput);
       if (result.error) {
         toast({ title: "Não foi possível salvar", description: result.error, variant: "destructive" });
         return;
       }
-      setPackageName(packageNameInput.trim());
-      toast({ title: "Package name salvo", variant: "success" });
+      setBundleIdentifier(bundleIdentifierInput.trim());
+      toast({ title: "Bundle Identifier salvo", variant: "success" });
     } finally {
-      setSavingPackageName(false);
+      setSavingBundleIdentifier(false);
     }
   }
 
@@ -83,11 +93,11 @@ export function GooglePlaySendSection({
     if (!selectedConnectionId) return;
     setSending(true);
     try {
-      const result = await sendArtifactToGooglePlay(artifact.id, selectedConnectionId);
+      const result = await sendArtifactToAppStore(artifact.id, selectedConnectionId);
       if (result.error) {
         toast({ title: "Envio falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado ao Google Play", description: result.versionCode ? `versionCode ${result.versionCode}` : undefined, variant: "success" });
+        toast({ title: "Enviado à App Store", description: appleUploadStateLabel(result.appleUploadState ?? null) ?? undefined, variant: "success" });
       }
       reload();
     } finally {
@@ -98,11 +108,11 @@ export function GooglePlaySendSection({
   async function handleRetry(providerUploadId: string) {
     setRetryingId(providerUploadId);
     try {
-      const result = await retryProviderUpload(providerUploadId);
+      const result = await retryAppleProviderUpload(providerUploadId);
       if (result.error) {
         toast({ title: "Retry falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado ao Google Play", description: result.versionCode ? `versionCode ${result.versionCode}` : undefined, variant: "success" });
+        toast({ title: "Enviado à App Store", description: appleUploadStateLabel(result.appleUploadState ?? null) ?? undefined, variant: "success" });
       }
       reload();
     } finally {
@@ -112,22 +122,22 @@ export function GooglePlaySendSection({
 
   return (
     <div className="space-y-sm rounded-sm border border-dashed border-border p-sm">
-      <span className="text-xs font-medium">Google Play</span>
+      <span className="text-xs font-medium">App Store</span>
 
-      {packageName === undefined || connections === undefined ? (
+      {bundleIdentifier === undefined || connections === undefined ? (
         <p className="text-xs text-muted-foreground">Carregando…</p>
       ) : connections.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhuma Store Connection do Google Play conectada neste Studio.</p>
-      ) : !packageName ? (
+        <p className="text-xs text-muted-foreground">Nenhuma Store Connection da App Store conectada neste Studio.</p>
+      ) : !bundleIdentifier ? (
         <div className="flex items-center gap-sm">
           <Input
             placeholder="com.exemplo.jogo"
-            value={packageNameInput}
-            onChange={(e) => setPackageNameInput(e.target.value)}
+            value={bundleIdentifierInput}
+            onChange={(e) => setBundleIdentifierInput(e.target.value)}
             className="h-8 text-xs"
           />
-          <Button size="sm" variant="outline" loading={savingPackageName} disabled={savingPackageName || !packageNameInput} onClick={handleSavePackageName}>
-            Salvar Package Name
+          <Button size="sm" variant="outline" loading={savingBundleIdentifier} disabled={savingBundleIdentifier || !bundleIdentifierInput} onClick={handleSaveBundleIdentifier}>
+            Salvar Bundle Identifier
           </Button>
         </div>
       ) : (
@@ -147,7 +157,7 @@ export function GooglePlaySendSection({
             </select>
           ) : null}
           <Button size="sm" loading={sending} disabled={sending || !selectedConnectionId} onClick={handleSend}>
-            Enviar ao Google Play
+            Enviar à App Store
           </Button>
         </div>
       )}
@@ -156,12 +166,13 @@ export function GooglePlaySendSection({
         <div className="space-y-1">
           {uploads.map((upload) => {
             const errorLabel = providerUploadErrorLabel(upload.error_code);
+            const stateLabel = appleUploadStateLabel(upload.apple_upload_state);
             return (
               <div key={upload.id} className="flex flex-wrap items-center gap-sm text-xs">
                 <Badge variant={upload.status === "SUCCEEDED" ? "success" : upload.status === "FAILED" ? "destructive" : "outline"}>
-                  {providerUploadStatusLabel(upload.status, "GOOGLE_PLAY")}
+                  {providerUploadStatusLabel(upload.status, "APPLE_APP_STORE")}
                 </Badge>
-                {upload.version_code ? <span className="text-text-tertiary">versionCode {upload.version_code}</span> : null}
+                {stateLabel ? <span className="text-text-tertiary">estado Apple: {stateLabel}</span> : null}
                 <span className="text-text-tertiary">tentativa {upload.attempt}</span>
                 {errorLabel ? <span className="text-destructive">{errorLabel}</span> : null}
                 {upload.status === "FAILED" ? (

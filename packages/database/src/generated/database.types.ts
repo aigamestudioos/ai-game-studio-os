@@ -223,6 +223,9 @@ export type ProviderUploadsRow = WithStudio & {
   attempt: number;
   started_at: string | null;
   completed_at: string | null;
+  apple_build_upload_id: string | null;
+  apple_build_upload_file_id: string | null;
+  apple_upload_state: string | null;
 };
 
 export type SubmissionsRow = WithStudio & {

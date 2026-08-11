@@ -1,4 +1,14 @@
-import { checkAppleHealth, fetchAppleApp, fetchAppleApps } from "./client";
+import {
+  checkAppleHealth,
+  commitAppleBuildUploadFile,
+  createAppleBuildUpload,
+  deleteAppleBuildUpload,
+  fetchAppleApp,
+  fetchAppleApps,
+  getAppleBuildUpload,
+  reserveAppleBuildUploadFile,
+  uploadAppleBuildUploadFileOperations,
+} from "./client";
 import type { AppleCredentials, ApplePublishingAdapter } from "./types";
 
 // Factory do adapter (AGSOS-SPEC-008 §3) — único ponto de entrada que
@@ -24,6 +34,24 @@ export function createApplePublishingAdapter(credentials: AppleCredentials): App
     },
     async getApp(appId: string) {
       return fetchAppleApp(appId, credentials);
+    },
+    async createBuildUpload(params) {
+      return createAppleBuildUpload(credentials, params);
+    },
+    async reserveBuildUploadFile(params) {
+      return reserveAppleBuildUploadFile(credentials, params);
+    },
+    async uploadBuildUploadFileOperations(operations, fileBuffer) {
+      return uploadAppleBuildUploadFileOperations(operations, fileBuffer);
+    },
+    async commitBuildUploadFile(buildUploadFileId) {
+      return commitAppleBuildUploadFile(credentials, buildUploadFileId);
+    },
+    async getBuildUpload(buildUploadId) {
+      return getAppleBuildUpload(credentials, buildUploadId);
+    },
+    async deleteBuildUpload(buildUploadId) {
+      return deleteAppleBuildUpload(credentials, buildUploadId);
     },
   };
 }

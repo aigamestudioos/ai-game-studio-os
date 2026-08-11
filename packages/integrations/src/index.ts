@@ -3,7 +3,14 @@
 // nunca importa `./apple/client`/`./google-play/client` etc. diretamente —
 // só o que este barrel exporta.
 export { createApplePublishingAdapter } from "./apple/adapter";
-export type { AppleApp, AppleCredentials, ApplePublishingAdapter } from "./apple/types";
+export type {
+  AppleApp,
+  AppleBuildUploadState,
+  AppleCredentials,
+  ApplePlatform,
+  ApplePublishingAdapter,
+  AppleUploadOperation,
+} from "./apple/types";
 
 export { createGooglePlayPublishingAdapter } from "./google-play/adapter";
 export type { GoogleApp, GoogleBundle, GoogleCredentials, GooglePlayPublishingAdapter } from "./google-play/types";

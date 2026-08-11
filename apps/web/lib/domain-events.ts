@@ -138,26 +138,40 @@ export function buildArtifactEvent<Name extends BuildArtifactEventName>(
 // nunca inclui JWT/access token/Service Account JSON/private key/signed
 // Storage URL — só o resultado (`editId`/`versionCode`) e metadados de
 // observabilidade (`durationMs`/`attempt`/`errorCode` sanitizado).
-export type ProviderUploadStartedPayload = { provider: "GOOGLE_PLAY"; buildArtifactId: string; storeConnectionId: string; attempt: number };
+// Sprint 2.11c — Apple entra no mesmo evento provider-agnostic (nunca
+// `AppleUpload*` separado — decisão do sprint). `"APPLE_APP_STORE"` segue
+// o vocabulário pedido para este evento especificamente; note que
+// `StoreConnectionCallCompletedPayload.provider` (acima) usa `"APPLE"` —
+// inconsistência pré-existente entre os dois eventos, não corrigida aqui
+// (fora de escopo, evento de domínio diferente).
+export type ProviderUploadProvider = "GOOGLE_PLAY" | "APPLE_APP_STORE";
+
+export type ProviderUploadStartedPayload = { provider: ProviderUploadProvider; buildArtifactId: string; storeConnectionId: string; attempt: number };
 export type ProviderUploadSucceededPayload = {
-  provider: "GOOGLE_PLAY";
+  provider: ProviderUploadProvider;
   buildArtifactId: string;
   storeConnectionId: string;
-  editId: string;
-  versionCode: number;
+  // Google: editId/versionCode. Apple: appleBuildUploadId/appleUploadState.
+  // Nunca os dois preenchidos ao mesmo tempo — nunca uma URL de upload/
+  // token/JWT em nenhum dos dois casos.
+  editId?: string;
+  versionCode?: number;
+  appleBuildUploadId?: string;
+  appleUploadState?: string;
   durationMs: number;
   attempt: number;
 };
 export type ProviderUploadFailedPayload = {
-  provider: "GOOGLE_PLAY";
+  provider: ProviderUploadProvider;
   buildArtifactId: string;
   storeConnectionId: string;
-  editId: string | null;
+  editId?: string | null;
+  appleBuildUploadId?: string | null;
   durationMs: number;
   errorCode: string;
   attempt: number;
 };
-export type ProviderUploadRetriedPayload = { provider: "GOOGLE_PLAY"; buildArtifactId: string; storeConnectionId: string; attempt: number };
+export type ProviderUploadRetriedPayload = { provider: ProviderUploadProvider; buildArtifactId: string; storeConnectionId: string; attempt: number };
 
 export type ProviderUploadEvent =
   | { name: "ProviderUploadStarted"; payload: ProviderUploadStartedPayload }
