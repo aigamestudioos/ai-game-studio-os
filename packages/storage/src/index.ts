@@ -6,6 +6,8 @@ export {
   getObjectMetadata,
   removeObject,
   downloadObject,
+  downloadObjectRange,
+  getObjectSizeViaRange,
 } from "./objects";
 export type { ObjectRef } from "./objects";
 export { buildResumableUploadConfig } from "./resumable";

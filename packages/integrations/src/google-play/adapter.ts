@@ -1,4 +1,13 @@
-import { checkGoogleHealth, createGoogleEdit, deleteGoogleEdit, fetchGoogleApps, uploadGoogleBundle } from "./client";
+import {
+  checkGoogleHealth,
+  createGoogleEdit,
+  createGoogleResumableSession,
+  deleteGoogleEdit,
+  fetchGoogleApps,
+  queryGoogleResumableProgress,
+  uploadGoogleBundle,
+  uploadGoogleResumableChunk,
+} from "./client";
 import type { GoogleCredentials, GooglePlayPublishingAdapter } from "./types";
 
 export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials): GooglePlayPublishingAdapter {
@@ -24,6 +33,15 @@ export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials
     },
     async deleteEdit(editId) {
       return deleteGoogleEdit(credentials, editId);
+    },
+    async createResumableSession(editId, totalBytes, mimeType) {
+      return createGoogleResumableSession(credentials, editId, totalBytes, mimeType);
+    },
+    async uploadResumableChunk(sessionUri, chunk, startByte, totalBytes) {
+      return uploadGoogleResumableChunk(sessionUri, chunk, startByte, totalBytes);
+    },
+    async queryResumableProgress(sessionUri, totalBytes) {
+      return queryGoogleResumableProgress(sessionUri, totalBytes);
     },
   };
 }

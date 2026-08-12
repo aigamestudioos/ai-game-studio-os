@@ -66,7 +66,14 @@ export interface ApplePublishingAdapter extends IntegrationAdapter {
   // anexa headers próprios além dos fornecidos pela Apple (`method`/`url`/
   // `requestHeaders` são sempre os da Apple — nunca o JWT/Authorization da
   // App Store Connect, que não deve ir para essas URLs).
-  uploadBuildUploadFileOperations(operations: AppleUploadOperation[], fileBuffer: Buffer): Promise<ItemResult<void>>;
+  // Sprint 2.11d — `opts.startIndex` retoma depois de um crash sem
+  // reenviar operações já confirmadas; `opts.onOperationComplete` é o
+  // gancho para persistir checkpoint (ver `integration_jobs.checkpoint`).
+  uploadBuildUploadFileOperations(
+    operations: AppleUploadOperation[],
+    fileBuffer: Buffer,
+    opts?: { startIndex?: number; onOperationComplete?: (index: number) => Promise<void> | void },
+  ): Promise<ItemResult<void>>;
 
   commitBuildUploadFile(buildUploadFileId: string): Promise<ItemResult<void>>;
 

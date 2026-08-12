@@ -30,20 +30,31 @@ export type GoogleApp = {
 // corpo bruto da resposta (nenhum outro campo é persistido/exibido).
 export type GoogleBundle = { versionCode: number };
 
+export type GoogleResumableChunkResult =
+  | { status: "complete"; versionCode: number }
+  | { status: "incomplete"; bytesReceived: number };
+
 export interface GooglePlayPublishingAdapter extends IntegrationAdapter {
   listApps(): Promise<ListResult<GoogleApp>>;
   // Cria um Edit rascunho — obrigatório antes de qualquer upload
   // (`edits.bundles.upload` sempre exige um `editId` existente).
   createEdit(): Promise<ItemResult<{ editId: string }>>;
-  // Upload simples (não resumível) do AAB para o Edit — decisão do
-  // sprint (DECISIONS.md): resumível de verdade exigiria rastrear estado
-  // de sessão entre requests, fora de escopo sem worker/queue.
+  // Upload simples (não resumível) — mantido só para compatibilidade com
+  // fixtures/testes pequenos (Sprint 2.11b). O fluxo real de envio
+  // (Sprint 2.11d) usa `createResumableSession`/`uploadResumableChunk`.
   uploadBundle(editId: string, bundle: Buffer): Promise<ItemResult<GoogleBundle>>;
   // Sempre chamado depois do upload (sucesso ou falha) — nunca deixa um
   // Edit pendurado (DECISIONS.md: Play Console permite só 1 Edit ativo
   // por app). Best-effort: falha aqui nunca deveria mascarar o resultado
   // real do upload.
   deleteEdit(editId: string): Promise<void>;
+
+  // Sprint 2.11d — upload resumível real. `sessionUri` é uma bearer
+  // capability (DECISIONS.md) — nunca logada, nunca em domain event, só
+  // persistida via referência a segredo (Vault), nunca plaintext.
+  createResumableSession(editId: string, totalBytes: number, mimeType: string): Promise<ItemResult<{ sessionUri: string }>>;
+  uploadResumableChunk(sessionUri: string, chunk: Buffer, startByte: number, totalBytes: number): Promise<ItemResult<GoogleResumableChunkResult>>;
+  queryResumableProgress(sessionUri: string, totalBytes: number): Promise<ItemResult<GoogleResumableChunkResult>>;
 }
 
 export type { HealthResult, ItemResult };

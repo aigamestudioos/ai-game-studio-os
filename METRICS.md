@@ -1720,4 +1720,49 @@ Smoke-check de produção do painel Integration Health (conta de teste), que rev
 |---|---|
 | Vercel | ✅ commits `ab1448e`, `905bd6f` (`state: success`) |
 | Supabase | ✅ 2 migrations aplicadas, `check:schema` verde |
+
+## Sprint 2.11d-1 — Provider Transfer Engine: GATEs 0-5 + primitivas de streaming/resumable/checkpoint (PARCIAL, split deliberado)
+
+**Data:** 2026-08-13
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados/criados (não commitado ainda) | 17 |
+| Migrations novas | 4 (`null_safe_studio_checks`, `integration_jobs`, `job_claim_and_enqueue`, `resumable_session_vault`) |
+| Packages tocados | 3 (`storage`, `integrations`, migrations do `supabase`) — dentro do limite do `CLAUDE.md` |
+| ADRs novos | 1 (`ADR-006-provider-transfer-worker.md`) |
+| Build/lint/typecheck | ✅ monorepo completo (12/12 tasks) |
+
+### GATEs concluídos
+
+| Gate | Resultado |
+|---|---|
+| GATE 0 (NULL-safety) | ✅ `IS DISTINCT FROM` em 4 funções SECURITY DEFINER, testado (4 casos) |
+| GATE 1 (ADR infra worker) | ✅ Option E (`integration_jobs`+pg_cron/pg_net+dispatcher bounded) |
+| GATE 2/3 (reuso `integration_jobs` + state machines) | ✅ enums `job_status`/`job_error_class`, RLS só-leitura |
+| GATE 4 (claim atômico + lease) | ✅ `FOR UPDATE SKIP LOCKED` confirmado sem double-claim em teste paralelo real; `requeue_stale_jobs()` testado (QUEUED e DEAD) |
+| GATE 5 (idempotência de enqueue) | ✅ guarda contra retry manual concorrente, testado; os outros 6 casos do sprint dependem do worker real (2.11d-2) |
+
+### Primitivas de transferência
+
+| Item | Resultado |
+|---|---|
+| Streaming/range read do Storage | ✅ `downloadObjectRange`/`getObjectSizeViaRange`, 206+Content-Range confirmado empiricamente |
+| Benchmark de memória (leitura por Range, 10-200MB) | ✅ delta RSS ~48-64MB, aproximadamente constante — critério do sprint atingido para esta primitiva (benchmark do fluxo completo fica para 2.11d-2) |
+| Google resumable upload (adapter) | ✅ `createResumableSession`/`uploadResumableChunk`/`queryResumableProgress` |
+| Vault para `google_resumable_session_ref` | ✅ set/get/clear, `service_role`-only, round-trip + overwrite + clear testados |
+| Apple checkpoint por `uploadOperation` (primitiva) | ✅ `startIndex`/`onOperationComplete` no client/adapter — integração com `integration_jobs.checkpoint` fica para 2.11d-2 |
+
+### Escopo explicitamente não coberto (proposto como 2.11d-2)
+
+Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions enqueue-and-return; UI de polling; benchmark do fluxo completo; 14 dos 20 testes mandatórios do sprint original.
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada — autorização de produção não solicitada nem dada para este sub-sprint |
+| Classificação final | **PARCIAL por divisão deliberada** (não por falha) — ver `IMPLEMENTATION_LOG.md` |
 | Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** — Sprint 2.11b CONCLUÍDO |

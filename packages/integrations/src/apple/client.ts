@@ -178,35 +178,54 @@ export async function reserveAppleBuildUploadFile(
 // para um host de storage completamente diferente (presigned URL), e
 // enviar credenciais da App Store Connect para outro host seria uma
 // fuga de credencial real.
+async function uploadSingleAppleOperation(operation: AppleUploadOperation, fileBuffer: Buffer): Promise<ItemResult<void>> {
+  if (!operation.method || !operation.url || operation.offset === null || operation.length === null) {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+  const chunk = fileBuffer.subarray(operation.offset, operation.offset + operation.length);
+  const headers: Record<string, string> = {};
+  for (const h of operation.requestHeaders ?? []) {
+    if (h.name) headers[h.name] = h.value;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), UPLOAD_OPERATION_TIMEOUT_MS);
+    let status: number;
+    try {
+      const res = await fetch(operation.url, { method: operation.method, headers, body: chunk, signal: controller.signal });
+      status = res.status;
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (status < 200 || status >= 300) {
+      return { ok: false, error: sanitizeAppleError(status), code: classifyAppleError(status) };
+    }
+    return { ok: true, item: undefined };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// Sprint 2.11d — checkpoint por `uploadOperation`. `startIndex` permite
+// retomar depois de um crash do worker sem reenviar operações já
+// confirmadas (GATE 5 do sprint: idempotência de transferência, não só
+// de enqueue). `onOperationComplete` é chamado IMEDIATAMENTE após cada
+// operação bem-sucedida — quem chama esta função é responsável por
+// persistir o índice em `integration_jobs.checkpoint` antes de seguir
+// para a próxima, para que um crash entre duas operações não perca o
+// progresso já confirmado pela Apple.
 export async function uploadAppleBuildUploadFileOperations(
   operations: AppleUploadOperation[],
   fileBuffer: Buffer,
+  opts?: { startIndex?: number; onOperationComplete?: (index: number) => Promise<void> | void },
 ): Promise<ItemResult<void>> {
-  for (const operation of operations) {
-    if (!operation.method || !operation.url || operation.offset === null || operation.length === null) {
-      return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
-    }
-    const chunk = fileBuffer.subarray(operation.offset, operation.offset + operation.length);
-    const headers: Record<string, string> = {};
-    for (const h of operation.requestHeaders ?? []) {
-      if (h.name) headers[h.name] = h.value;
-    }
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), UPLOAD_OPERATION_TIMEOUT_MS);
-      let status: number;
-      try {
-        const res = await fetch(operation.url, { method: operation.method, headers, body: chunk, signal: controller.signal });
-        status = res.status;
-      } finally {
-        clearTimeout(timeout);
-      }
-      if (status < 200 || status >= 300) {
-        return { ok: false, error: sanitizeAppleError(status), code: classifyAppleError(status) };
-      }
-    } catch {
-      return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
-    }
+  const startIndex = opts?.startIndex ?? 0;
+  for (let index = startIndex; index < operations.length; index += 1) {
+    const operation = operations[index];
+    if (!operation) continue;
+    const result = await uploadSingleAppleOperation(operation, fileBuffer);
+    if (!result.ok) return result;
+    if (opts?.onOperationComplete) await opts.onOperationComplete(index);
   }
   return { ok: true, item: undefined };
 }

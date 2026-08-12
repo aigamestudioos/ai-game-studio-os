@@ -41,8 +41,8 @@ export function createApplePublishingAdapter(credentials: AppleCredentials): App
     async reserveBuildUploadFile(params) {
       return reserveAppleBuildUploadFile(credentials, params);
     },
-    async uploadBuildUploadFileOperations(operations, fileBuffer) {
-      return uploadAppleBuildUploadFileOperations(operations, fileBuffer);
+    async uploadBuildUploadFileOperations(operations, fileBuffer, opts) {
+      return uploadAppleBuildUploadFileOperations(operations, fileBuffer, opts);
     },
     async commitBuildUploadFile(buildUploadFileId) {
       return commitAppleBuildUploadFile(credentials, buildUploadFileId);
