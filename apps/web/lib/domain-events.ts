@@ -146,6 +146,15 @@ export function buildArtifactEvent<Name extends BuildArtifactEventName>(
 // (fora de escopo, evento de domínio diferente).
 export type ProviderUploadProvider = "GOOGLE_PLAY" | "APPLE_APP_STORE";
 
+// Sprint 2.11d-2b — a Server Action agora só enfileira (nunca transfere no
+// próprio request, ver ADR-006). `ProviderUploadQueued` é o fato de
+// domínio real desse momento ("o usuário pediu, o AGSOS aceitou e vai
+// tentar") — distinto de `ProviderUploadStarted`, que passa a significar
+// "o worker de fato começou a trabalhar" (emitido pelo processor real nos
+// sub-sprints 2.11d-2c/2.11d-2d, não por esta Server Action). Nunca confundir
+// com `JobStarted`/`JobClaimed` do dispatcher (GATE 26) — aqueles são
+// telemetria operacional do worker, nunca Domain Event.
+export type ProviderUploadQueuedPayload = { provider: ProviderUploadProvider; buildArtifactId: string; storeConnectionId: string; attempt: number };
 export type ProviderUploadStartedPayload = { provider: ProviderUploadProvider; buildArtifactId: string; storeConnectionId: string; attempt: number };
 export type ProviderUploadSucceededPayload = {
   provider: ProviderUploadProvider;
@@ -174,6 +183,7 @@ export type ProviderUploadFailedPayload = {
 export type ProviderUploadRetriedPayload = { provider: ProviderUploadProvider; buildArtifactId: string; storeConnectionId: string; attempt: number };
 
 export type ProviderUploadEvent =
+  | { name: "ProviderUploadQueued"; payload: ProviderUploadQueuedPayload }
   | { name: "ProviderUploadStarted"; payload: ProviderUploadStartedPayload }
   | { name: "ProviderUploadSucceeded"; payload: ProviderUploadSucceededPayload }
   | { name: "ProviderUploadFailed"; payload: ProviderUploadFailedPayload }

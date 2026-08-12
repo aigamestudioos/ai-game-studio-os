@@ -2323,3 +2323,37 @@ Server Actions enqueue-and-return; UI de polling; integração real do worker co
 ### Próximo sub-sprint
 
 2.11d-2b — Server Actions (Google/Apple) reescritas para enqueue-and-return, duplicate enqueue reforçado na UI, UI assíncrona com polling, aguardando autorização explícita do usuário para começar.
+
+## Sprint 2.11d-2b — Server Actions enqueue-and-return + UI assíncrona (GATEs 11, 12 parcial, 19, 20, 21)
+
+**Status:** Concluído (dentro do escopo reduzido — Server Actions/UI, sem worker de provider real ainda)
+**Período:** 2026-08-14 (continuação autônoma, autorizada pela diretriz de autonomia do usuário sobre o 2.11d-2 já em andamento)
+
+### GATE 11 — Server Actions reescritas
+`provider-upload-actions.ts` (Google) e `apple-provider-upload-actions.ts` (Apple): removido todo código de rede/transferência (`downloadObject`, adapters, polling síncrono de `getBuildUpload`, `deleteEdit`/`deleteBuildUpload` best-effort) — isso tudo migra para os processors reais do worker (2.11d-2c/2.11d-2d). O que sobra em cada Server Action: validar (artifact existe, packageName/bundleIdentifier configurado, Store Connection existe), criar o `provider_upload` (`create_pending_provider_upload`, inalterado desde 2.11b/c), aplicar o guard de 150MB (GATE 25 — antes do enqueue, não dentro do worker), chamar `enqueue_provider_upload_job` (`integration_name = "google_play"`/`"apple_app_store"`), emitir `ProviderUploadQueued`, e retornar. Nenhuma chamada a Google/Apple acontece mais dentro do ciclo de vida do request web — confirmado por leitura do código (nenhum import de `@agsos/integrations`/`downloadObject` resta nos dois arquivos) e por build/typecheck verdes.
+
+`retryProviderUpload`/`retryAppleProviderUpload` seguem o mesmo padrão: chamam `enqueue_provider_upload_job` para o `provider_upload_id` existente (a RPC cria um job NOVO, com `attempt=1` na tabela `integration_jobs` — distinto do contador legado `provider_uploads.attempt`, que a Server Action ainda incrementa manualmente para preservar a semântica de "tentativa Nº X" já exibida na UI desde o 2.11b) e emitem `ProviderUploadRetried`.
+
+### Evento novo: `ProviderUploadQueued`
+Adicionado a `lib/domain-events.ts` — narra o fato de domínio real do momento do enqueue ("o usuário pediu, o AGSOS aceitou"), distinto de `ProviderUploadStarted` (que passa a significar "o worker de fato começou a trabalhar" — só será emitido pelos processors reais do 2.11d-2c/2.11d-2d). Nunca confundir com telemetria interna do dispatcher (`JobStarted`/`JobClaimed` do GATE 26, que não existem como Domain Event — só como estado observável em `integration_jobs`).
+
+### GATE 12 (parcial) — Duplicate enqueue
+A guarda real (`enqueue_provider_upload_job`, bloqueio no banco) é inalterada e já foi validada com chamadas HTTP reais paralelas no 2.11d-1. Nesta entrega, reforçado o lado complementar da UI (nunca o controle primário — instrução explícita do GATE 12): botões de Enviar/Retry agora fazem early-return se já há uma chamada em voo (`sending`/`retryingId`), e o botão de Retry fica `disabled` para QUALQUER upload da lista enquanto outro retry está em andamento (antes só desabilitava visualmente o botão clicado, os outros ficavam clicáveis). **Não testado nesta entrega via sessão de browser real com dois cliques simultâneos** — validar isso exigiria Playwright/sessão autenticada real, fora do orçamento desta entrega; registrado com transparência como gap, não como cobertura completa.
+
+### GATE 19/20/21 — UI assíncrona, polling, progresso real
+`hooks/use-provider-uploads.ts` reescrito: antes era um fetch único (`reload()` chamado uma vez no mount); agora faz polling (`setInterval`, 4s) **só enquanto existir upload em estado não-terminal** (`PENDING`/`QUEUED`/`UPLOADING`/`PROCESSING`) — para automaticamente quando todos os uploads da lista chegam a `SUCCEEDED`/`FAILED`, e limpa o interval no unmount (`useEffect` cleanup). Nenhuma infraestrutura realtime nova (WebSocket/Supabase Realtime) — só o hook de listagem já existente, reaproveitado. `google-play-send-section.tsx`/`apple-send-section.tsx`: toasts de sucesso do envio/retry não fingem mais um resultado ("Enviado ao Google Play, versionCode X") — agora dizem "na fila" e apontam para o badge de estado abaixo, que é onde o estado real (vindo do polling) aparece. Nenhum percentual fabricado foi adicionado — a UI já não mostrava percentual antes, e continua sem mostrar (não há `bytes_transferred`/`total_bytes` confiável ainda, já que nenhum worker real os preenche nesta entrega).
+
+`provider-upload-status.ts` ganhou labels para `QUEUED`/`PROCESSING` (gap descoberto durante o 2.11d-2a, ver aquela entrada — reafirmado aqui porque é diretamente visível nesta UI agora).
+
+### Build/lint/typecheck
+`pnpm build`/`pnpm lint`/`pnpm typecheck` — verdes no monorepo completo.
+
+### O que NÃO foi feito (fica para 2.11d-2c/2.11d-2d/2.11d-2e)
+Nenhum processor real de provider (`google_play`/`apple_app_store`) registrado no dispatcher ainda — um job enfileirado por esta Server Action fica legitimamente `QUEUED` para sempre até o worker existir; isso é o comportamento esperado entre sub-sprints, não um bug. Reload/logout-login recuperando estado real (deveria funcionar — o estado vem 100% do banco via `useProviderUploads`, nada em memória de componente — mas não testado nesta entrega via sessão de browser real). GATE 12 sob concorrência real de browser (só a guarda de banco foi validada, não o caminho completo da Server Action com dois cliques simultâneos).
+
+### Classificação final
+**PARCIAL, por divisão deliberada — não por falha.** As Server Actions e a UI já refletem o modelo assíncrono corretamente (nenhum request web espera transferência, estado vem só do banco, polling correto) — mas sem processor real de provider, não há transferência de verdade para observar de ponta a ponta. O objetivo central do 2.11d segue dependendo de 2.11d-2c/2.11d-2d.
+
+### Próximo sub-sprint
+
+2.11d-2c — Google worker: registrar processor real `google_play` no dispatcher (integrando o resumable upload do 2.11d-1 + streaming do Storage), checkpoint/recovery, reconciliação de resposta perdida — aguardando autorização explícita do usuário para começar.

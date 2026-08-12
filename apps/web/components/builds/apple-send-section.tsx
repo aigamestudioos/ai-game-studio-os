@@ -89,15 +89,17 @@ export function AppleSendSection({
     }
   }
 
+  // Sprint 2.11d-2b — Server Action só enfileira agora; ver comentário
+  // equivalente em `google-play-send-section.tsx`.
   async function handleSend() {
-    if (!selectedConnectionId) return;
+    if (!selectedConnectionId || sending) return;
     setSending(true);
     try {
       const result = await sendArtifactToAppStore(artifact.id, selectedConnectionId);
       if (result.error) {
         toast({ title: "Envio falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado à App Store", description: appleUploadStateLabel(result.appleUploadState ?? null) ?? undefined, variant: "success" });
+        toast({ title: "Envio na fila", description: "Acompanhe o estado abaixo.", variant: "success" });
       }
       reload();
     } finally {
@@ -106,13 +108,14 @@ export function AppleSendSection({
   }
 
   async function handleRetry(providerUploadId: string) {
+    if (retryingId) return;
     setRetryingId(providerUploadId);
     try {
       const result = await retryAppleProviderUpload(providerUploadId);
       if (result.error) {
         toast({ title: "Retry falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado à App Store", description: appleUploadStateLabel(result.appleUploadState ?? null) ?? undefined, variant: "success" });
+        toast({ title: "Retry na fila", description: "Acompanhe o estado abaixo.", variant: "success" });
       }
       reload();
     } finally {
@@ -176,7 +179,7 @@ export function AppleSendSection({
                 <span className="text-text-tertiary">tentativa {upload.attempt}</span>
                 {errorLabel ? <span className="text-destructive">{errorLabel}</span> : null}
                 {upload.status === "FAILED" ? (
-                  <Button size="sm" variant="ghost" loading={retryingId === upload.id} onClick={() => handleRetry(upload.id)}>
+                  <Button size="sm" variant="ghost" loading={retryingId === upload.id} disabled={retryingId !== null} onClick={() => handleRetry(upload.id)}>
                     Retry
                   </Button>
                 ) : null}

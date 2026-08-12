@@ -1808,3 +1808,33 @@ Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions 
 |---|---|
 | Produção | Não tocada |
 | Classificação final | **PARCIAL por divisão deliberada** (não por falha) — ver `IMPLEMENTATION_LOG.md` |
+
+## Sprint 2.11d-2b — Server Actions enqueue-and-return + UI assíncrona
+
+**Data:** 2026-08-14
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados | 6 (`provider-upload-actions.ts`, `apple-provider-upload-actions.ts`, `use-provider-uploads.ts`, `google-play-send-section.tsx`, `apple-send-section.tsx`, `domain-events.ts`) |
+| Migrations novas | 0 |
+| Packages tocados | 1 (`web`) |
+| Build/lint/typecheck | ✅ monorepo completo |
+
+### GATEs concluídos (parcial ou total)
+
+| Gate | Resultado |
+|---|---|
+| GATE 11 (Server Actions enqueue-and-return) | ✅ nenhuma chamada a Google/Apple resta no request web (confirmado por leitura de código + build) |
+| GATE 12 (duplicate enqueue) | ✅ parcial — guarda de banco inalterada/já validada; reforço de UI feito, não testado com browser real |
+| GATE 19 (UI assíncrona) | ✅ toasts não fingem resultado, estado real vem do banco |
+| GATE 20 (polling) | ✅ só enquanto não-terminal, para no unmount/terminal, sem infra nova |
+| GATE 21 (progresso monótono) | ✅ nenhum percentual fabricado (nem antes nem agora) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada |
+| Classificação final | **PARCIAL por divisão deliberada** (não por falha) — falta processor real de provider para fechar o ciclo completo |

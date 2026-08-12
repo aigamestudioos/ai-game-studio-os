@@ -1,19 +1,17 @@
 "use server";
 
-// Sprint 2.11b — Google Play AAB Upload. Este fluxo baixa o AAB do
-// Storage e reenvia à Google dentro do mesmo request (sem worker/queue,
-// fora de escopo — reservado ao Sprint 2.11d), o que pode exceder o
-// timeout padrão de Server Action da Vercel. `maxDuration=120` — alinhado
-// ao timeout de "Upload" já congelado em AGSOS-SPEC-008 §10, não um
-// número novo inventado por este sprint (ver DECISIONS.md) — está
-// declarado no `layout.tsx` desta rota, não aqui: um arquivo `"use server"`
-// só pode exportar funções async (regra do Next.js), route segment config
-// só é lido de Server Components (page/layout), nunca de um módulo de
-// Server Actions importado por um Client Component.
+// Sprint 2.11d-2b — reescrita do fluxo síncrono do Sprint 2.11b: esta
+// Server Action NUNCA mais chama o Google diretamente nem baixa o
+// artefato do Storage. Ela só valida, cria/atualiza o `provider_upload`
+// (fato de domínio) e enfileira um `integration_job` (mecanismo de
+// execução, ver ADR-006) — a transferência de verdade acontece no worker
+// (`/api/jobs/tick`, Sprint 2.11d-2a), fora do ciclo de vida deste request.
+// O processor real do Google (`integration_name = "google_play"`) chega
+// no Sprint 2.11d-2c; até lá, o job fica legitimamente `QUEUED` sem ser
+// reivindicado — não é um bug, é o estado esperado entre sub-sprints.
 
 import { cookies } from "next/headers";
 import {
-  createAdminClient,
   createBuildArtifactsRepository,
   createBuildsRepository,
   createGameVersionsRepository,
@@ -23,8 +21,6 @@ import {
   createStoreConnectionsRepository,
   createStudioEventsRepository,
 } from "@agsos/database";
-import { createGooglePlayPublishingAdapter, type GoogleCredentials } from "@agsos/integrations";
-import { downloadObject } from "@agsos/storage";
 import { providerUploadEvent } from "../../../../../lib/domain-events";
 import { MAX_PROVIDER_UPLOAD_SIZE_BYTES } from "../../../../../lib/provider-upload-limits";
 
@@ -76,170 +72,26 @@ export async function setGamePackageName(gameId: string, packageName: string): P
   }
 }
 
-async function performUpload(
-  serverClient: Awaited<ReturnType<typeof getAuthorizedServerClient>>,
-  providerUploadId: string,
-  userId: string,
-  attempt: number,
-): Promise<{ error?: string; versionCode?: number }> {
-  const repo = createProviderUploadsRepository(serverClient);
-  const providerUpload = await repo.getById(providerUploadId).catch(() => null);
-  if (!providerUpload) return { error: "Envio não encontrado." };
-
-  const artifact = await createBuildArtifactsRepository(serverClient).getById(providerUpload.build_artifact_id);
-  if (!artifact) return { error: "Artefato não encontrado." };
-
-  if (artifact.size_bytes > MAX_PROVIDER_UPLOAD_SIZE_BYTES) {
-    const eventsRepoEarly = createStudioEventsRepository(serverClient);
-    return await fail(
-      repo,
-      eventsRepoEarly,
-      providerUpload.studio_id,
-      providerUploadId,
-      artifact.id,
-      providerUpload.store_connection_id,
-      null,
-      "ARTIFACT_TOO_LARGE",
-      Date.now(),
-      attempt,
-      userId,
-      "Artefato acima do limite temporário de 150MB para envio ao Google Play (Sprint 2.11b) — suportado apenas para arquivos menores até o Sprint 2.11d.",
-    );
-  }
-
-  const resolved = await resolveGamePackageName(serverClient, artifact.build_id);
-  if (!resolved || !resolved.packageName) {
-    return { error: "Este Game ainda não tem um Package Name configurado — defina antes de enviar." };
-  }
-
-  const connection = await createStoreConnectionsRepository(serverClient).getById(providerUpload.store_connection_id);
-  if (!connection) return { error: "Store Connection não encontrada." };
-
-  const eventsRepo = createStudioEventsRepository(serverClient);
-  const metadata = { build_artifact_id: artifact.id, store_connection_id: connection.id };
-  const startedAt = Date.now();
-
-  await repo.update(providerUploadId, {
-    status: "UPLOADING",
-    started_at: new Date().toISOString(),
-    attempt,
-    updated_actor_type: "USER",
-    updated_actor_id: userId,
-  });
-  await eventsRepo.create({
-    studio_id: providerUpload.studio_id,
-    ...providerUploadEvent("ProviderUploadStarted", {
-      provider: "GOOGLE_PLAY",
-      buildArtifactId: artifact.id,
-      storeConnectionId: connection.id,
-      attempt,
-    }),
-    event_version: 1,
-    aggregate_type: "provider_upload",
-    aggregate_id: providerUploadId,
-    metadata,
-    actor_type: "USER",
-    actor_id: userId,
-  });
-
-  const admin = createAdminClient();
-  let secret: string | null;
-  try {
-    secret = await createStoreConnectionsRepository(admin).getSecret(connection.id);
-  } catch {
-    secret = null;
-  }
-  if (!secret) {
-    return await fail(repo, eventsRepo, providerUpload.studio_id, providerUploadId, artifact.id, connection.id, null, "MISSING_CREDENTIAL", startedAt, attempt, userId, "Nenhuma credencial cadastrada para esta Store Connection.");
-  }
-
-  let credentials: GoogleCredentials;
-  try {
-    credentials = JSON.parse(secret) as GoogleCredentials;
-  } catch {
-    return await fail(repo, eventsRepo, providerUpload.studio_id, providerUploadId, artifact.id, connection.id, null, "INVALID_CREDENTIAL", startedAt, attempt, userId, "Credencial armazenada em formato inválido.");
-  }
-  // packageName da credencial é o "dono" da Store Connection (validado no
-  // momento da conexão, Sprint 2.9/2.10); usamos o do Game só como destino
-  // do upload em si — se algum dia divergirem, o erro real do Google
-  // (403/404) aparece de forma sanitizada, nunca escondido.
-  const adapter = createGooglePlayPublishingAdapter({ ...credentials, packageName: resolved.packageName });
-
-  const editResult = await adapter.createEdit();
-  if (!editResult.ok) {
-    return await fail(repo, eventsRepo, providerUpload.studio_id, providerUploadId, artifact.id, connection.id, null, editResult.code ?? "UNKNOWN", startedAt, attempt, userId, editResult.error);
-  }
-  const editId = editResult.item.editId;
-
-  try {
-    // Mesmo padrão de 2.11a (débito conhecido, registrado em
-    // IMPLEMENTATION_LOG.md): baixa o objeto inteiro em memória — dentro do
-    // limite de `maxDuration=120` para artefatos de tamanho razoável;
-    // arquivos muito grandes são um caso de falha recuperável via Retry,
-    // não um bug (ver DECISIONS.md).
-    const blob = await downloadObject(admin, { bucket: artifact.storage_bucket, path: artifact.storage_path });
-    const buffer = Buffer.from(await blob.arrayBuffer());
-
-    const uploadResult = await adapter.uploadBundle(editId, buffer);
-    if (!uploadResult.ok) {
-      return await fail(repo, eventsRepo, providerUpload.studio_id, providerUploadId, artifact.id, connection.id, editId, uploadResult.code ?? "UNKNOWN", startedAt, attempt, userId, uploadResult.error);
-    }
-
-    const durationMs = Date.now() - startedAt;
-    await repo.update(providerUploadId, {
-      status: "SUCCEEDED",
-      edit_id: editId,
-      version_code: uploadResult.item.versionCode,
-      completed_at: new Date().toISOString(),
-      updated_actor_type: "USER",
-      updated_actor_id: userId,
-    });
-    await eventsRepo.create({
-      studio_id: providerUpload.studio_id,
-      ...providerUploadEvent("ProviderUploadSucceeded", {
-        provider: "GOOGLE_PLAY",
-        buildArtifactId: artifact.id,
-        storeConnectionId: connection.id,
-        editId,
-        versionCode: uploadResult.item.versionCode,
-        durationMs,
-        attempt,
-      }),
-      event_version: 1,
-      aggregate_type: "provider_upload",
-      aggregate_id: providerUploadId,
-      metadata,
-      actor_type: "USER",
-      actor_id: userId,
-    });
-    return { versionCode: uploadResult.item.versionCode };
-  } catch {
-    return await fail(repo, eventsRepo, providerUpload.studio_id, providerUploadId, artifact.id, connection.id, editId, "UNEXPECTED_ERROR", startedAt, attempt, userId, "Erro inesperado ao enviar o artefato ao Google Play.");
-  } finally {
-    // Nunca deixar o Edit pendurado (DECISIONS.md) — best-effort, nunca
-    // lança, nunca mascara o resultado real do upload já capturado acima.
-    await adapter.deleteEdit(editId);
-  }
-}
-
-async function fail(
+// GATE 25 — o limite de 150MB continua sendo aplicado ANTES do enqueue,
+// não dentro do worker: um artifact grande demais nunca deveria nem
+// ocupar uma vaga de job (o worker real de streaming, quando existir,
+// pode até suportar mais, mas mudar o limite é decisão explícita
+// separada — ver DECISIONS.md/IMPLEMENTATION_LOG.md do 2.11d-1).
+async function rejectIfTooLarge(
   repo: ReturnType<typeof createProviderUploadsRepository>,
   eventsRepo: ReturnType<typeof createStudioEventsRepository>,
-  studioId: string,
   providerUploadId: string,
+  studioId: string,
   buildArtifactId: string,
   storeConnectionId: string,
-  editId: string | null,
-  errorCode: string,
-  startedAt: number,
-  attempt: number,
+  sizeBytes: number,
   userId: string,
-  errorMessage: string,
-): Promise<{ error: string }> {
+): Promise<{ error: string } | null> {
+  if (sizeBytes <= MAX_PROVIDER_UPLOAD_SIZE_BYTES) return null;
+
   await repo.update(providerUploadId, {
     status: "FAILED",
-    edit_id: editId,
-    error_code: errorCode,
+    error_code: "ARTIFACT_TOO_LARGE",
     completed_at: new Date().toISOString(),
     updated_actor_type: "USER",
     updated_actor_id: userId,
@@ -250,10 +102,9 @@ async function fail(
       provider: "GOOGLE_PLAY",
       buildArtifactId,
       storeConnectionId,
-      editId,
-      durationMs: Date.now() - startedAt,
-      errorCode,
-      attempt,
+      durationMs: 0,
+      errorCode: "ARTIFACT_TOO_LARGE",
+      attempt: 1,
     }),
     event_version: 1,
     aggregate_type: "provider_upload",
@@ -262,35 +113,85 @@ async function fail(
     actor_type: "USER",
     actor_id: userId,
   });
-  return { error: errorMessage };
+  return { error: "Artefato acima do limite temporário de 150MB para envio ao Google Play." };
 }
 
 export async function sendArtifactToGooglePlay(
   buildArtifactId: string,
   storeConnectionId: string,
-): Promise<{ error?: string; providerUploadId?: string; versionCode?: number }> {
+): Promise<{ error?: string; providerUploadId?: string }> {
   const serverClient = await getAuthorizedServerClient();
   const {
     data: { user },
   } = await serverClient.auth.getUser();
   if (!user) return { error: "Sessão expirada. Entre novamente." };
 
+  const artifact = await createBuildArtifactsRepository(serverClient).getById(buildArtifactId);
+  if (!artifact) return { error: "Artefato não encontrado." };
+
+  const resolved = await resolveGamePackageName(serverClient, artifact.build_id);
+  if (!resolved || !resolved.packageName) {
+    return { error: "Este Game ainda não tem um Package Name configurado — defina antes de enviar." };
+  }
+
+  const connection = await createStoreConnectionsRepository(serverClient).getById(storeConnectionId);
+  if (!connection) return { error: "Store Connection não encontrada." };
+
+  const repo = createProviderUploadsRepository(serverClient);
   let providerUpload;
   try {
-    providerUpload = await createProviderUploadsRepository(serverClient).createPending({
-      buildArtifactId,
-      storeConnectionId,
-      actorId: user.id,
-    });
+    providerUpload = await repo.createPending({ buildArtifactId, storeConnectionId, actorId: user.id });
   } catch {
     return { error: "Não foi possível iniciar o envio — confira se o artefato está válido e sua permissão neste Studio." };
   }
 
-  const result = await performUpload(serverClient, providerUpload.id, user.id, 1);
-  return { ...result, providerUploadId: providerUpload.id };
+  const eventsRepo = createStudioEventsRepository(serverClient);
+
+  const tooLarge = await rejectIfTooLarge(
+    repo,
+    eventsRepo,
+    providerUpload.id,
+    providerUpload.studio_id,
+    artifact.id,
+    connection.id,
+    artifact.size_bytes,
+    user.id,
+  );
+  if (tooLarge) return { ...tooLarge, providerUploadId: providerUpload.id };
+
+  try {
+    await serverClient.rpc("enqueue_provider_upload_job", {
+      p_provider_upload_id: providerUpload.id,
+      p_integration_name: "google_play",
+      p_operation: "upload_bundle",
+      p_actor_id: user.id,
+    });
+  } catch {
+    return { error: "Não foi possível enfileirar o envio.", providerUploadId: providerUpload.id };
+  }
+
+  await eventsRepo.create({
+    studio_id: providerUpload.studio_id,
+    ...providerUploadEvent("ProviderUploadQueued", {
+      provider: "GOOGLE_PLAY",
+      buildArtifactId: artifact.id,
+      storeConnectionId: connection.id,
+      attempt: 1,
+    }),
+    event_version: 1,
+    aggregate_type: "provider_upload",
+    aggregate_id: providerUpload.id,
+    metadata: { build_artifact_id: artifact.id, store_connection_id: connection.id },
+    actor_type: "USER",
+    actor_id: user.id,
+  });
+
+  // Nunca espera o worker — retorna assim que o job existe. A UI passa a
+  // acompanhar o estado real via polling (ver `use-provider-upload-status.ts`).
+  return { providerUploadId: providerUpload.id };
 }
 
-export async function retryProviderUpload(providerUploadId: string): Promise<{ error?: string; versionCode?: number }> {
+export async function retryProviderUpload(providerUploadId: string): Promise<{ error?: string }> {
   const serverClient = await getAuthorizedServerClient();
   const {
     data: { user },
@@ -302,6 +203,28 @@ export async function retryProviderUpload(providerUploadId: string): Promise<{ e
   if (!existing) return { error: "Envio não encontrado." };
 
   const nextAttempt = existing.attempt + 1;
+
+  // GATE 12/18 — `enqueue_provider_upload_job` bloqueia sozinho (no banco,
+  // não só na UI) se já existir job ativo (QUEUED/CLAIMED/RUNNING/
+  // RETRY_WAIT) para este provider_upload; a mensagem de erro do Postgres
+  // já é segura de expor (não vaza nada sensível).
+  try {
+    await serverClient.rpc("enqueue_provider_upload_job", {
+      p_provider_upload_id: providerUploadId,
+      p_integration_name: "google_play",
+      p_operation: "upload_bundle",
+      p_actor_id: user.id,
+    });
+  } catch {
+    return { error: "Já existe um envio em andamento para este artefato — aguarde terminar antes de tentar de novo." };
+  }
+
+  await repo.update(providerUploadId, {
+    attempt: nextAttempt,
+    updated_actor_type: "USER",
+    updated_actor_id: user.id,
+  });
+
   const eventsRepo = createStudioEventsRepository(serverClient);
   await eventsRepo.create({
     studio_id: existing.studio_id,
@@ -319,7 +242,5 @@ export async function retryProviderUpload(providerUploadId: string): Promise<{ e
     actor_id: user.id,
   });
 
-  // Nunca reenvia o arquivo ao AGSOS — o retry só refaz a etapa
-  // AGSOS→Google, lendo o mesmo objeto já armazenado em `build_artifacts`.
-  return performUpload(serverClient, providerUploadId, user.id, nextAttempt);
+  return {};
 }

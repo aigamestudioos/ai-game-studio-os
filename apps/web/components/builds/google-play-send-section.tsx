@@ -79,15 +79,23 @@ export function GooglePlaySendSection({
     }
   }
 
+  // Sprint 2.11d-2b — a Server Action só enfileira; a resposta nunca traz
+  // `versionCode` (isso só existe depois que o worker de verdade
+  // transferir, ver `provider-upload-actions.ts`). O `disabled` do botão
+  // (via `sending`) já bloqueia clique duplo na UI — mas é só
+  // complementar: a guarda real está no banco (`enqueue_provider_upload_job`,
+  // GATE 12), que rejeita um segundo enqueue concorrente mesmo que a UI
+  // falhe em desabilitar o botão a tempo (ex.: dois cliques na janela
+  // entre o clique e o React re-renderizar).
   async function handleSend() {
-    if (!selectedConnectionId) return;
+    if (!selectedConnectionId || sending) return;
     setSending(true);
     try {
       const result = await sendArtifactToGooglePlay(artifact.id, selectedConnectionId);
       if (result.error) {
         toast({ title: "Envio falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado ao Google Play", description: result.versionCode ? `versionCode ${result.versionCode}` : undefined, variant: "success" });
+        toast({ title: "Envio na fila", description: "Acompanhe o estado abaixo.", variant: "success" });
       }
       reload();
     } finally {
@@ -96,13 +104,14 @@ export function GooglePlaySendSection({
   }
 
   async function handleRetry(providerUploadId: string) {
+    if (retryingId) return;
     setRetryingId(providerUploadId);
     try {
       const result = await retryProviderUpload(providerUploadId);
       if (result.error) {
         toast({ title: "Retry falhou", description: result.error, variant: "destructive" });
       } else {
-        toast({ title: "Enviado ao Google Play", description: result.versionCode ? `versionCode ${result.versionCode}` : undefined, variant: "success" });
+        toast({ title: "Retry na fila", description: "Acompanhe o estado abaixo.", variant: "success" });
       }
       reload();
     } finally {
@@ -165,7 +174,7 @@ export function GooglePlaySendSection({
                 <span className="text-text-tertiary">tentativa {upload.attempt}</span>
                 {errorLabel ? <span className="text-destructive">{errorLabel}</span> : null}
                 {upload.status === "FAILED" ? (
-                  <Button size="sm" variant="ghost" loading={retryingId === upload.id} onClick={() => handleRetry(upload.id)}>
+                  <Button size="sm" variant="ghost" loading={retryingId === upload.id} disabled={retryingId !== null} onClick={() => handleRetry(upload.id)}>
                     Retry
                   </Button>
                 ) : null}
