@@ -26,4 +26,10 @@ export const env = {
   },
   siteUrl: required("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL),
   vercelUrl: process.env.NEXT_PUBLIC_VERCEL_URL,
+  // Sprint 2.11d-2 (GATE 7) — segredo do dispatcher `/api/jobs/tick`.
+  // Nunca prefixado com NEXT_PUBLIC_, nunca logado, nunca em domain event —
+  // ver `apps/web/lib/jobs/dispatcher-auth.ts`.
+  get jobsDispatcherSecret(): string {
+    return required("JOBS_DISPATCHER_SECRET", process.env.JOBS_DISPATCHER_SECRET);
+  },
 } as const;

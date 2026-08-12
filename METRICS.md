@@ -1720,6 +1720,7 @@ Smoke-check de produção do painel Integration Health (conta de teste), que rev
 |---|---|
 | Vercel | ✅ commits `ab1448e`, `905bd6f` (`state: success`) |
 | Supabase | ✅ 2 migrations aplicadas, `check:schema` verde |
+| Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** — Sprint 2.11b CONCLUÍDO |
 
 ## Sprint 2.11d-1 — Provider Transfer Engine: GATEs 0-5 + primitivas de streaming/resumable/checkpoint (PARCIAL, split deliberado)
 
@@ -1765,4 +1766,45 @@ Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions 
 |---|---|
 | Produção | Não tocada — autorização de produção não solicitada nem dada para este sub-sprint |
 | Classificação final | **PARCIAL por divisão deliberada** (não por falha) — ver `IMPLEMENTATION_LOG.md` |
-| Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** — Sprint 2.11b CONCLUÍDO |
+
+## Sprint 2.11d-2a — Dispatcher + Scheduler (GATEs 6-10, 17 parcial, 22, 23)
+
+**Data:** 2026-08-14
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados/criados | 16 (10 novos) |
+| Migrations novas | 2 (`dispatcher_job_lifecycle_rpcs`, `pg_cron_dispatcher_schedule`) |
+| Packages tocados | 3 (`web`, `database`, migrations do `supabase`) — dentro do limite do `CLAUDE.md` |
+| Build/lint/typecheck | ✅ monorepo completo |
+| `supabase db reset` (banco do zero) | ✅ todas as migrations em ordem |
+
+### GATEs concluídos (parcial ou total)
+
+| Gate | Resultado |
+|---|---|
+| GATE 6 (dispatcher endpoint) | ✅ `/api/jobs/tick`, bounded, sem fire-and-forget |
+| GATE 7 (autenticação do dispatcher) | ✅ `timingSafeEqual`, 401/415/413/405 testados via curl real; bug de middleware encontrado e corrigido |
+| GATE 8 (scheduler) | ✅ `pg_cron`+`pg_net`, config via Vault, `net._http_response` confirmou chamada HTTP real |
+| GATE 9 (bounded execution) | ✅ deadline explícito, testado (checkpoint/continue em 3 invocations separadas) |
+| GATE 10 (lease heartbeat) | ✅ `renewLease()` sem erro em ~15 chamadas; recovery de worker morto testado nos dois sentidos (requeue e DEAD) |
+| GATE 12/18 (duplicate enqueue) | ✅ mecânica confirmada (guarda inalterada do 2.11d-1, já validada via HTTP real) |
+| GATE 17 (retry automático) | ✅ parcial — RETRYABLE/NON_RETRYABLE/exaustão testados com jobs reais; falta `Retry-After` de provider real |
+| GATE 22 (crash/stale lease) | ✅ parcial — os 2 casos testáveis sem provider real, testados |
+| GATE 23 (concorrência) | ✅ parcial — 3 dispatchers simultâneos, 0 double-processing em 9 jobs |
+
+### Bug encontrado e corrigido
+
+| Item | Detalhe |
+|---|---|
+| Middleware bloqueando `/api/jobs/tick` | `307` para `/login` mesmo com secret correto — corrigido excluindo a rota do `matcher` (ver `DECISIONS.md`) |
+| Tipos desincronizados (débito do 2.11d-1) | `ProviderUploadStatus`/`ProviderUploadsRow` sem os campos novos, `IntegrationJobsRow` inexistente — corrigido, revelado por erro real de `tsc` |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada |
+| Classificação final | **PARCIAL por divisão deliberada** (não por falha) — ver `IMPLEMENTATION_LOG.md` |

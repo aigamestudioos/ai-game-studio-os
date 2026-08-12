@@ -27,7 +27,12 @@ export type KnowledgeDocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBL
 export type ArtifactUploadStatus = "PENDING" | "UPLOADING" | "STORED" | "FAILED" | "CANCELED";
 export type ArtifactValidationStatus = "PENDING" | "VALIDATING" | "VALID" | "INVALID" | "FAILED";
 export type ChecksumAlgorithm = "SHA256";
-export type ProviderUploadStatus = "PENDING" | "UPLOADING" | "SUCCEEDED" | "FAILED";
+// `QUEUED`/`PROCESSING` adicionados na migration 20260813000002_integration_jobs.sql
+// (Sprint 2.11d-1) — gap de sincronia manual corrigido no Sprint 2.11d-2.
+export type ProviderUploadStatus = "PENDING" | "QUEUED" | "UPLOADING" | "PROCESSING" | "SUCCEEDED" | "FAILED";
+// Sprint 2.11d-1 (20260813000002_integration_jobs.sql).
+export type JobStatus = "QUEUED" | "CLAIMED" | "RUNNING" | "RETRY_WAIT" | "SUCCEEDED" | "FAILED" | "DEAD";
+export type JobErrorClass = "RETRYABLE" | "NON_RETRYABLE" | "AUTH" | "RATE_LIMIT" | "PROVIDER_REJECTED" | "INTERNAL";
 
 /** Colunas presentes em toda tabela de negócio (AGSOS-SPEC-003 §3). */
 type AuditColumns = {
@@ -226,6 +231,46 @@ export type ProviderUploadsRow = WithStudio & {
   apple_build_upload_id: string | null;
   apple_build_upload_file_id: string | null;
   apple_upload_state: string | null;
+  // Sprint 2.11d-1 (20260813000002_integration_jobs.sql) — gap de sincronia
+  // manual corrigido no Sprint 2.11d-2.
+  bytes_transferred: number | null;
+  total_bytes: number | null;
+  next_retry_at: string | null;
+  // Ponteiro para o Vault (nunca a session URI em texto puro) — ver
+  // `set_provider_upload_resumable_session`/`get_provider_upload_resumable_session`.
+  google_resumable_session_ref: string | null;
+};
+
+// Sprint 2.11d-1 (20260813000002_integration_jobs.sql) — mecanismo
+// operacional de execução (distinto de `provider_uploads`, que é o fato de
+// domínio). `checkpoint` é opaco aqui (schema definido por cada processor —
+// ver `apps/web/lib/jobs/types.ts`), nunca contém segredos.
+export type IntegrationJobsRow = {
+  id: string;
+  studio_id: string;
+  provider_upload_id: string;
+  integration_name: string;
+  operation: string;
+  status: JobStatus;
+  attempt: number;
+  max_attempts: number;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  lease_expires_at: string | null;
+  scheduled_at: string;
+  last_error_code: string | null;
+  last_error_class: JobErrorClass | null;
+  checkpoint: Record<string, unknown>;
+  correlation_id: string;
+  archived_at: string | null;
+  archived_actor_type: ActorType | null;
+  archived_actor_id: string | null;
+  created_at: string;
+  created_actor_type: ActorType;
+  created_actor_id: string | null;
+  updated_at: string;
+  updated_actor_type: ActorType;
+  updated_actor_id: string | null;
 };
 
 export type SubmissionsRow = WithStudio & {
@@ -344,6 +389,7 @@ export type Database = {
       invites: Table<InvitesRow, Partial<InvitesRow>, Partial<InvitesRow>>;
       build_artifacts: Table<BuildArtifactsRow, Partial<BuildArtifactsRow>, Partial<BuildArtifactsRow>>;
       provider_uploads: Table<ProviderUploadsRow, Partial<ProviderUploadsRow>, Partial<ProviderUploadsRow>>;
+      integration_jobs: Table<IntegrationJobsRow, Partial<IntegrationJobsRow>, Partial<IntegrationJobsRow>>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -386,6 +432,44 @@ export type Database = {
       create_pending_provider_upload: {
         Args: { p_build_artifact_id: string; p_store_connection_id: string; p_actor_id: string };
         Returns: ProviderUploadsRow;
+      };
+      // Sprint 2.11d-1 (20260813000003_job_claim_and_enqueue.sql).
+      enqueue_provider_upload_job: {
+        Args: { p_provider_upload_id: string; p_integration_name: string; p_operation: string; p_actor_id: string };
+        Returns: IntegrationJobsRow;
+      };
+      claim_integration_jobs: {
+        Args: { p_worker_id: string; p_limit?: number; p_lease_seconds?: number };
+        Returns: IntegrationJobsRow[];
+      };
+      requeue_stale_jobs: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      // Sprint 2.11d-2 (20260814000001_dispatcher_job_lifecycle_rpcs.sql).
+      start_integration_job_running: {
+        Args: { p_job_id: string; p_worker_id: string };
+        Returns: IntegrationJobsRow;
+      };
+      renew_integration_job_lease: {
+        Args: { p_job_id: string; p_worker_id: string; p_lease_seconds?: number };
+        Returns: IntegrationJobsRow;
+      };
+      checkpoint_and_release_integration_job: {
+        Args: { p_job_id: string; p_worker_id: string; p_checkpoint: Record<string, unknown> };
+        Returns: IntegrationJobsRow;
+      };
+      complete_integration_job: {
+        Args: {
+          p_job_id: string;
+          p_worker_id: string;
+          p_status: JobStatus;
+          p_checkpoint: Record<string, unknown> | null;
+          p_error_code: string | null;
+          p_error_class: JobErrorClass | null;
+          p_next_attempt_at: string | null;
+        };
+        Returns: IntegrationJobsRow;
       };
     };
     Enums: Record<string, never>;

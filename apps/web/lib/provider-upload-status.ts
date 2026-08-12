@@ -9,8 +9,15 @@ export function providerUploadStatusLabel(status: ProviderUploadStatus, provider
   switch (status) {
     case "PENDING":
       return "Aguardando envio";
+    // `QUEUED`/`PROCESSING` — Sprint 2.11d-1/2.11d-2: o request web não
+    // fica esperando a transferência; QUEUED é o estado imediato após o
+    // enqueue, antes do worker reivindicar o job.
+    case "QUEUED":
+      return "Na fila de envio";
     case "UPLOADING":
       return provider === "GOOGLE_PLAY" ? "Enviando ao Google Play" : "Enviando/processando na App Store";
+    case "PROCESSING":
+      return `Processando (${storeName})`;
     case "SUCCEEDED":
       return provider === "GOOGLE_PLAY" ? "Recebido pelo Google Play (rascunho)" : "Enviado à App Store";
     case "FAILED":

@@ -48,6 +48,17 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Sprint 2.11d-2 (GATE 7) — bug encontrado durante o teste empírico de
+// autenticação do dispatcher: sem esta exclusão, TODA chamada a
+// `/api/jobs/tick` (inclusive com o `x-dispatcher-secret` correto) era
+// redirecionada (307) para `/login` antes mesmo de chegar ao Route
+// Handler, porque a rota não tem cookie de sessão (é chamada por
+// `pg_net`, nunca por um browser autenticado) e não está em
+// `PUBLIC_ROUTES`. Excluído explicitamente do matcher — não colocado em
+// `PUBLIC_ROUTES` porque não é uma rota "sem autenticação", é uma rota
+// com um mecanismo de autenticação diferente (segredo dedicado,
+// verificado dentro do próprio Route Handler, nunca por sessão de
+// usuário).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|assets/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|assets/|api/jobs/tick).*)"],
 };
