@@ -2357,3 +2357,46 @@ Nenhum processor real de provider (`google_play`/`apple_app_store`) registrado n
 ### Próximo sub-sprint
 
 2.11d-2c — Google worker: registrar processor real `google_play` no dispatcher (integrando o resumable upload do 2.11d-1 + streaming do Storage), checkpoint/recovery, reconciliação de resposta perdida — aguardando autorização explícita do usuário para começar.
+
+## Sprint 2.11d-2c — Google worker real (GATEs 13, 14 parcial)
+
+**Status:** Concluído (dentro do escopo testável sem credencial real — mesma classificação TRANSPORTE VALIDADO/FUNCIONAL PENDENTE dos Sprints 2.11b/2.11c)
+**Período:** 2026-08-14/15 (continuação autônoma, autorizada explicitamente pelo usuário para todo o escopo local do 2.11d-2, incluindo 2.11d-2c/2.11d-2d/2.11d-2e, sem necessidade de nova autorização por Gate)
+
+### GATE 13 — Processor `google_play` real
+`apps/web/lib/jobs/processors/google-play.ts`, registrado em `registry.ts`. Fluxo: carrega `provider_upload`→`build_artifact`→`build`→`game_version`→`game` (packageName) →`store_connection` (credencial via Vault) usando `createAdminClient()` — nunca a sessão de um usuário, já que o worker roda fora de qualquer request autenticado. Cria (ou reaproveita, via checkpoint) o Edit; obtém o tamanho real do artifact via `getObjectSizeViaRange` (2.11d-1); cria (ou reaproveita, via Vault) a sessão resumível; **antes de cada chunk, consulta o progresso real via `queryResumableProgress`** (nunca confia cegamente no checkpoint local — é a implementação do GATE 14); lê exatamente 1 chunk de 8MB (múltiplo de 256KB, exigência da API) via `downloadObjectRange`; envia; persiste checkpoint (`editId`/`totalBytes`/`bytesUploaded`) e libera o job (`continue`) para a próxima invocação processar o próximo chunk — nunca um loop dentro da mesma invocation. Ao completar, descarta o Edit (best-effort, mesma decisão congelada desde 2.11b) e persiste `SUCCEEDED`+`version_code`.
+
+`ProviderUploadStarted` passa a ser emitido pelo PRÓPRIO worker (não mais pela Server Action, que agora só emite `ProviderUploadQueued` — ver 2.11d-2b) — `actor_type: "SYSTEM"`, nunca inventando um ator humano para uma ação que o worker executou de forma assíncrona.
+
+### GATE 14 (parcial) — Recovery/reconciliação
+Implementado no código (não todos os ramos testáveis sem credencial real):
+- **Crash antes do primeiro chunk:** checkpoint vazio → próxima invocação recria tudo do zero. Testado.
+- **Crash depois do Edit criado:** checkpoint preserva `editId` → próxima invocação REAPROVEITA (nunca cria um Edit novo) — testado empiricamente (ver abaixo).
+- **Timeout com resposta desconhecida / reconciliação:** `queryResumableProgress` chamado sempre antes de decidir o próximo chunk — se a Apple/Google já recebeu mais bytes do que o checkpoint local sabia, o valor do provider prevalece (nunca o checkpoint local). Implementado, não exercitável sem uma sessão resumível real estabelecida (exige credencial real).
+- **Sessão expirada:** consulta falha de forma reconhecível → `clear_provider_upload_resumable_session` (Vault) + reset do progresso (mantém `editId`, único dado que sobrevive mais tempo que a sessão, decisão registrada em DECISIONS.md) → próxima invocação recria a sessão do zero. Implementado, não exercitável sem uma sessão real que possa de fato expirar.
+
+### Bug real encontrado e corrigido: `service_role` sem GRANT de tabela
+Ao testar o worker de ponta a ponta pela primeira vez, `createAdminClient()` falhou com `permission denied for table provider_uploads` — **bug pré-existente, não introduzido neste sprint**: nenhuma migration desde o início do projeto concedeu privilégio de tabela (GRANT) a `service_role` — só RLS foi configurado. Isso nunca foi percebido porque todo código anterior usando `service_role` passava por RPCs SECURITY DEFINER (que rodam como o dono da função, não como o role chamador) — o worker é o primeiro código a fazer `.from(...).select()` direto como `service_role`. Mesma classe exata de bug já corrigida para `authenticated` no Sprint 1.7 (`20260717000003_grant_authenticated_privileges.sql`). Corrigido em `20260815000001_grant_service_role_privileges.sql` (mesmo padrão: `GRANT ... ON ALL TABLES ... TO service_role` + `ALTER DEFAULT PRIVILEGES`). Conceder isso não reduz segurança — `service_role` já tem acesso irrestrito por design (bypassa RLS inteiramente); o GRANT só torna esse acesso já assumido utilizável via tabela direta, não só via RPC.
+
+### Teste empírico de ponta a ponta (mesma metodologia do Sprint 2.11b: credencial Service Account sintética, mas com chave RSA real, contra o `oauth2.googleapis.com` real)
+Fixture completa criada localmente (Studio/Project/Game/Build/BuildArtifact real no Storage, 2MB, Range confirmado 206; Store Connection com credencial sintética via Vault). Dispatcher real (`/api/jobs/tick`) processou o job:
+1. **1ª tentativa** (antes da correção de GRANT): `processor_error`/`PROCESSOR_UNHANDLED_EXCEPTION` — revelou o bug do GRANT acima.
+2. **2ª tentativa** (depois da correção, formato de credencial ainda errado — erro de fixture, não do worker): `UNEXPECTED_ERROR` — "JSON da Service Account inválido" (a `GoogleCredentials` real exige `{serviceAccountJson: <string JSON>, packageName}`, não os campos soltos que a fixture tinha).
+3. **3ª tentativa** (fixture corrigida): `retry_wait`/`UNKNOWN` — o worker montou o JWT com a chave RSA real, chamou `oauth2.googleapis.com/token` de verdade, recebeu uma rejeição real (`400 invalid_grant`, esperado — Service Account nunca registrada no Google), classificou corretamente como retryable, agendou o retry com backoff, e persistiu `provider_uploads.status = 'UPLOADING'` + emitiu `ProviderUploadStarted` (`actor_type: SYSTEM`, sem nenhum dado sensível no payload).
+4. **Teste de reaproveitamento de checkpoint:** plantado `checkpoint = {editId: "fake-edit-123", totalBytes: ...}` diretamente → nova invocação preservou exatamente esses valores (não recriou o Edit) — confirma a lógica de reuso do GATE 14.
+5. **Auditoria de segredo:** `studio_events`, `integration_jobs.checkpoint`, e o log do dev server — 0 ocorrências de `PRIVATE KEY`/`client_email`/qualquer fragmento da credencial sintética, em qualquer um dos 3.
+
+**Limite explícito, honestamente registrado:** sem uma credencial Google real, os ramos que dependem de uma resposta de SUCESSO do Google (upload de chunk de verdade, `queryResumableProgress` sobre uma sessão real, reconciliação de bytes já recebidos, expiração de sessão real) não foram exercitados de ponta a ponta — só por leitura de código + os testes das primitivas isoladas já feitos no 2.11d-1. Mesma classificação de honestidade já usada em 2.11b/2.11c.
+
+### Fixture de teste removida
+Toda a fixture (Studio reaproveitado, Project/Game/Build/BuildArtifact/ProviderUpload/IntegrationJob/StoreConnection/Vault secret/objeto no bucket `builds`) foi removida ao final do teste — banco local voltou ao estado anterior (só o seed padrão).
+
+### Build/lint/typecheck/migration
+`pnpm build`/`pnpm lint`/`pnpm typecheck` — verdes no monorepo completo. `npx supabase db reset` — confirmado funcionando com a migration nova.
+
+### Classificação final
+**TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** (mesma classificação de 2.11b/2.11c, pelo mesmo motivo: sem credencial Google real disponível, nenhum bundle real chegou a um Google Play Console real ainda) — mas agora dentro da arquitetura assíncrona completa (worker real, não Server Action síncrona). Dentro desse limite explícito, o Sprint 2.11d-2c está **CONCLUÍDO**.
+
+### Próximo sub-sprint
+
+2.11d-2d — Apple worker: processor real `apple_app_store`, integrando `startIndex`/`onOperationComplete` (2.11d-1) ao checkpoint persistente, mesma disciplina de reconciliação — continuação autônoma autorizada.

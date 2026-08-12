@@ -15,7 +15,12 @@ import type { IntegrationJobsRow, JobErrorClass } from "@agsos/database";
 export type JobStepResult =
   | { outcome: "continue"; checkpoint: Record<string, unknown> }
   | { outcome: "succeeded"; checkpoint?: Record<string, unknown> }
-  | { outcome: "failed"; errorCode: string; errorClass: JobErrorClass; retryAfterSeconds?: number };
+  // `checkpoint` aqui é opcional e serve para RESETAR estado remoto que se
+  // provou inválido (ex.: Edit do Google não existe mais — GATE 14) antes
+  // do próximo attempt (RETRY_WAIT) tentar de novo. Sem isso, um retry
+  // reaproveitaria um `editId`/sessão morta e falharia do mesmo jeito
+  // indefinidamente até esgotar `max_attempts`.
+  | { outcome: "failed"; errorCode: string; errorClass: JobErrorClass; retryAfterSeconds?: number; checkpoint?: Record<string, unknown> };
 
 // `deadline`: timestamp (ms epoch) depois do qual o processor deve parar de
 // pedir mais trabalho e retornar `continue` com o que já tiver — o

@@ -1838,3 +1838,39 @@ Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions 
 |---|---|
 | Produção | Não tocada |
 | Classificação final | **PARCIAL por divisão deliberada** (não por falha) — falta processor real de provider para fechar o ciclo completo |
+
+## Sprint 2.11d-2c — Google worker real
+
+**Data:** 2026-08-14/15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados/criados | 5 (`google-play.ts` novo, `registry.ts`, `types.ts`, `dispatcher.ts`, `database.types.ts`) |
+| Migrations novas | 1 (`grant_service_role_privileges` — bug pré-existente corrigido) |
+| Packages tocados | 2 (`web`, `database`) + migrations |
+| Build/lint/typecheck | ✅ monorepo completo |
+| `supabase db reset` | ✅ |
+
+### Bug real encontrado e corrigido
+
+| Item | Detalhe |
+|---|---|
+| `service_role` sem GRANT de tabela | Pré-existente desde o início do projeto, nunca percebido (todo acesso anterior via RPC SECURITY DEFINER); mesma classe do bug já corrigido para `authenticated` no Sprint 1.7 |
+
+### Teste empírico (metodologia 2.11b: credencial sintética + chave RSA real contra Google real)
+
+| Caso | Resultado |
+|---|---|
+| Fixture completa (Studio→Game→Build→BuildArtifact 2MB no Storage→StoreConnection+Vault) | ✅ criada e removida ao final |
+| Dispatcher real processando o job `google_play` | ✅ alcançou `oauth2.googleapis.com` real, rejeição real classificada, retry agendado |
+| Reaproveitamento de `editId` via checkpoint plantado | ✅ confirmado (não recriado) |
+| Auditoria de secret leak (events/checkpoint/logs) | ✅ 0 ocorrências |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada |
+| Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** (mesma classificação de 2.11b/c) — CONCLUÍDO dentro desse limite |

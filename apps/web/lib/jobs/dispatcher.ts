@@ -103,10 +103,15 @@ async function processOneJob(
         await jobsRepo.renewLease({ jobId: job.id, workerId, leaseSeconds });
       },
     });
-  } catch {
+  } catch (err) {
     // Erro não classificado do processor (bug, exceção não tratada) —
     // nunca deixa o job travado em RUNNING; classificado como INTERNAL
     // retryable, mesma política de qualquer outra falha classificada.
+    // GATE 26 — log só no servidor (nunca na resposta HTTP nem em
+    // `integration_jobs`/eventos): mensagem de exceção pode conter detalhe
+    // técnico útil para debug, mas não deve ser exposta como está a
+    // nenhum caller externo, sanitizado ou não.
+    console.error(`[jobs/dispatcher] job ${job.id} (${job.integration_name}/${job.operation}) lançou exceção não tratada:`, err);
     const decision = decideRetry(running, "INTERNAL");
     await jobsRepo.complete({
       jobId: job.id,
@@ -134,6 +139,7 @@ async function processOneJob(
     jobId: job.id,
     workerId,
     status: decision.status,
+    checkpoint: result.checkpoint,
     errorCode: result.errorCode,
     errorClass: result.errorClass,
     nextAttemptAt: decision.status === "RETRY_WAIT" ? decision.nextAttemptAt.toISOString() : null,

@@ -459,6 +459,19 @@ export type Database = {
         Args: { p_job_id: string; p_worker_id: string; p_checkpoint: Record<string, unknown> };
         Returns: IntegrationJobsRow;
       };
+      // Sprint 2.11d-1 (20260813000004_resumable_session_vault.sql).
+      set_provider_upload_resumable_session: {
+        Args: { p_provider_upload_id: string; p_session_uri: string };
+        Returns: undefined;
+      };
+      get_provider_upload_resumable_session: {
+        Args: { p_provider_upload_id: string };
+        Returns: string | null;
+      };
+      clear_provider_upload_resumable_session: {
+        Args: { p_provider_upload_id: string };
+        Returns: undefined;
+      };
       complete_integration_job: {
         Args: {
           p_job_id: string;
