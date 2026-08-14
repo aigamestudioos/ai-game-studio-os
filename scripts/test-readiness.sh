@@ -17,3 +17,7 @@ fi
 echo "=== supabase/tests/readiness_test.sql (banco local, tudo em ROLLBACK) ==="
 docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
   < supabase/tests/readiness_test.sql
+
+echo
+echo "=== scripts/test-readiness-golden-path.mjs (Sprint 2.12c — fluxo HTTP real) ==="
+node scripts/test-readiness-golden-path.mjs
