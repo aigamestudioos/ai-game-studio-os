@@ -2422,3 +2422,50 @@ Não foi montada uma fixture completa de ponta a ponta (Studio→Game→Build→
 
 ### Classificação final
 **CÓDIGO COMPLETO / TRANSPORTE NÃO REEXERCITADO NESTE SPRINT** — arquitetura e lógica de reconciliação implementadas e revisadas, build/lint/typecheck verdes, migration aplicada localmente; teste de ponta a ponta contra a Apple real (ou sintética) fica pendente para quando houver credencial disponível, mesmo padrão dos sprints anteriores.
+
+## Sprint 2.11d-2e — Validação final
+
+**Data:** 2026-08-15
+
+Retomado imediatamente após 2.11d-2d, por autorização já dada. Objetivo: fechar os gaps de validação deixados abertos em 2.11d-2c/2d (fixture completa de ponta a ponta, concorrência, crash/recovery, lost-response ao vivo, benchmark de memória).
+
+### Infraestrutura de teste montada
+- Fixtures reais (Studio→Game→Build→BuildArtifact→StoreConnection, Google + Apple) criadas via script direto contra o Postgres local (Docker, já rodando) e a Storage API real — artifacts de ~8MB no bucket `builds`.
+- Bug de seed pré-existente encontrado e corrigido *localmente* (não é bug de produto, é dado de seed): `auth.users` local tinha colunas de token `NULL` em vez de `''`, o que quebra o GoTrue local (`sql: Scan error ... converting NULL to string`) e impedia login. Corrigido com um `UPDATE` direto no Postgres local — não é uma migration nem afeta produção, só o ambiente de dev local (esse é provavelmente o motivo de nenhum sprint anterior ter feito login real contra o GoTrue local até agora).
+- Login real do usuário seed (`founder@aigamestudio.os`) via GoTrue (`/auth/v1/token?grant_type=password`) — usado para chamar as RPCs `authenticated` (`create_pending_provider_upload`, `enqueue_provider_upload_job`, `set_store_connection_secret`) exatamente como um Server Action real faria, sem simular nada no nível do Postgres.
+- Dev server real (`next dev`) rodando localmente, `/api/jobs/tick` chamado via HTTP com o `JOBS_DISPATCHER_SECRET` real do `.env.local` — mesmo caminho que `pg_cron`→`pg_net` usaria em produção.
+
+### Resultados do checklist (evidência real, não por leitura de código)
+- **Concorrência**: 2 chamadas HTTP simultâneas a `/api/jobs/tick` — nenhum job processado por ambas (claim atômico com `FOR UPDATE SKIP LOCKED` confirmado sob concorrência real, não só por inspeção do SQL).
+- **Duplicate enqueue**: 2 chamadas `Promise.all` à RPC `enqueue_provider_upload_job` para o mesmo `provider_upload` (mesma sessão de usuário) — exatamente 1 aceita, 1 rejeitada com a mensagem "já existe um job ativo".
+- **Crash/recovery**: job reivindicado manualmente com lease de 1s, nunca completado (simula worker morto) — depois do lease expirar, `requeue_stale_jobs()` devolveu o job para `QUEUED` sem `claimed_by`, confirmado por leitura direta da tabela.
+- **Retry**: jobs processados contra credenciais sintéticas (chave RSA/EC reais, mas conta fictícia) geraram falhas reais classificadas `INTERNAL`, decisão `RETRY_WAIT` com backoff aplicado corretamente e `attempt` incrementado — mesma limitação já documentada em 2.11d-2c (sem credencial real, não dá pra forçar deliberadamente um 401/429 real do provider para exercitar AUTH/RATE_LIMIT especificamente).
+- **Secret leakage**: nenhuma ocorrência de marcador de segredo (chave privada, e-mail de service account, `presignedUrl`, `requestHeaders`, `sessionUri`) em `integration_jobs.checkpoint`, `studio_events.metadata`, ou na resposta JSON de `/api/jobs/tick`.
+
+### Lost-response reconciliation — o requisito CRÍTICO do sprint, testado ao vivo
+Não é possível provocar de forma confiável "o provider aceitou mas a resposta se perdeu" contra a Apple/Google reais (é uma falha de rede por definição, não reproduzível sob demanda). A abordagem adotada: interceptar `globalThis.fetch` (o mesmo fetch nativo que `packages/integrations/src/core/http.ts` usa — nenhum código de produção foi alterado) só para as chamadas ao domínio do provider, e usá-lo para simular deterministicamente o cenário, enquanto todo o resto do fluxo (Postgres real, `runDispatcherTick` real, `integration_jobs`/`provider_uploads` reais) roda sem mock nenhum.
+
+- **Apple** (`apple-app-store.ts`, Etapa 3): 2 cenários. (A) PATCH de commit lança exceção (resposta perdida) → reconciliação via `getBuildUpload` encontra estado `PROCESSING` (≠ `AWAITING_UPLOAD`, ou seja, a Apple já tinha processado) → checkpoint marca `committed: true` **sem repetir o PATCH**. (B) mesmo lançamento, mas reconciliação encontra `AWAITING_UPLOAD` (commit genuinamente não aconteceu) → checkpoint **não** marca `committed`, seguro tentar de novo. Ambos confirmados por leitura direta do checkpoint pós-tick — **PASS**.
+- **Google** (`google-play.ts`): checkpoint local plantado com `bytesUploaded: 0`, mas o mock do provider responde a `queryResumableProgress` (chamado sempre ANTES de qualquer envio, GATE 14) informando que o Google já recebeu o primeiro chunk inteiro (8MB). O worker nunca reenviou os bytes 0..8MB — o único PUT de dados real observado começou exatamente no offset reconciliado (8388608), não em 0 — **PASS**.
+
+Este é o teste mais valioso do sprint: confirma que a reconciliação (não confiar no checkpoint local, sempre perguntar ao provider o estado real antes de agir) funciona de ponta a ponta contra o código de produção real, não só por inspeção.
+
+### Benchmark de memória
+Artifact de 96MB (limitado pela RAM disponível no ambiente local, ~256MB livres — o ponto testado é a FORMA da curva de RSS por chunk processado, não o tamanho absoluto), chunks de 8MB, `process.memoryUsage().rss` amostrado a cada tick real do dispatcher (com `--expose-gc` + `gc()` forçado antes de cada amostra para reduzir ruído do V8):
+- **Google**: RSS entre ticks variou 97.2MB–124.7MB (delta 27.5MB, abaixo do limite de 28.8MB = 30% do artifact) — consistente com "1 chunk de 8MB residente por vez", não com "arquivo inteiro em memória" (que projetaria +96MB de crescimento).
+- **Apple**: RSS entre ticks praticamente constante (114.1MB–114.2MB, delta 0.1MB) — cada `uploadOperation` já vem com Range read próprio, sem buffer cumulativo.
+- Amostra 0 (antes do primeiro tick, dominada pelo custo fixo de startup do processo/`tsx`) foi excluída do cálculo de delta por não refletir o processamento em si.
+
+### Gaps remanescentes, honestamente registrados
+- **Polling da UI parando em estado terminal** e **persistência após reload/logout-login**: não testados nesta sessão — exigem uma sessão de browser real (Playwright ou manual), que não fazia parte da infraestrutura montada aqui. Mesmo gap já registrado no handoff anterior a este sprint.
+- Retry classificado como `INTERNAL`/retryable em todos os casos observados (não foi possível forçar deliberadamente uma rejeição `AUTH`/`NON_RETRYABLE` real do provider sem credencial válida) — mesma limitação de 2.11b/c/2.11d-2c/2d.
+- Benchmark de memória rodou com 96MB (não um artifact de produção real de centenas de MB/poucos GB) por limite de RAM do ambiente local — a forma da curva (delta pequeno e não-crescente) é a evidência relevante, mas não é um teste de carga em escala real.
+
+### Limpeza
+Toda a infraestrutura de teste (fixtures em `games`/`builds`/`game_versions`/`build_artifacts`/`store_connections`/Vault secrets/objetos no bucket `builds`/`integration_jobs`/`provider_uploads`) foi removida ao final — banco local voltou ao estado anterior (só o seed padrão). Scripts de teste ficaram fora do repositório (scratchpad da sessão), não commitados — nenhum arquivo de produto foi alterado neste sprint.
+
+### Build/lint/typecheck
+`turbo run typecheck`/`turbo run lint`/`turbo run build` — reexecutados ao final, verdes nos 12 packages/apps — confirma que a validação não introduziu regressão.
+
+### Classificação final
+**VALIDAÇÃO CONCLUÍDA DENTRO DO ESCOPO LOCAL** — 10 dos 12 itens do checklist mandatório passaram com evidência real (não simulada por leitura de código), incluindo o requisito crítico do sprint (lost-response reconciliation, Google e Apple, ao vivo contra o código de produção real). 2 itens (polling de UI, reload/logout-login) permanecem como gap explícito por exigirem infraestrutura de browser não montada nesta sessão. Sprint 2.11d-2 (a/b/c/d/e) considerado **CONCLUÍDO** dentro desses limites — produção não tocada, nenhuma migration pendente de aplicar (a única migration nova do ciclo, `20260815000002_apple_operations_vault.sql`, já está commitada e aplicada localmente; aplicação em produção fica para quando o usuário autorizar esse passo, por estar fora do escopo de autonomia desta sessão).

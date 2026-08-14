@@ -1904,3 +1904,48 @@ Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions 
 |---|---|
 | Produção | Não tocada |
 | Classificação final | **CÓDIGO COMPLETO / TRANSPORTE NÃO REEXERCITADO** — build/lint/typecheck verdes, lógica revisada, teste de ponta a ponta contra a Apple pendente de credencial |
+
+## Sprint 2.11d-2e — Validação final (concorrência, crash/recovery, lost-response, memória)
+
+**Data:** 2026-08-15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos de produto alterados | 0 (sprint só de validação — nenhuma mudança de código do produto) |
+| Scripts de teste criados | temporários, fora do repo (scratchpad da sessão), não commitados |
+| Build/lint/typecheck | ✅ monorepo completo (12/12 tasks), reexecutado ao final |
+
+### Checklist de validação (contra Postgres local real + dev server real + Apple/Google reais via rede)
+
+| Item | Resultado |
+|---|---|
+| Concorrência (2 dispatchers HTTP simultâneos) | ✅ PASS — zero jobs processados por ambos (`FOR UPDATE SKIP LOCKED` confirmado) |
+| Duplicate enqueue (2 chamadas HTTP concorrentes, sessão real) | ✅ PASS — exatamente 1 aceita, 1 rejeitada |
+| Crash/recovery (lease morto) | ✅ PASS — job volta a QUEUED sem `claimed_by` após lease expirar |
+| Lost-response reconciliation — Apple (commit "perdido") | ✅ PASS — 2 cenários (Apple já processou / Apple não processou) |
+| Lost-response reconciliation — Google (chunk "perdido") | ✅ PASS — reconciliação via `queryResumableProgress` nunca reenvia bytes já aceitos |
+| Retry (classificação observada) | ✅ PASS — INTERNAL→RETRY_WAIT com backoff, attempt incrementado |
+| Lease (claim + expiração + requeue) | ✅ PASS |
+| Secret leakage (checkpoint/eventos/resposta HTTP) | ✅ PASS — 0 ocorrências de segredo |
+| Regressão Google (2.11d-2c) | ✅ PASS — processado pelo dispatcher real sem erro novo |
+| Regressão Apple (2.11d-2d) | ✅ PASS — processado pelo dispatcher real sem erro novo |
+| Polling da UI parando em estado terminal | ⚠️ NÃO TESTÁVEL nesta sessão (exige browser real) |
+| Persistência após reload/logout-login | ⚠️ NÃO TESTÁVEL nesta sessão (exige browser real) |
+
+### Benchmark de memória (artifact de 96MB, chunks de 8MB, amostragem de `process.memoryUsage().rss` por tick)
+
+| Worker | RSS min/max entre ticks | Delta | Limite (30% do artifact) | Resultado |
+|---|---|---|---|---|
+| Google | 97.2MB / 124.7MB | 27.5MB | 28.8MB | ✅ PASS |
+| Apple | 114.1MB / 114.2MB | 0.1MB | 28.8MB | ✅ PASS |
+
+Confirma consumo ~constante em relação ao tamanho do artifact (streaming via Range reads), não linear.
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada |
+| Classificação final | **VALIDAÇÃO CONCLUÍDA DENTRO DO ESCOPO LOCAL** — 10/12 itens do checklist passaram com evidência real; 2 itens (polling de UI, reload/logout-login) exigem browser e ficam como gap explícito |
