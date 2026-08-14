@@ -2607,3 +2607,49 @@ Todos os hooks/repos externos foram mockados via `vi.mock` (padrão de módulo, 
 - **Produção não foi tocada** — nenhuma migration neste sub-sprint.
 - **2.12c:** golden paths Google/Apple completos e matriz de segurança expandida.
 - **2.12d:** E2E e os documentos finais.
+
+---
+
+## Sprint 2.12c — Golden paths Google/Apple + matriz de segurança expandida
+
+**Status:** Concluído (validado em produção real)
+**Período:** 2026-08-14
+
+### Objetivo
+
+Provar empiricamente (não só em SQL cru como o 2.12a) as transições NOT_READY → correção → READY para Google Play e App Store, através de uma fixture real e chamadas HTTP autenticadas de verdade; expandir a matriz de segurança para Owner/Admin/Member; verificar (não reconstruir) a integração de Submission; e decidir sobre um evento de audit para readiness.
+
+### O que foi construído
+
+`scripts/test-readiness-golden-path.mjs` — script Node novo que roda contra o stack Supabase local via `@supabase/supabase-js`, autenticado com sessões reais de 4 usuários (Owner A/Admin A/Member A/Owner B, senha real via Admin API + `signInWithPassword`). Diferença deliberada frente a `supabase/tests/readiness_test.sql` (2.12a): aquele roda dentro do Postgres via `psql`/`set role`; este passa pelo PostgREST/GoTrue exatamente como a aplicação real, criando Submissions via `.from("submissions").insert(...)` (não `insert` de superusuário) e lendo a RPC via `.rpc("get_release_readiness", ...)`. `docker exec psql` é usado só para o par de FKs circulares `studios`↔`users` (deferrable initially deferred, que PostgREST não consegue resolver em uma única transação multi-request) — toda a lógica sob teste roda via HTTP. 26/26 asserções, cobrindo golden path Google (`ARTIFACT_MISSING` → `STORE_CONNECTION_MISSING` → `PROVIDER_UPLOAD_MISSING`/`METADATA_PACKAGE_NAME_MISSING` → READY), golden path Apple (mesma sequência com as assimetrias do catálogo — `METADATA_BUNDLE_IDENTIFIER_MISSING`, `APPLE_BUILD_UPLOAD_REF_MISSING`), matriz de segurança (Owner/Admin/Member idênticos, cross-Studio e anon rejeitados), ausência de segredos na resposta HTTP real, e o achado de duplicate submission (ver `DECISIONS.md`).
+
+`supabase/migrations/20260814170410_readiness_submission_targets_message.sql` (nova) — resolve o achado de UX do 2.12b: a mensagem de `SUBMISSION_TARGETS_MISSING` agora deixa explícito que é esperado antes da primeira Submission. Lógica (`not exists (...)`) intocada.
+
+### Achado operacional: migrations do 2.12a nunca tinham sido aplicadas em produção
+
+Ao investigar o deploy deste sprint, `mcp__claude_ai_Supabase__list_migrations` revelou que `readiness_check_definitions` e `get_release_readiness` (2.12a) nunca tinham sido aplicadas ao projeto remoto — a RPC de readiness só existia localmente até este sprint, apesar do 2.12b já ter construído UI real em cima dela. As 3 migrations (as 2 do 2.12a + a nova deste sprint) foram aplicadas via `apply_migration`, e — repetindo o padrão do commit anterior a este ("renomear migrations 2.11d-2...") — os arquivos locais foram renomeados para bater com a versão que o Supabase registrou de fato (`20260814170230`/`20260814170321`/`20260814170410`, não os timestamps originais `20260814200001`/`200002`/`210001`), já que `scripts/check-schema-sync.sh` compara por string exata de versão.
+
+### Achados que não viraram código (ver DECISIONS.md para o raciocínio completo)
+
+1. **Segurança de `submissions`/readiness é só isolamento por Studio** — Owner, Admin e Member têm acesso idêntico; não existe (nem foi inventada) permissão granular abaixo de "member do Studio" para este domínio.
+2. **Duplicate submission não tem nenhuma prevenção hoje** — nem `unique constraint`, nem checagem de aplicação. Confirmado empiricamente que uma 2ª Submission idêntica é aceita. Não corrigido: a regra certa (provavelmente "no máximo uma Submission ATIVA por Release+Platform", permitindo resubmissão pós-rejeição) é uma decisão de produto, não um bug na lógica existente.
+3. **Evento `ReleaseReadinessChanged` — decisão de NÃO criar.** Readiness é derivada (2.12a), sem histórico persistido para comparar; um evento sem comparação seria spam sem sinal.
+
+### Build/lint/typecheck/test
+
+`npx turbo run build lint typecheck test` — 37/37 tasks ✅. `bash scripts/test-readiness.sh` — 42/42 (SQL, 2.12a) + 26/26 (HTTP real, novo) = 68/68.
+
+### Escopo
+
+6 arquivos (2 novos), 0 packages de `apps/`/`packages/` tocados (só `scripts/`, `supabase/migrations/`, `DECISIONS.md`) — bem dentro do limite do CLAUDE.md.
+
+### Validação em produção
+
+3 migrations aplicadas via MCP Supabase (`apply_migration`) contra o projeto real (`vkyswyuxitwakjqjteso`). `list_migrations` confirma sincronia local↔remoto (mesmas versões). `get_advisors` (security) rodado após as mudanças: nenhum alerta novo atribuível a este sprint — os `SECURITY DEFINER` warnings existentes são o mesmo padrão intencional já usado em todo o projeto (RLS não alcança as tabelas que a RPC precisa cruzar).
+
+### Pendências para 2.12d
+
+- E2E de ponta a ponta pela UI real (Playwright), não só HTTP direto.
+- Documentação final consolidada (os 7 documentos do domínio) + Product Delta.
+- Decisão de produto pendente: regra de duplicate submission (achado deste sprint).
+- Decisão de produto pendente: granularidade de permissão para Publishing, se algum dia for necessária (achado deste sprint — hoje não existe e não foi inventada).

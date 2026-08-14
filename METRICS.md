@@ -2052,3 +2052,41 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada (sem migrations; só código de `apps/web`/`packages/database`, deploy normal via Vercel quando autorizado) |
+
+---
+
+## Sprint 2.12c — Golden paths Google/Apple + matriz de segurança expandida
+
+| Métrica | Valor |
+|---|---|
+| Commits (antes deste sprint) | 93 |
+| Typecheck | ✅ (`npx turbo run typecheck` — 37/37 tasks) |
+| Lint | ✅ (`npx turbo run lint` — 37/37 tasks) |
+| Build | ✅ (`npx turbo run build` — 37/37 tasks) |
+| Testes | ✅ 8/8 Vitest (`apps/web`, sem alteração) + 42/42 `supabase/tests/readiness_test.sql` + 26/26 `scripts/test-readiness-golden-path.mjs` (novo) |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados | 6 | ≤ 50 (ideal ~30) |
+| Arquivos novos | 2 (`scripts/test-readiness-golden-path.mjs`, migration de mensagem) | ≤ 10 |
+| Packages tocados | 0 (`scripts/`, `supabase/migrations/`, `DECISIONS.md` — nenhum package de `apps/`/`packages/`) | ≤ 3 |
+| Migrations novas | 1 (mensagem apenas, `SUBMISSION_TARGETS_MISSING`) — mais 2 renomeadas para bater com a versão registrada em produção | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| GATE 12 — golden path Google (fixture real, HTTP autenticado) | ✅ NOT_READY → blockers específicos identificados um a um → READY |
+| GATE 13 — golden path Apple (mesma fixture, assimetrias do catálogo) | ✅ mesma transição; `METADATA_BUNDLE_IDENTIFIER_MISSING`/`APPLE_BUILD_UPLOAD_REF_MISSING` confirmados exclusivos da Apple |
+| GATE 11 — matriz de segurança expandida (Owner/Admin/Member/cross-Studio/anon) | ✅ Owner/Admin/Member têm acesso idêntico (RLS é só isolamento por Studio — achado documentado, não é lacuna); cross-Studio e anon rejeitados; zero segredos na resposta HTTP real |
+| GATE 14 — Submission integration (verificação) | ✅ Release/Studio/platform corretos, não publica, não dispara review; **achado**: duplicate submission não tem nenhuma prevenção hoje (documentado em DECISIONS.md, não corrigido sem decisão de produto) |
+| GATE 15 — avaliação de evento `ReleaseReadinessChanged` | ✅ decisão de NÃO criar (documentada em DECISIONS.md) |
+| Achado do 2.12b (`SUBMISSION_TARGETS_MISSING` confuso) | ✅ resolvido via ajuste de mensagem (migration), lógica preservada |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | ✅ 3 migrations aplicadas via MCP Supabase (`readiness_check_definitions`, `get_release_readiness`, `readiness_submission_targets_message`) — as duas primeiras eram do 2.12a e ainda não tinham sido aplicadas antes deste sprint. `list_migrations` confirma local↔remoto em sincronia. `get_advisors` (security): nenhum alerta novo introduzido por este sprint. |
