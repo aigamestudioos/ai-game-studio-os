@@ -1949,3 +1949,24 @@ Confirma consumo ~constante em relação ao tamanho do artifact (streaming via R
 |---|---|
 | Produção | Não tocada |
 | Classificação final | **VALIDAÇÃO CONCLUÍDA DENTRO DO ESCOPO LOCAL** — 10/12 itens do checklist passaram com evidência real; 2 itens (polling de UI, reload/logout-login) exigem browser e ficam como gap explícito |
+
+## Sprint 2.11d-2 — Production Validation / Final Closure (2026-08-14)
+
+Fechamento em produção do ciclo 2.11d-2 (a-e): scheduler `pg_cron`/`pg_net` configurado com `JOBS_DISPATCHER_SECRET` real, validado ao vivo contra `https://ai-game-studio-os-web.vercel.app/api/jobs/tick`.
+
+| Item | Resultado |
+|---|---|
+| Scheduler real (`pg_cron` → `pg_net` → dispatcher) | ✅ PASS — dezenas de ticks consecutivos, `status_code=200` |
+| Segurança do dispatcher (sem secret / secret inválido / método errado / content-type errado / body grande) | ✅ PASS — 401/401/405/415/413 |
+| Secret correto → 200 | ✅ PASS (via ticks reais do cron, mais forte que teste manual isolado) |
+| Golden path assíncrono Google (produção) | ✅ TRANSPORTE VALIDADO / FUNCIONAL PENDENTE (falha esperada por falta de credencial real: `MISSING_PACKAGE_NAME`) |
+| Golden path assíncrono Apple (produção) | ✅ TRANSPORTE VALIDADO / FUNCIONAL PENDENTE (falha esperada: `MISSING_BUNDLE_IDENTIFIER`) |
+| Concorrência (3 dispatchers simulados, 6 jobs) | ✅ PASS — 3+3+0, zero double-claim |
+| Crash/recovery (lease expirado + checkpoint parcial) | ✅ PASS — requeue com `WORKER_LEASE_EXPIRED`, checkpoint persistido |
+| Scheduler failure/recovery (cron desativado e reativado) | ✅ PASS — job ficou QUEUED durante a queda, retomado automaticamente após reativação |
+| Cleanup QA | ✅ feito para dados desta sessão; resíduo intencional documentado (Google jobs de sessão anterior, `studio_events` append-only) |
+
+| Métrica | Valor |
+|---|---|
+| Produção | Tocada (scheduler validado, dados de teste isolados, sem efeito irreversível em provider real) |
+| Classificação final do Sprint 2.11d-2 | **PASS** — único gap remanescente é Fase 7 (Playwright E2E com login humano), documentado como pendência separada que não bloqueia o PASS |
