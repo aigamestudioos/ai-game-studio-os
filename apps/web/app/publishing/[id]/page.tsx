@@ -2,15 +2,25 @@
 
 import { notFound, useParams } from "next/navigation";
 import { AppShell } from "../../../components/layout/app-shell";
+import { ReadinessPanel } from "../../../components/publishing/readiness-panel";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Spinner } from "../../../components/ui/spinner";
+import { useAuth } from "../../../hooks/use-auth";
+import { useReleaseReadiness } from "../../../hooks/use-release-readiness";
 import { useSubmission } from "../../../hooks/use-submission";
 import { submissionStatusLabel, submissionStatusVariant } from "../../../lib/submission-status";
 
 export default function SubmissionDetailsPage() {
   const params = useParams<{ id: string }>();
+  const { session } = useAuth();
   const { submission, reviews, error } = useSubmission(params.id);
+  const {
+    readiness,
+    loading: readinessLoading,
+    error: readinessError,
+    reload: reloadReadiness,
+  } = useReleaseReadiness(session, submission?.releaseId);
 
   if (submission === undefined) {
     return (
@@ -46,6 +56,15 @@ export default function SubmissionDetailsPage() {
         </section>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        <div className="lg:max-w-2xl">
+          <ReadinessPanel
+            readiness={readiness}
+            loading={readinessLoading}
+            error={readinessError}
+            onReload={reloadReadiness}
+          />
+        </div>
 
         <Card className="lg:max-w-2xl">
           <CardHeader>

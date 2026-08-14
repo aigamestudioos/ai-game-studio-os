@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { AppShell } from "../../components/layout/app-shell";
 import { SubmissionCard } from "../../components/publishing/cards";
+import { ReadinessPanel } from "../../components/publishing/readiness-panel";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
@@ -20,6 +21,7 @@ import { Spinner } from "../../components/ui/spinner";
 import { useAuth } from "../../hooks/use-auth";
 import { useCurrentStudio } from "../../hooks/use-current-studio";
 import { usePublishableReleases } from "../../hooks/use-publishable-releases";
+import { useReleaseReadiness } from "../../hooks/use-release-readiness";
 import { useSubmissions } from "../../hooks/use-submissions";
 import { toast } from "../../hooks/use-toast";
 import { releaseChannelLabel } from "../../lib/release-status";
@@ -37,6 +39,18 @@ export default function PublishingPage() {
 
   const selectedRelease = releases?.find((r) => r.releaseId === releaseId);
   const hasReleases = !!releases && releases.length > 0;
+
+  // GATE 9 — Submission Gate: readiness do Release selecionado no diálogo
+  // decide se "Criar Submissão" fica habilitado. Criar Submissão continua
+  // um passo distinto e explícito (nunca automático s treinamento por
+  // ficar READY) — este hook só LÊ o veredito, a ação de criar continua a
+  // mesma de sempre (handleSubmit abaixo), sem nenhum envio a review/loja.
+  const {
+    readiness,
+    loading: readinessLoading,
+    error: readinessError,
+  } = useReleaseReadiness(session, releaseId ?? undefined);
+  const isReady = readiness?.status === "READY";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,9 +134,17 @@ export default function PublishingPage() {
                       </div>
                     </div>
                   ) : null}
+                  {releaseId ? (
+                    <ReadinessPanel readiness={readiness} loading={readinessLoading} error={readinessError} />
+                  ) : null}
                 </div>
                 <DialogFooter>
-                  <Button type="submit" loading={loading} disabled={loading || !releaseId || !platformId}>
+                  <Button
+                    type="submit"
+                    loading={loading}
+                    disabled={loading || !releaseId || !platformId || !isReady}
+                    title={releaseId && !isReady ? "Este Release ainda não está pronto (ver Release Readiness acima)" : undefined}
+                  >
                     Criar Submissão
                   </Button>
                 </DialogFooter>

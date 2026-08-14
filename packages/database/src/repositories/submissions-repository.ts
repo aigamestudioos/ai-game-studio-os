@@ -9,6 +9,11 @@ export type SubmissionWithDetails = {
   gameName: string;
   versionNumber: string;
   platformName: string;
+  // Sprint 2.12b — necessários para a UI consultar Release Readiness
+  // (`get_release_readiness`, RPC escopada por Release) a partir da tela
+  // de detalhe de Submission, sem precisar de uma query extra.
+  releaseId: string;
+  platformId: string;
 };
 
 // Repository do Aggregate Root Submission (AGSOS-SPEC-002 §8, §17).
@@ -77,6 +82,8 @@ export function createSubmissionsRepository(client: SupabaseClient<Database>) {
           gameName: release ? (gameNameById.get(release.game_id) ?? "—") : "—",
           versionNumber: release ? (versionNumberById.get(release.game_version_id) ?? "—") : "—",
           platformName: platformNameById.get(submission.platform_id) ?? "—",
+          releaseId: submission.release_id,
+          platformId: submission.platform_id,
         };
       });
     },
@@ -118,6 +125,8 @@ export function createSubmissionsRepository(client: SupabaseClient<Database>) {
         gameName: game?.name ?? "—",
         versionNumber: version?.version_number ?? "—",
         platformName: platform?.name ?? "—",
+        releaseId: submission.release_id,
+        platformId: submission.platform_id,
       };
     },
 
