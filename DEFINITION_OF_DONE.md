@@ -178,3 +178,14 @@ Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicaç�
 **Regra permanente:** nenhum sprint que toque neste pipeline pode descrever uma dessas etapas usando o nome de outra (ex.: "a Release foi publicada" quando na verdade só ficou READY, ou "a Submission foi enviada à loja" quando só um Provider Upload terminou). Nenhuma etapa deste pipeline pode ser automatizada para pular a etapa seguinte (auto-publish, auto-submit-to-review) sem uma decisão de produto explícita do usuário — nenhuma existe hoje.
 
 **Se qualquer um desses seis falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.
+
+## 13. Unicidade e autorização de Submission (obrigatório desde o Sprint 2.13)
+
+**Origem:** Sprint 2.12c encontrou dois gaps de cobertura em `submissions` — nenhuma prevenção de duplicidade, nenhuma permissão granular abaixo de "member do Studio". Sprint 2.13 fechou os dois.
+
+- **Unicidade de Submission** — no máximo 1 Submission ATIVA (status fora de `PUBLISHED`/`REJECTED`/`CANCELLED`) por `(release_id, platform_id)`, garantida por índice único parcial no Postgres (`idx_submissions_release_platform_active`), nunca só por checagem em aplicação. Uma Release pode ter Submissions ativas em paralelo para plataformas diferentes (Google + Apple) — a unicidade é por par, não por Release inteira. Resubmissão para o mesmo Release+Platform só é permitida depois que a Submission anterior chega a um estado terminal.
+- **Autorização de Publishing** — `publishing.read` (ler `submissions`/readiness) e `publishing.create_submission` (criar Submission) são permissões dedicadas (catálogo `permissions` + `current_user_has_permission()`), aplicadas via RLS em `submissions` e defesa em profundidade em `get_release_readiness`. Nenhuma ação de leitura ou escrita neste domínio pode depender só de "é member do Studio" — precisa da permissão específica, mesmo padrão já estabelecido para `store_connections` (`studio.manage_store_connections`, Sprint 2.12).
+
+**Regra permanente:** qualquer sprint que adicione um novo tipo de escrita em `submissions` (ex. cancelamento, edição de metadata pré-envio) precisa decidir explicitamente se usa `publishing.create_submission` ou uma permissão nova — nunca herdar autorização de outra tabela por conveniência. Qualquer sprint que altere o ciclo de vida de `submission_status` (novos estados, mudança de quais são terminais) precisa reavaliar `idx_submissions_release_platform_active` — a lista de estados terminais está hardcoded na migration, não derivada de um catálogo.
+
+**Se qualquer um desses falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.

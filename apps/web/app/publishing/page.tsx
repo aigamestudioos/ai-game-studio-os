@@ -49,6 +49,7 @@ export default function PublishingPage() {
     readiness,
     loading: readinessLoading,
     error: readinessError,
+    reload: reloadReadiness,
   } = useReleaseReadiness(session, releaseId ?? undefined);
   const isReady = readiness?.status === "READY";
 
@@ -135,7 +136,7 @@ export default function PublishingPage() {
                     </div>
                   ) : null}
                   {releaseId ? (
-                    <ReadinessPanel readiness={readiness} loading={readinessLoading} error={readinessError} />
+                    <ReadinessPanel readiness={readiness} loading={readinessLoading} error={readinessError} onReload={reloadReadiness} />
                   ) : null}
                 </div>
                 <DialogFooter>

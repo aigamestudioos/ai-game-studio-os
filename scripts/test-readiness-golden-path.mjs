@@ -131,8 +131,10 @@ async function main() {
   `);
 
   // Papéis reais do Studio A (Sprint 1.8d-4) — Owner tem todas as
-  // permissões, Admin um subconjunto, Member nenhuma. Nenhuma dessas
-  // permissões, porém, governa `submissions`/readiness (ver achado abaixo).
+  // permissões, Admin um subconjunto, Member só publishing.read (Sprint
+  // 2.13 GATE 2 — antes disso nenhuma permissão governava
+  // `submissions`/readiness; agora `publishing.read`/`publishing.create_submission`
+  // fazem isso).
   const { data: roles } = await admin
     .from("permissions")
     .select("id, key");
@@ -147,10 +149,20 @@ async function main() {
   await admin.from("role_permissions").insert(
     (roles ?? []).map((p) => ({ studio_id: studioAId, role_id: ownerRoleId, permission_id: p.id })),
   ).throwOnError();
-  const adminPerms = (roles ?? []).filter((p) => p.key === "studio.invite_members" || p.key === "studio.manage_members" || p.key === "studio.manage_store_connections");
+  const adminPerms = (roles ?? []).filter((p) => p.key === "studio.invite_members" || p.key === "studio.manage_members" || p.key === "studio.manage_store_connections" || p.key === "publishing.read" || p.key === "publishing.create_submission");
   if (adminPerms.length > 0) {
     await admin.from("role_permissions").insert(
       adminPerms.map((p) => ({ studio_id: studioAId, role_id: adminRoleId, permission_id: p.id })),
+    ).throwOnError();
+  }
+  // Sprint 2.13 GATE 2 — Member ganha publishing.read (lê readiness/
+  // submissions, mas não cria Submission) — antes deste sprint Member não
+  // tinha NENHUMA permission granular; agora precisa desta para o cenário
+  // "Member A lê readiness" abaixo continuar passando.
+  const memberPerms = (roles ?? []).filter((p) => p.key === "publishing.read");
+  if (memberPerms.length > 0) {
+    await admin.from("role_permissions").insert(
+      memberPerms.map((p) => ({ studio_id: studioAId, role_id: memberRoleId, permission_id: p.id })),
     ).throwOnError();
   }
   await admin.from("user_roles").insert([
@@ -339,25 +351,49 @@ async function main() {
   }
 
   // =====================================================================
-  // GATE 14 — Duplicate submission: não há unique constraint nem checagem
-  // de aplicação hoje para (release_id, platform_id) em `submissions`
-  // (achado, não invenção — ver relatório). Confirmamos empiricamente que
-  // uma segunda Submission idêntica É aceita, e documentamos como achado.
+  // GATE 14 — Duplicate submission (Sprint 2.12c achado, fechado no Sprint
+  // 2.13 GATE 1): índice único parcial `idx_submissions_release_platform_active`
+  // agora rejeita uma 2ª Submission ATIVA para o mesmo (release_id,
+  // platform_id). Confirma o caminho bloqueado (concorrência real, duas
+  // criações simultâneas) e o caminho legítimo (nova Submission permitida
+  // depois que a anterior chega a um estado terminal).
   // =====================================================================
   {
-    const { data: dup, error: dupErr } = await ownerAClient
-      .from("submissions")
-      .insert({
-        studio_id: studioAId, release_id: releaseId, platform_id: googleId, build_id: buildGoogleId,
-        created_actor_type: "USER", created_actor_id: ownerA.id, updated_actor_type: "USER", updated_actor_id: ownerA.id,
-      })
-      .select("*").single();
-    assert(!dupErr && !!dup, "ACHADO: submissions não tem unique/duplicate-prevention hoje — 2ª Submission idêntica é aceita sem erro (ver relatório 2.12c)");
-    if (dup) {
-      const { data: rel } = await admin.from("releases").select("status").eq("id", releaseId).single();
-      assert(rel.status === "DRAFT", "criar Submission não publica nem muda o status da Release automaticamente");
-      assert(dup.status === "DRAFT", "Submission nasce DRAFT — nenhum review/publish é disparado automaticamente");
-    }
+    // Uma Submission Google Play ATIVA já existe para esta Release (criada
+    // mais acima, ainda DRAFT) — uma 2ª criação idêntica sequencial já deve
+    // ser rejeitada pelo índice único parcial.
+    const dupPayload = {
+      studio_id: studioAId, release_id: releaseId, platform_id: googleId, build_id: buildGoogleId,
+      created_actor_type: "USER", created_actor_id: ownerA.id, updated_actor_type: "USER", updated_actor_id: ownerA.id,
+    };
+    const { error: seqDupErr } = await ownerAClient.from("submissions").insert(dupPayload).select("*").single();
+    assert(!!seqDupErr && /duplicate key|unique/i.test(seqDupErr.message ?? ""), "2ª Submission idêntica (sequencial) é rejeitada pelo índice único parcial (idx_submissions_release_platform_active)");
+
+    const { data: existing } = await admin.from("submissions")
+      .select("*").eq("release_id", releaseId).eq("platform_id", googleId).single();
+    const { data: rel } = await admin.from("releases").select("status").eq("id", releaseId).single();
+    assert(rel.status === "DRAFT", "criar Submission não publica nem muda o status da Release automaticamente");
+    assert(existing.status === "DRAFT", "Submission nasce DRAFT — nenhum review/publish é disparado automaticamente");
+
+    // Caminho legítimo: Submission anterior em estado TERMINAL (REJECTED)
+    // libera uma nova Submission para o mesmo Release+Platform (resubmissão
+    // pós-rejeição — interpretação conservadora documentada em DECISIONS.md).
+    await admin.from("submissions").update({ status: "REJECTED", updated_actor_type: "SYSTEM" }).eq("id", existing.id).throwOnError();
+
+    // Concorrência real: com o slot ativo livre (Submission anterior agora
+    // terminal), duas criações SIMULTÂNEAS do mesmo Release+Platform
+    // competem pelo mesmo índice único parcial — o banco precisa aceitar
+    // exatamente uma e rejeitar a outra, deterministicamente.
+    const [r1, r2] = await Promise.all([
+      ownerAClient.from("submissions").insert(dupPayload).select("*").single(),
+      ownerAClient.from("submissions").insert(dupPayload).select("*").single(),
+    ]);
+    const results = [r1, r2];
+    const oks = results.filter((r) => !r.error);
+    const fails = results.filter((r) => !!r.error);
+    assert(oks.length === 1 && fails.length === 1, "concorrência real: exatamente 1 das 2 criações simultâneas (mesmo Release+Platform) é aceita");
+    assert(/duplicate key|unique/i.test(fails[0]?.error?.message ?? ""), "a rejeição concorrente também é a unique violation do índice parcial, não outro erro");
+    assert(!!oks[0]?.data, "resubmissão concorrente vencedora persiste — Submission anterior terminal (REJECTED) liberou o slot corretamente");
   }
 
   } // fim de runScenario()

@@ -2127,3 +2127,63 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada nesta sessão (auditoria estritamente read-only; escrita em produção estava explicitamente proibida para esta tarefa) |
+
+## Sprint 2.13 — Publishing Hardening & E2E Foundation (2026-08-15)
+
+### Código (via `./scripts/metrics.sh`)
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 405 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 20927 |
+| Commits | 96 (antes do commit deste sprint) |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Build | ✅ |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Build (monorepo completo) | 62s |
+| Build (`apps/web` isolado) | 59s |
+| Typecheck (`apps/web` isolado) | 4s |
+| Dev server start (`apps/web`) | 4s |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários (Vitest, `apps/web`) | ✅ 8/8 |
+| Testes SQL (`supabase/tests/readiness_test.sql`) | ✅ 42/42 (29 asserções distintas contadas pelo runner — 26 originais do 2.12a/c + 3 novas do GATE 1 deste sprint: concorrência real + resubmissão pós-terminal) |
+| Golden path HTTP (`scripts/test-readiness-golden-path.mjs`) | ✅ 29/29 (26 originais + 3 novas do GATE 1) |
+| Testes E2E (Playwright) | ✅ 1/1 — **primeira suíte E2E real do monorepo** (`apps/web/e2e/critical-path.spec.ts`), login real via UI + fixture, contra stack local (`next start` + Docker). Nota: `./scripts/metrics.sh` ainda reporta "0 (sem suíte configurada)" para esta linha — o script tem um valor hardcoded que não detecta Playwright dinamicamente; não corrigido neste sprint (fora do escopo dos GATEs, achado registrado aqui). |
+| `npx turbo run build lint typecheck test test:e2e` | ✅ 38/38 tasks |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados (modificados) | 7 | ≤ 50 (ideal ~30) |
+| Arquivos novos | 6 (2 migrations, `playwright.config.ts`, `e2e/critical-path.spec.ts`, `e2e/fixtures/seed.mjs`, `apps/web/.gitignore`) | ≤ 10 |
+| Packages tocados (workspace) | 1 (`apps/web`) | ≤ 3 |
+| Migrations novas | 2 (`20260815000001_submission_duplicate_prevention.sql`, `20260815000002_publishing_granular_permissions.sql`) — aplicadas só localmente (Docker) | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| GATE 1 — Duplicate Submission | ✅ índice único parcial, testado com concorrência real |
+| GATE 2 — Autorização granular de Publishing | ✅ `publishing.read`/`publishing.create_submission`, RLS + defesa em profundidade na RPC |
+| GATE 3 — E2E Foundation | ✅ implementado, com 1 limitação honesta documentada (1ª Submission de um Release continua não-testável via UI, aspereza pré-existente do 2.12b) |
+| GATE 4 — Regressão | ✅ 38/38 tasks turbo, todos os testes pré-existentes continuam verdes |
+| Reclassificação do Sprint 2.12 | PARCIAL → **CLOSED** (nota adicionada em `IMPLEMENTATION_LOG.md`, histórico original preservado) |
+| Classificação do Sprint 2.13 | **PASS** |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada |

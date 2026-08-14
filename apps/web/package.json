@@ -11,6 +11,7 @@
     "lint": "eslint app providers hooks lib components",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "clean": "rm -rf .next"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "tus-js-client": "4.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.3.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",

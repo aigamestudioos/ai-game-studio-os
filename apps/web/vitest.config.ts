@@ -11,5 +11,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: true,
+    // Sprint 2.13 GATE 3 — `e2e/**` são specs do Playwright (`test:e2e`,
+    // config própria em playwright.config.ts), não do Vitest; sem esta
+    // exclusão o Vitest tenta importar `@playwright/test` e falha
+    // (`test.beforeAll() ... not expected to be called here`).
+    exclude: ["**/node_modules/**", "e2e/**"],
   },
 });

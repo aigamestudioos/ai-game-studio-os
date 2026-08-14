@@ -70,6 +70,28 @@ begin
     ('aaaaaaaa-1111-0000-0000-000000000001', 'Studio A', 'aaaaaaaa-0000-0000-0000-00000000000a', 'SYSTEM', 'SYSTEM'),
     ('bbbbbbbb-1111-0000-0000-000000000001', 'Studio B', 'bbbbbbbb-0000-0000-0000-00000000000b', 'SYSTEM', 'SYSTEM');
 
+  -- Sprint 2.13 GATE 2: get_release_readiness/submissions agora exigem
+  -- publishing.read (permissão granular, não mais só isolamento de
+  -- Studio). Este fixture cria Studios/users direto via insert (sem passar
+  -- por bootstrap_studio_for_current_user), então precisa criar role +
+  -- role_permissions manualmente para Owner A/B continuarem lendo.
+  insert into roles (id, studio_id, name, description, created_actor_type, updated_actor_type)
+  values
+    ('aaaaaaaa-9999-0000-0000-000000000001', 'aaaaaaaa-1111-0000-0000-000000000001', 'Owner', 'Acesso completo', 'SYSTEM', 'SYSTEM'),
+    ('bbbbbbbb-9999-0000-0000-000000000001', 'bbbbbbbb-1111-0000-0000-000000000001', 'Owner', 'Acesso completo', 'SYSTEM', 'SYSTEM');
+
+  insert into user_roles (studio_id, user_id, role_id)
+  values
+    ('aaaaaaaa-1111-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-00000000000a', 'aaaaaaaa-9999-0000-0000-000000000001'),
+    ('bbbbbbbb-1111-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-00000000000b', 'bbbbbbbb-9999-0000-0000-000000000001');
+
+  insert into role_permissions (studio_id, role_id, permission_id)
+  select 'aaaaaaaa-1111-0000-0000-000000000001', 'aaaaaaaa-9999-0000-0000-000000000001', id from permissions
+  where key in ('publishing.read', 'publishing.create_submission');
+  insert into role_permissions (studio_id, role_id, permission_id)
+  select 'bbbbbbbb-1111-0000-0000-000000000001', 'bbbbbbbb-9999-0000-0000-000000000001', id from permissions
+  where key in ('publishing.read', 'publishing.create_submission');
+
   insert into projects (id, studio_id, name, created_actor_type, updated_actor_type)
   values
     ('aaaaaaaa-2222-0000-0000-000000000001', 'aaaaaaaa-1111-0000-0000-000000000001', 'Projeto A', 'SYSTEM', 'SYSTEM'),
