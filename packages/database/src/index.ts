@@ -30,3 +30,4 @@ export { createStoreConnectionsRepository } from "./repositories/store-connectio
 export { createBuildArtifactsRepository } from "./repositories/build-artifacts-repository";
 export { createProviderUploadsRepository } from "./repositories/provider-uploads-repository";
 export { createIntegrationJobsRepository } from "./repositories/integration-jobs-repository";
+export { createReadinessRepository } from "./repositories/readiness-repository";

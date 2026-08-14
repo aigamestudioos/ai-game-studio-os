@@ -346,6 +346,66 @@ export type UserDashboardPreferencesRow = {
   updated_at: string;
 };
 
+// ---------------------------------------------------------------------
+// Sprint 2.12a — Readiness (20260814200001 / 20260814200002).
+// ---------------------------------------------------------------------
+
+export type ReadinessCategory =
+  | "ARTIFACT"
+  | "PROVIDER_UPLOAD"
+  | "STORE_CONNECTION"
+  | "METADATA"
+  | "VERSION"
+  | "PLATFORM"
+  | "SUBMISSION";
+
+export type ReadinessSeverity = "BLOCKER" | "WARNING";
+
+/**
+ * `NOT_APPLICABLE` é o status honesto para requisitos de loja que o schema
+ * ainda não modela (screenshots, ícone, classificação, privacidade) — nunca
+ * fingir `PASS` (GATE 6 do Sprint 2.12a).
+ */
+export type ReadinessCheckStatus = "PASS" | "FAIL" | "WARN" | "NOT_APPLICABLE";
+
+export type ReadinessImplementationStatus = "IMPLEMENTED" | "NOT_YET_MODELED";
+
+export type ReadinessCheckDefinitionsRow = {
+  code: string;
+  category: ReadinessCategory;
+  description: string;
+  severity: ReadinessSeverity;
+  blocking: boolean;
+  source_of_truth: string;
+  platform_scope: string | null;
+  implementation_status: ReadinessImplementationStatus;
+  created_at: string;
+};
+
+export type ReadinessCheck = {
+  code: string;
+  status: ReadinessCheckStatus;
+  category: ReadinessCategory;
+  severity: ReadinessSeverity;
+  /** Só é `true` quando o catálogo diz que bloqueia E o check falhou. */
+  blocking: boolean;
+  implementationStatus: ReadinessImplementationStatus;
+  message: string;
+  entityType: string;
+  entityId: string | null;
+  submissionId: string | null;
+  platform: string | null;
+};
+
+export type ReleaseReadiness = {
+  releaseId: string;
+  studioId: string;
+  status: "READY" | "NOT_READY";
+  blockerCount: number;
+  evaluatedAt: string;
+  checks: ReadinessCheck[];
+};
+
 /**
  * Formato exigido pelo `GenericSchema` do supabase-js (cada tabela precisa
  * de `Relationships`, mesmo vazio, e o schema precisa de `Views`/`Functions`/
@@ -393,6 +453,11 @@ export type Database = {
       build_artifacts: Table<BuildArtifactsRow, Partial<BuildArtifactsRow>, Partial<BuildArtifactsRow>>;
       provider_uploads: Table<ProviderUploadsRow, Partial<ProviderUploadsRow>, Partial<ProviderUploadsRow>>;
       integration_jobs: Table<IntegrationJobsRow, Partial<IntegrationJobsRow>, Partial<IntegrationJobsRow>>;
+      readiness_check_definitions: Table<
+        ReadinessCheckDefinitionsRow,
+        Partial<ReadinessCheckDefinitionsRow>,
+        Partial<ReadinessCheckDefinitionsRow>
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -499,6 +564,12 @@ export type Database = {
           p_next_attempt_at: string | null;
         };
         Returns: IntegrationJobsRow;
+      };
+      // Sprint 2.12a (20260814200002_get_release_readiness.sql). Readiness é
+      // DERIVADA: nada é persistido, a RPC recalcula tudo a cada chamada.
+      get_release_readiness: {
+        Args: { p_release_id: string };
+        Returns: ReleaseReadiness;
       };
     };
     Enums: Record<string, never>;

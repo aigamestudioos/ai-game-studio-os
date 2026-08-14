@@ -1970,3 +1970,46 @@ Fechamento em produção do ciclo 2.11d-2 (a-e): scheduler `pg_cron`/`pg_net` co
 |---|---|
 | Produção | Tocada (scheduler validado, dados de teste isolados, sem efeito irreversível em provider real) |
 | Classificação final do Sprint 2.11d-2 | **PASS** — único gap remanescente é Fase 7 (Playwright E2E com login humano), documentado como pendência separada que não bloqueia o PASS |
+
+## Sprint 2.12a — Readiness Model + Backend Readiness API (2026-08-14)
+
+Primeira camada de Readiness sobre a infraestrutura de publishing do 2.11a-d. Nada de UI (2.12b) e nada aplicado em produção.
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 390 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 18878 |
+| Commits | 90 (antes do commit deste sprint) |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Build | ✅ (`npx turbo run build lint typecheck` — 36/36 tasks) |
+| Tempo do build (apps/web isolado) | 53s |
+| Páginas / Rotas | 18 / 18 |
+| ADRs / SPECs | 5 / 9 |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados | 7 | ≤ 50 (ideal ~30) |
+| Arquivos novos | 5 | ≤ 10 |
+| Packages tocados | 2 (`database`, `supabase`) | ≤ 3 |
+| Migrations novas | 2 | — |
+
+### Qualidade
+
+| Item | Resultado |
+|---|---|
+| Testes de readiness (`bash scripts/test-readiness.sh`) | ✅ 42/42 asserções, banco local em ROLLBACK |
+| Transição NOT_READY → READY (Google Play) | ✅ 10 etapas, um blocker por vez |
+| Transição NOT_READY → READY (App Store) | ✅ |
+| Matriz de segurança (anon, cross-Studio, release inexistente, artifact/upload de outro Studio) | ✅ |
+| Vazamento de credenciais/Vault/storage path no payload | ✅ nenhum |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada (migrations aplicadas só no Docker local — pendência de deploy para 2.12d) |

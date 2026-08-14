@@ -2511,3 +2511,52 @@ Justificativa: todos os elementos que antes bloqueavam PASS (secret do dispatche
 
 ### Classificação final
 **VALIDAÇÃO CONCLUÍDA DENTRO DO ESCOPO LOCAL** — 10 dos 12 itens do checklist mandatório passaram com evidência real (não simulada por leitura de código), incluindo o requisito crítico do sprint (lost-response reconciliation, Google e Apple, ao vivo contra o código de produção real). 2 itens (polling de UI, reload/logout-login) permanecem como gap explícito por exigirem infraestrutura de browser não montada nesta sessão. Sprint 2.11d-2 (a/b/c/d/e) considerado **CONCLUÍDO** dentro desses limites — produção não tocada, nenhuma migration pendente de aplicar (a única migration nova do ciclo, `20260815000002_apple_operations_vault.sql`, já está commitada e aplicada localmente; aplicação em produção fica para quando o usuário autorizar esse passo, por estar fora do escopo de autonomia desta sessão).
+
+## Sprint 2.12a — Readiness Model + Backend Readiness API (2026-08-14)
+
+### Por que este sub-sprint existe
+
+Ao fim do 2.11d o AGSOS sabia transferir um artefato para o Google Play e para a App Store, com worker, dispatcher, retry e Vault. O que ele não sabia era responder a pergunta anterior a tudo isso: **esta Release pode ser submetida?** A auditoria de abertura (GATE 0) confirmou que nem "readiness" nem "submission gate" existiam em lugar nenhum do código — na prática, a única coisa que impedia um envio inválido era o usuário reparar sozinho que faltava alguma peça, e as validações que existiam estavam espalhadas dentro de Server Actions, cada uma vendo um pedaço do problema no momento do clique.
+
+Este sub-sprint constrói só a camada de decisão, em cima da infraestrutura existente, sem mexer nela. UI e o gate de submissão propriamente dito ficam para o 2.12b.
+
+### Auditoria complementar (GATE 0/4) — o que o schema real já dizia
+
+Inspeção coluna a coluna no Postgres local revelou o achado que definiu o desenho: **o vínculo Release → Build → Artifact já existe e é inequívoco**. `submissions` carrega `release_id`, `platform_id` e `build_id`; `build_artifacts` carrega `build_id`; `provider_uploads` carrega `build_artifact_id` + `store_connection_id`. Não faltava nenhuma FK. Uma "Release aponta para artifact" nova teria sido pura duplicação, e "último artifact do Studio" como heurística teria sido uma invenção. Então a Release chega ao artefato pelo caminho que já era o contrato: pelas suas Submissions.
+
+Corolário direto: **as plataformas-alvo de uma Release são suas Submissions** — uma Release sem Submission não é uma Release quase pronta, é uma Release sem alvo, e isso é o primeiro blocker.
+
+### O modelo
+
+Readiness é derivada (ver DECISIONS.md, três entradas de 2026-08-14): uma RPC pura que recalcula tudo a cada chamada, devolvendo `{status: READY|NOT_READY, blockerCount, checks[]}` com sete categorias (ARTIFACT, PROVIDER_UPLOAD, STORE_CONNECTION, METADATA, VERSION, PLATFORM, SUBMISSION). O catálogo de checks é uma tabela global semeada por migration, e a RPC lê dela a severidade e o `blocking` de cada código — mudar a severidade de um check é uma linha de SQL, não uma caça a literais.
+
+Duas escolhas merecem registro:
+
+**Google e Apple não são simétricos, e o modelo não finge que são.** Um upload concluído no Google Play só vale com `version_code` devolvido pela API; na App Store, só vale com `apple_build_upload_id`. Package Name é obrigatório num, Bundle Identifier no outro. São checks distintos, com `platform_scope` distinto, e o teste prova que o check de um não aparece na Submission do outro.
+
+**O que o AGSOS ainda não modela aparece como NOT_APPLICABLE, não some e não passa.** Screenshots, ícone, classificação indicativa e privacidade são requisitos reais das lojas sem schema aqui. Fabricar um `PASS` para eles seria transformar "não sei" em "verifiquei, está ok" numa tela que existe justamente para ser confiável antes de um envio irreversível.
+
+**Nenhum SUCCEEDED avulso satisfaz uma Release (GATE 5).** O upload que conta é o *deste* artefato, por uma Store Connection *deste* Studio e *desta* plataforma — as três condições no mesmo JOIN. A fixture de teste inclui de propósito um `provider_upload` SUCCEEDED de outro Studio, com `version_code` preenchido, como isca; o teste verifica que ele nunca satisfaz a Release do Studio A.
+
+### Segurança
+
+A RPC é `SECURITY DEFINER` (precisa atravessar RLS de sete tabelas), o que torna a autorização explícita obrigatória: o `studio_id` é sempre derivado da própria Release no servidor — nunca recebido do cliente — e toda query interna é escopada por ele. Cross-Studio levanta `insufficient_privilege`; `anon` não tem EXECUTE. O payload observa a *presença* de `credentials_ref`, jamais o valor: nenhum segredo, ID de Vault, caminho de storage, URL de upload ou header sai no resultado, e o teste afirma isso sobre o texto do payload inteiro.
+
+Um ajuste honesto veio do próprio teste: a primeira versão da asserção de vazamento reprovou porque a mensagem do check cita o `original_filename` do artefato ("app.aab"). Não é segredo — é texto que o próprio usuário deu e que ele precisa para identificar o artefato na tela. A asserção foi estreitada para o que de fato não pode sair (bucket + `storage_path`, que viram URL assinada), com o motivo comentado no teste.
+
+### Testes
+
+Não havia runner de testes no monorepo. Como o avaliador é SQL e o que precisa ser provado são invariantes de banco sob RLS, a suíte é SQL rodando contra o Docker local (`scripts/test-readiness.sh` → `supabase/tests/readiness_test.sql`), inteira dentro de uma transação com ROLLBACK — não deixa uma linha para trás. São 42 asserções, incluindo as duas transições completas NOT_READY → correção → READY (Google e Apple), corrigidas **um blocker por vez**, para que cada check seja provado isoladamente e não por acidente do estado final.
+
+### Build/lint/typecheck
+
+`npx turbo run build lint typecheck` — 36/36 tasks ✅.
+
+### Pendências deixadas explícitas
+
+- **Produção não foi tocada.** As duas migrations estão aplicadas só no Docker local; o deploy segue o DEPLOY_RUNBOOK no 2.12d.
+- **Drift de nomes no histórico local de migrations:** `supabase_migrations.schema_migrations` do banco local ainda registra os nomes antigos (`20260813000002_integration_jobs` etc.) enquanto o repo usa os nomes renomeados no commit `6beab76` para bater com produção. O conteúdo do schema é idêntico; é drift cosmético de histórico local, anotado aqui para não assustar quem rodar `supabase migration list` localmente.
+- **Server Action de leitura não foi criada** (corte de escopo consciente): a API server-side é a RPC, e `createReadinessRepository` é o cliente tipado. A Server Action vai nascer junto da tela que a consome, no 2.12b — criá-la agora seria adivinhar a assinatura antes de existir chamador.
+- **2.12b:** UI de readiness + o Submission Gate propriamente dito (impedir a transição de submissão quando `status = NOT_READY`). Este sub-sprint só *calcula* o veredito; ninguém ainda o *aplica*.
+- **2.12c:** golden paths Google/Apple completos e matriz de segurança expandida (member sem permissão, roles parciais, Release arquivada).
+- **2.12d:** E2E, deploy das migrations em produção e os 7 documentos finais.
