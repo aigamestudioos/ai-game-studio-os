@@ -165,4 +165,16 @@ Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicaç�
 5. `service_role` validado explicitamente quando a função for uma daquelas cujo acesso deveria ser exclusivo dele (ex.: leitura de segredo do Vault) — confirmar que `authenticated` é rejeitado, não só que `service_role` funciona.
 6. Evidência registrada no relatório final (resposta HTTP/mensagem de erro de cada teste, não só "testado").
 
+## 12. Glossário do pipeline de publicação (obrigatório desde o Sprint 2.12d) — Readiness ≠ Provider Upload ≠ Submission ≠ Store Review ≠ Publication
+
+**Origem:** Sprint 2.12 (Release Readiness) introduziu um conceito novo — "esta Release pode ser submetida?" — que é fácil de confundir com conceitos vizinhos já existentes no domínio de Publishing. Nenhum deles implica automaticamente o próximo; cada transição continua manual e explícita pelo usuário.
+
+- **Release Readiness** — um veredito **derivado, calculado sob demanda** (`get_release_readiness`, nunca persistido) que responde "dado o estado atual de sete tabelas (Build, artefato, Store Connection, Provider Upload, metadata do Game), esta Release tem tudo que precisa para que uma Submission seja criada com chance real de sucesso?". READY não envia nada a lugar nenhum — só habilita o botão "Criar Submissão".
+- **Provider Upload** — a transferência do binário (artefato) do AGSOS para a loja (Google Play/App Store), via worker assíncrono. Um Provider Upload `SUCCEEDED` é um dos *inputs* que a Readiness verifica; Readiness não dispara Provider Upload, nem o contrário.
+- **Submission** — a intenção registrada de publicar uma Release numa plataforma específica. Criá-la é a ação que o Submission Gate (Readiness) controla; criar uma Submission não publica nada sozinha.
+- **Store Review** — o processo de revisão feito pela própria loja (Apple/Google) depois que uma Submission é enviada. O AGSOS não dispara nem simula esse processo automaticamente — nenhum código do produto faz "auto-submit para review".
+- **Publication** — o jogo efetivamente disponível na loja para o público, resultado de um Store Review aprovado. Está fora do controle do AGSOS (decisão da loja).
+
+**Regra permanente:** nenhum sprint que toque neste pipeline pode descrever uma dessas etapas usando o nome de outra (ex.: "a Release foi publicada" quando na verdade só ficou READY, ou "a Submission foi enviada à loja" quando só um Provider Upload terminou). Nenhuma etapa deste pipeline pode ser automatizada para pular a etapa seguinte (auto-publish, auto-submit-to-review) sem uma decisão de produto explícita do usuário — nenhuma existe hoje.
+
 **Se qualquer um desses seis falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.

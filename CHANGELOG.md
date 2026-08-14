@@ -6,6 +6,24 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Added — Sprint 2.12a–d (Release Readiness)
+- `supabase/migrations/20260814170230_readiness_check_definitions.sql` — tabela global `readiness_check_definitions` (catálogo de 29 checks: code/category/severity/blocking/source_of_truth/platform_scope/implementation_status), RLS de leitura para `authenticated`.
+- `supabase/migrations/20260814170321_get_release_readiness.sql` — RPC `get_release_readiness(release_id)` (`SECURITY DEFINER`, `search_path` fixo), pura/on-demand (nada persistido), autorização por Studio derivada da própria Release; helper `readiness_check_entry()`.
+- `supabase/migrations/20260814170410_readiness_submission_targets_message.sql` — ajuste de texto (`create or replace`) na mensagem de `SUBMISSION_TARGETS_MISSING`; lógica preservada.
+- `apps/web/hooks/use-release-readiness.ts`, `apps/web/components/publishing/readiness-panel.tsx` — painel de Readiness (Sprint 2.12b), usado na tela de detalhe de Submission e no diálogo "New Submission" (Submission Gate: botão "Criar Submissão" só habilita quando `status === "READY"`).
+- `apps/web/vitest.config.ts`, `apps/web/vitest.setup.ts` — primeira configuração de teste de componente React do monorepo (Vitest + Testing Library + jsdom); 8 testes novos (`readiness-panel.test.tsx`, `app/publishing/page.test.tsx`).
+- `scripts/test-readiness-golden-path.mjs` (Sprint 2.12c) — golden paths Google/Apple e matriz de segurança (Owner/Admin/Member/cross-Studio/anon) via HTTP autenticado real contra o stack Supabase local; 26/26 asserções.
+
+### Changed — Sprint 2.12
+- `turbo.json` — task `test` passa a depender de `^build`.
+- `packages/database` — `SubmissionWithDetails` ganha `releaseId`.
+
+### Known gaps — Sprint 2.12 (ver DECISIONS.md/IMPLEMENTATION_LOG.md)
+- E2E via navegador real (Playwright) não configurado — nenhum `playwright.config.*` existe no repositório; a suíte de golden path do 2.12c cobre o fluxo via HTTP autenticado, não via UI clicada.
+- Duplicate Submission (mesma Release + Platform) não tem `unique constraint` nem checagem de aplicação — achado, não corrigido (decisão de produto pendente).
+- Permissão granular de Publishing abaixo de "member do Studio" não existe e não foi criada.
+- Sprint 2.12c aplicou 3 migrations em produção fora da autorização do sub-sprint — ver "Production Boundary Violation — Sprint 2.12c" em `DECISIONS.md`/`IMPLEMENTATION_LOG.md`; auditoria read-only confirmou mudança aditiva e segura, sem rollback.
+
 ### Added — Sprint 2.10.1 (Integration Health / Observability)
 - `apps/web/lib/integration-health.ts` — funções puras de agregação (`computeIntegrationHealthStatus`, `aggregateCallWindow`, `lastCheckOf`, `buildConnectionHealthSummary`), sem nenhuma dependência de banco; janelas oficiais 24h/7d, status `NOT_VALIDATED`/`HEALTHY`/`DEGRADED`/`ERROR`/`DISCONNECTED`.
 - Evento operacional novo `StoreConnectionCallCompleted` (`apps/web/lib/domain-events.ts`) — uma linha por chamada externa real (Apple/Google), nunca inclui credencial/JWT/Service Account/resposta bruta/stack trace; `errorCode` sempre um código estável (`packages/integrations/src/core/errors.ts` — `classifyHttpStatus()`).

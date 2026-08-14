@@ -4,6 +4,15 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.12 — Release Readiness (2.12a–d)
+
+✨ Novo painel de **Readiness** na tela de Submission e no diálogo "New Submission": veredito Pronto/Não pronto calculado no servidor, com a lista explicável de blockers e avisos por Release
+✨ Cobertura de checks: Build/artefato/versão, conexão com a loja e credenciais, upload à loja, metadata do Game (Package Name, Bundle Identifier, ficha de loja) — Google Play e App Store, com suas diferenças reais
+✨ Botão **"Criar Submissão"** agora é bloqueado pelo Readiness (Submission Gate) — nunca mais possível criar uma Submission sem o sistema já ter checado o que falta
+🔧 Requisitos de loja que o produto ainda não modela (screenshots, ícone, classificação indicativa, política de privacidade) aparecem como "não aplicável" — nunca como aprovados por engano
+🔧 RPC `get_release_readiness` aplicada em produção; nenhuma alteração em dados existentes
+📝 Pendências conhecidas: E2E via navegador real (Playwright) não configurado ainda; regra de duplicidade de Submission e permissão granular de Publishing seguem como decisões de produto em aberto
+
 ## Sprint 2.10.1 — Veja a saúde das suas integrações
 
 ✨ Cada conexão em **Settings → Store Connections** agora mostra um painel **Integration Health**: está funcionando agora? Quando foi a última vez que funcionou? Com que frequência tem falhado nas últimas 24h e 7 dias? Quanto tempo cada chamada está levando?

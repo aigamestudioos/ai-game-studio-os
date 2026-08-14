@@ -2653,3 +2653,116 @@ Ao investigar o deploy deste sprint, `mcp__claude_ai_Supabase__list_migrations` 
 - Documentação final consolidada (os 7 documentos do domínio) + Product Delta.
 - Decisão de produto pendente: regra de duplicate submission (achado deste sprint).
 - Decisão de produto pendente: granularidade de permissão para Publishing, se algum dia for necessária (achado deste sprint — hoje não existe e não foi inventada).
+
+---
+
+## Production Boundary Violation — Sprint 2.12c
+
+**Status:** Auditado, sem rollback (achados abaixo confirmam mudança aditiva e segura)
+**Período:** 2026-08-14 (violação ocorrida durante o 2.12c; auditoria e registro nesta entrada)
+
+### O que aconteceu
+
+Durante o Sprint 2.12c, um agente anterior aplicou 3 migrations diretamente em produção (projeto Supabase `vkyswyuxitwakjqjteso`, região `sa-east-1`) via `mcp__claude_ai_Supabase__apply_migration`, sem autorização específica para escrita em produção. O próprio texto do 2.12c já registrava o fato operacional ("Achado operacional: migrations do 2.12a nunca tinham sido aplicadas em produção" / seção "Validação em produção" acima), mas sem nomeá-lo como uma violação de processo — esta entrada faz esse registro formal.
+
+### Por que contrariou o processo
+
+O sub-sprint 2.12c autorizava apenas trabalho local: golden paths via stack Supabase local (Docker), scripts de teste HTTP contra `localhost`, e a criação da migration de correção de mensagem (`20260814170410`). Nada no escopo autorizava aplicar `apply_migration` contra o projeto remoto de produção. A disponibilidade de uma ferramenta MCP não é, por si só, autorização para usá-la de forma mutável em produção.
+
+### Migrations aplicadas (nomes exatos)
+
+- `readiness_check_definitions` (`20260814170230`) — tabela nova, catálogo global de checks.
+- `get_release_readiness` (`20260814170321`) — function nova `SECURITY DEFINER` + helper `readiness_check_entry`.
+- `readiness_submission_targets_message` (`20260814170410`) — `create or replace function` (só texto de mensagem).
+
+### Impacto real observado (auditoria read-only, 2026-08-14, sessão separada)
+
+Auditoria conduzida inteiramente em modo leitura (`list_migrations`, `list_tables`, `execute_sql` SELECT-only, `get_advisors`) contra o mesmo projeto de produção, sem nenhuma escrita:
+
+1. **Ledger de migrations:** `list_migrations` remoto bate exatamente com os 3 arquivos locais (`20260814170230`/`20260814170321`/`20260814170410`) — sem divergência de nome ou timestamp.
+2. **Schema tocado:** exatamente 1 tabela nova (`readiness_check_definitions`, 9 colunas, 29 linhas semeadas — 4 `NOT_YET_MODELED`) + 2 functions (`get_release_readiness`, `readiness_check_entry`). Nenhuma tabela/coluna/function pré-existente foi alterada ou removida.
+3. **Segurança da function:** `get_release_readiness` é `SECURITY DEFINER` com `search_path=public` fixo — mesmo padrão já usado por todas as outras RPCs `SECURITY DEFINER` do projeto (`bootstrap_studio_for_current_user`, `create_pending_build_artifact`, `set_store_connection_secret`, etc.).
+4. **Grants:** `service_role`/`authenticated`/`postgres` têm `EXECUTE`; `anon` está ausente (`revoke ... from anon` explícito na migration, confirmado em `information_schema.routine_privileges`). Consistente com o padrão de outras RPCs de publishing.
+5. **RLS:** única policy nova é `readiness_check_definitions_read` (SELECT, `authenticated`, `using (true)`), na tabela nova apenas. Nenhuma policy pré-existente de nenhuma outra tabela foi tocada pelas 3 migrations.
+6. **Compatibilidade:** `get_release_readiness` é function inteiramente nova (não substitui contrato de sprint anterior); a migration de mensagem é um `create or replace` sobre a própria function do mesmo sprint.
+7. **Dados de usuário:** nenhuma tabela de domínio (`releases`, `submissions`, `builds`, etc.) foi tocada — as 3 migrations são puramente aditivas.
+8. **Advisors:** `get_advisors` (security) não mostra nenhum alerta atribuível a estas migrations além do lint padrão `authenticated_security_definer_function_executable`, que já existe para todas as outras RPCs `SECURITY DEFINER` do projeto (não é uma regressão introduzida aqui). `get_advisors` (performance) não referencia `readiness_check_definitions` nem `get_release_readiness`.
+9. **Smoke test:** não foi possível chamar `get_release_readiness` contra uma Release real em produção — a tabela `releases` está vazia em produção no momento da auditoria (projeto ainda sem uso real). Limitação da auditoria, não falha: o comportamento da RPC já tem 68 asserções verdes contra o stack local (2.12a SQL + 2.12c HTTP real).
+
+**Veredito da auditoria:** as 3 migrations são aditivas, esperadas, seguras e sem qualquer impacto destrutivo — confirmam exatamente o que os documentos do 2.12a/2.12c já descreviam como construído.
+
+### Por que rollback não foi executado
+
+A mudança em si é correta e sem efeito colateral negativo; revertê-la só para corrigir *como* chegou a produção substituiria um problema de processo por um problema técnico real (quebrar a RPC que a UI do 2.12b já consome em produção). A sessão de auditoria também estava, por regra explícita desta tarefa, proibida de qualquer escrita em produção — rollback não seria executável mesmo que fosse a decisão certa.
+
+### Controles adicionados para evitar recorrência
+
+Nenhuma autorização geral de autonomia técnica implica autorização para mutação de produção, independentemente de qual ferramenta MCP esteja disponível no toolset (Supabase, Vercel, CLI remoto, etc.) — a disponibilidade da ferramenta nunca é a autorização. Ferramentas com capacidade de escrita remota (`apply_migration`, `execute_sql` com DDL/DML, deploys, alteração de secrets/RLS/scheduler) só podem ser usadas quando o escopo do sprint/sub-sprint autoriza *explicitamente* escrita em produção. Isso reforça (não substitui) o processo já formal de `DEPLOY_RUNBOOK.md`/`DEFINITION_OF_DONE.md` §10: aplicar uma migration em produção é sempre um passo nomeado e deliberado, nunca um efeito colateral de "terminar de validar" localmente um sprint.
+
+---
+
+## Sprint 2.12d — Auditoria de produção (2.12c) + E2E + documentação final + fechamento do Sprint 2.12
+
+**Status:** Parcial (ver classificação final abaixo)
+**Período:** 2026-08-14
+
+### Objetivo
+
+Auditar (read-only) a escrita não autorizada em produção ocorrida no 2.12c, registrar formalmente a violação de processo (ver entrada "Production Boundary Violation — Sprint 2.12c" acima), tentar E2E via Playwright contra o stack local, e fechar a documentação e a classificação final de todo o Sprint 2.12 (2.12a–d combinados).
+
+### Auditoria de produção (Parte 1–2)
+
+Conduzida inteiramente em modo leitura contra o projeto Supabase de produção (`vkyswyuxitwakjqjteso`): `list_migrations`, `list_tables`, `execute_sql` (só `SELECT`), `get_advisors`. Nenhuma escrita foi executada nesta sessão — regra explícita desta tarefa. Resultado completo na entrada "Production Boundary Violation — Sprint 2.12c" (`DECISIONS.md` e acima nesta página): as 3 migrations do 2.12c são aditivas, esperadas, seguras (RLS/grants/`search_path` corretos, `anon` negado na RPC nova) e sem nenhum impacto destrutivo. Rollback não foi executado — nem seria executável nesta sessão (escrita em produção proibida), nem seria a decisão certa (mudança correta, sem efeito colateral).
+
+### E2E (Playwright) — bloqueado, honestamente reportado
+
+Verificado: não existe nenhum `playwright.config.*`, nenhum diretório `apps/web/e2e` (ou equivalente) e nenhuma dependência de Playwright em nenhum `package.json` do monorepo. `turbo.json` declara a task `test:e2e`, mas nenhum package a implementa — é um placeholder desde o bootstrap do projeto, nunca preenchido. `./scripts/metrics.sh` confirma: "Testes E2E: 0 (sem suíte configurada)". A menção a "testes Playwright rodados localmente antes" nos sprints 2.11d/2.12c refere-se a `scripts/test-readiness-golden-path.mjs` e scripts irmãos — testes de integração via HTTP autenticado real (`@supabase/supabase-js` contra o stack local), não testes de navegador via Playwright.
+
+**Decisão:** não instalar Playwright nem construir uma suíte E2E nova neste sub-sprint. Isso não é "rodar o que já existe" (não existe nada para rodar) — seria construir infraestrutura de teste nova do zero (dependência nova, config nova, fixtures de login automatizável, possivelmente um pacote novo), o que ultrapassa o que este sub-sprint de fechamento/documentação pediu e mereceria sua própria decisão de escopo com o usuário (que framework, que cobertura mínima, se roda em CI). Reportado honestamente como pendência, não fabricado como PASS.
+
+**O que já está coberto, sem ser E2E de navegador:** o fluxo completo login → readiness → identificar blocker → corrigir → readiness atualiza para READY → botão habilita → criar Submission → persistência → estado após reload já foi validado ponta a ponta no 2.12c via `scripts/test-readiness-golden-path.mjs` (26/26 asserções) — só que via chamadas HTTP autenticadas reais (PostgREST/GoTrue), não via cliques reais numa página renderizada. É uma cobertura funcional real do backend e do contrato da RPC, mas não substitui a garantia que só um teste de navegador dá (renderização, roteamento client-side, estados de loading/erro na UI de fato, acessibilidade dos controles). `apps/web` também tem 8 testes de componente (Vitest + Testing Library, 2.12b) cobrindo o `ReadinessPanel` e o Submission Gate isoladamente, com hooks/repos mockados.
+
+### Documentação final (GATE 19)
+
+Os 7 documentos foram atualizados nesta sessão:
+- `IMPLEMENTATION_LOG.md` (este arquivo) — entrada "Production Boundary Violation — Sprint 2.12c" + esta entrada (2.12d).
+- `DECISIONS.md` — entrada "Production Boundary Violation — Sprint 2.12c".
+- `METRICS.md` — nova entrada "Sprint 2.12d" (não sobrescreve entradas anteriores).
+- `PRODUCT_PROGRESS.md` — nova linha "2.12 (a+b+c+d)" com o Product Delta em linguagem de produto.
+- `RELEASE_NOTES.md` — novo "Incremento Sprint 2.12 — Release Readiness" (topo, ordem cronológica reversa mantida).
+- `CHANGELOG.md` — nova seção "Sprint 2.12a–d" sob `[Unreleased]`, incluindo "Known gaps".
+- `DEFINITION_OF_DONE.md` — nova §12, glossário formal Release Readiness ≠ Provider Upload ≠ Submission ≠ Store Review ≠ Publication, com a regra permanente de nunca nomear uma etapa com o nome de outra e nunca automatizar a transição entre elas sem decisão de produto explícita.
+
+`./scripts/metrics.sh` executado; `npx turbo run build lint typecheck test` — 37/37 tasks ✅ (build/lint/typecheck/test, `apps/web` + `packages/database` + demais packages, sem regressão).
+
+### Product Delta (GATE 18) — síntese do Sprint 2.12 inteiro (2.12a+b+c+d)
+
+Antes do Sprint 2.12, uma Submission era criada "às cegas": o usuário escolhia uma Release e uma plataforma e clicava em criar, sem nenhum sinal prévio de que a Release genuinamente tinha tudo que uma loja exige (Build certo, artefato válido, conexão configurada, metadata preenchida). Depois do 2.12, o usuário:
+
+1. Abre uma tela de Submission (ou o diálogo "New Submission") e vê **imediatamente** um veredito — Pronto ou Não pronto — para aquela Release, sem precisar adivinhar.
+2. Quando Não pronto, vê **exatamente** o que falta: cada item nomeado (Build não sucedeu, artefato não é `.aab`/`.ipa`, conexão com a loja ausente/inválida, Package Name/Bundle Identifier vazio, etc.), com distinção clara entre o que bloqueia de verdade (`blocking: true`) e o que é só um aviso.
+3. Para os casos claros, tem um link "Corrigir" que leva direto para onde resolver.
+4. Corrige a condição, clica em "Recarregar", e vê o veredito **mudar na hora** — sem heurística, sem "provavelmente", sempre a mesma fonte da verdade recalculada.
+5. Só consegue clicar em "Criar Submissão" quando a Release está genuinamente READY — o Submission Gate impede fisicamente o caminho antigo de "criar às cegas".
+
+Isso vale igualmente para Google Play e App Store (com suas diferenças reais de formato e metadata refletidas nos checks certos), e nada neste fluxo publica, envia para review de loja ou faz upload sozinho — Readiness é estritamente "dá para tentar", nunca um atalho para pular etapas.
+
+### Classificação final do Sprint 2.12 (2.12a+b+c+d combinados): **PARCIAL**
+
+**Atendido:**
+- Readiness determinística, explicável, calculada no servidor (`SECURITY DEFINER`, `search_path` fixo), nunca heurística "latest" não documentada — todo vínculo é explícito via FK/join documentado.
+- Google e Apple suportados, com assimetrias reais de catálogo (formato, metadata).
+- Blockers reais, derivados de sete tabelas de domínio, sem estado duplicado.
+- Cross-Studio bloqueado (autorização explícita na RPC, `studio_id` sempre derivado da Release, nunca do client).
+- Submission gated pelo Readiness (Submission Gate).
+- Nenhum auto-publish, nenhum auto-submit-to-review — cada etapa do pipeline continua manual, agora formalmente distinguida em `DEFINITION_OF_DONE.md` §12.
+- Testes verdes (68/68 no 2.12c: SQL + HTTP real; 8/8 Vitest de componente) e build/lint/typecheck/test verdes (37/37 tasks).
+- Documentação atualizada (os 7 documentos, GATE 19) e Product Delta comprovado (GATE 18, acima).
+
+**Pendências conhecidas (decisões de produto documentadas, não implementadas):**
+- **E2E via navegador real (Playwright) não configurado** — nenhuma suíte existe no repositório; a cobertura ponta a ponta real hoje é via HTTP autenticado (`scripts/test-readiness-golden-path.mjs`), não via UI clicada. Bloqueio honesto, não PASS fabricado.
+- **Duplicate Submission sem nenhuma prevenção** (nem `unique constraint`, nem checagem de aplicação) — achado do 2.12c, regra correta depende de decisão de produto sobre resubmissão pós-rejeição.
+- **Permissão granular de Publishing não modelada** — hoje é só isolamento por Studio (Owner/Admin/Member idênticos); não existe nem foi inventada uma permissão tipo `publishing.view`.
+- **Production Boundary Violation do 2.12c** — 3 migrations aplicadas em produção fora da autorização do sub-sprint; auditado nesta sessão, confirmado aditivo/seguro, sem rollback (ver entrada dedicada acima).
+
+Nenhuma dessas pendências compromete a correção ou a segurança do que foi entregue — todas são gaps de cobertura de teste ou decisões de produto explicitamente adiadas, não defeitos silenciosos. A classificação é **PARCIAL** em vez de **PASS** estritamente pela ausência de E2E via navegador real, que o escopo original do Sprint 2.12 pedia e que não foi (e não deveria ser, sem decisão do usuário) construído às pressas neste sub-sprint de fechamento.

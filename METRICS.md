@@ -2090,3 +2090,40 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | ✅ 3 migrations aplicadas via MCP Supabase (`readiness_check_definitions`, `get_release_readiness`, `readiness_submission_targets_message`) — as duas primeiras eram do 2.12a e ainda não tinham sido aplicadas antes deste sprint. `list_migrations` confirma local↔remoto em sincronia. `get_advisors` (security): nenhum alerta novo introduzido por este sprint. |
+
+## Sprint 2.12d — Auditoria de produção (2.12c) + fechamento do Sprint 2.12
+
+| Métrica | Valor |
+|---|---|
+| Commits (antes deste sprint) | 96 |
+| Typecheck | ✅ (`npx turbo run typecheck` — parte de 37/37 tasks) |
+| Lint | ✅ (`npx turbo run lint` — parte de 37/37 tasks) |
+| Build | ✅ (`npx turbo run build` — parte de 37/37 tasks) |
+| Testes | ✅ 8/8 Vitest (`apps/web`, sem alteração) — `npx turbo run build lint typecheck test` = 37/37 tasks |
+| Testes E2E (Playwright) | 0 — nenhuma suíte configurada no repositório (confirmado por `./scripts/metrics.sh`); ver pendência abaixo |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados | 7 (`DECISIONS.md`, `IMPLEMENTATION_LOG.md`, `METRICS.md`, `PRODUCT_PROGRESS.md`, `RELEASE_NOTES.md`, `CHANGELOG.md`, `DEFINITION_OF_DONE.md`) | ≤ 50 (ideal ~30) |
+| Arquivos novos | 0 | ≤ 10 |
+| Packages tocados | 0 (só documentação na raiz) | ≤ 3 |
+| Migrations novas | 0 (auditoria read-only; nenhuma escrita em produção nesta sessão) | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| Auditoria read-only de produção (migrations do 2.12c) | ✅ ledger local↔remoto em sincronia; schema tocado é exatamente o esperado (1 tabela + 2 functions); RLS/grants/`search_path` corretos; nenhum dado de usuário alterado; `get_advisors` sem alerta novo atribuível; smoke test não pôde rodar contra release real (produção sem dados ainda) |
+| Registro formal da violação de processo | ✅ "Production Boundary Violation — Sprint 2.12c" em `DECISIONS.md` e `IMPLEMENTATION_LOG.md` |
+| E2E (Playwright) contra stack local | ❌ bloqueado — nenhuma suíte Playwright existe no monorepo; não construída neste sub-sprint (seria escopo novo de infraestrutura de teste, não “rodar o que já existe”) |
+| Documentação final (GATE 19) | ✅ 7 documentos atualizados: `IMPLEMENTATION_LOG.md`, `DECISIONS.md`, `METRICS.md` (este), `PRODUCT_PROGRESS.md`, `RELEASE_NOTES.md`, `CHANGELOG.md`, `DEFINITION_OF_DONE.md` (nova §12, glossário Readiness ≠ Provider Upload ≠ Submission ≠ Store Review ≠ Publication) |
+| Product Delta (GATE 18) | ✅ sintetizado em `IMPLEMENTATION_LOG.md` (entrada 2.12d) |
+| Classificação final do Sprint 2.12 (a+b+c+d) | **PARCIAL** — ver `IMPLEMENTATION_LOG.md` (entrada 2.12d) para a lista completa de pendências |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada nesta sessão (auditoria estritamente read-only; escrita em produção estava explicitamente proibida para esta tarefa) |
