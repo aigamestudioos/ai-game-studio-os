@@ -1,3 +1,4 @@
+import { appleAppStoreProcessor } from "./processors/apple-app-store";
 import { googlePlayProcessor } from "./processors/google-play";
 import { testEchoProcessor } from "./processors/test-echo";
 import type { IntegrationJobProcessor } from "./types";
@@ -10,6 +11,8 @@ const processors: Record<string, IntegrationJobProcessor> = {
   test: testEchoProcessor,
   // Sprint 2.11d-2c.
   google_play: googlePlayProcessor,
+  // Sprint 2.11d-2d.
+  apple_app_store: appleAppStoreProcessor,
 };
 
 export function getIntegrationJobProcessor(integrationName: string): IntegrationJobProcessor | null {

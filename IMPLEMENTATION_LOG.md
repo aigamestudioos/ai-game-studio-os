@@ -2400,3 +2400,25 @@ Toda a fixture (Studio reaproveitado, Project/Game/Build/BuildArtifact/ProviderU
 ### Próximo sub-sprint
 
 2.11d-2d — Apple worker: processor real `apple_app_store`, integrando `startIndex`/`onOperationComplete` (2.11d-1) ao checkpoint persistente, mesma disciplina de reconciliação — continuação autônoma autorizada.
+
+## Sprint 2.11d-2d — Apple worker real
+
+**Data:** 2026-08-15
+
+Processor real `apple_app_store` (`apps/web/lib/jobs/processors/apple-app-store.ts`), registrado em `registry.ts`. Mesma disciplina do worker Google (2.11d-2c): 1 `uploadOperation` por invocação (nunca a IPA inteira em memória — cada operação vem com `offset`/`length` próprios, lida via Range read do Storage), checkpoint local guarda só IDs não-sensíveis (`buildUploadId`/`buildUploadFileId`/`totalOperations`/`completedOperationIndex`/`committed`) — nunca as `uploadOperations` (URLs presignadas + `requestHeaders`), que vivem só no Vault via `apple_operations_ref` (nova migration `20260815000002_apple_operations_vault.sql`, mesmo padrão de `google_resumable_session_ref`).
+
+Máquina de 4 etapas por invocação: (1) sem `buildUploadId` → resolve o app pelo `bundleIdentifier`, cria o `BuildUpload`, reserva o arquivo (`uploadOperations` vão pro Vault, IDs pro checkpoint) — se a reserva falhar, descarta o `BuildUpload` órfão best-effort e nunca reaproveita o id na próxima tentativa; (2) operações pendentes → lê 1 operação do Vault, faz Range read do byte range exato dela no Storage, envia, avança `completedOperationIndex`; (3) todas operações concluídas, sem commit → chama `commitBuildUploadFile`; **lost-response reconciliation**: se a resposta do commit se perder (erro de rede/timeout), NUNCA reenvia cegamente — consulta `getBuildUpload` antes de decidir: `AWAITING_UPLOAD` real = commit genuinamente não aconteceu (seguro repetir), qualquer outro estado = a Apple já processou (marca `committed: true` sem repetir o PATCH); (4) commit confirmado → 1 poll de `getBuildUpload` por invocação (nunca mantém a function viva fazendo polling — GATE 16), persiste o estado bruto em `apple_upload_state`, deixa o próximo tick do dispatcher reconciliar se `COMPLETE`/`FAILED` ainda não chegou.
+
+UI (`apple-send-section.tsx`) e Server Actions (`apple-provider-upload-actions.ts`, `enqueue_provider_upload_job` com `p_integration_name: "apple_app_store"`) já existiam de um ciclo anterior de trabalho — só o worker/migration/registry.ts fechavam o ciclo.
+
+### Validação realizada
+- Migration `20260815000002_apple_operations_vault.sql` já estava aplicada no Postgres local (Docker) ao retomar o sprint — colunas `apple_operations_ref` e as 3 RPCs (`set/get/clear_provider_upload_apple_operations`) confirmadas via `\d`/`\df`.
+- Round-trip do primitivo Vault (`vault.create_secret`/`vault.update_secret`/`vault.decrypted_secrets`) testado diretamente contra o Postgres local — confirma o mecanismo que as 3 RPCs envolvem.
+- GRANT de tabela para `service_role` (corrigido em 2.11d-2c, `20260815000001_grant_service_role_privileges.sql`) é `ON ALL TABLES` + `ALTER DEFAULT PRIVILEGES` — cobre a nova coluna sem migration adicional.
+- `turbo run typecheck`, `turbo run lint`, `turbo run build` — verdes no monorepo completo (12/12 tasks).
+
+### Limite explícito, honestamente registrado
+Não foi montada uma fixture completa de ponta a ponta (Studio→Game→Build→BuildArtifact→StoreConnection real) nem executado o dispatcher contra uma credencial Apple sintética/real desta vez — diferente do teste empírico feito em 2.11d-2c para o Google. A lógica foi validada por leitura de código linha a linha contra o contrato do adapter (`packages/integrations/src/apple/adapter.ts`, todos os métodos usados — `listApps`/`createBuildUpload`/`reserveBuildUploadFile`/`uploadBuildUploadFileOperations`/`commitBuildUploadFile`/`getBuildUpload`/`deleteBuildUpload` — existem e batem a assinatura), mais o round-trip real do Vault. **Não exercitado de ponta a ponta**: a chamada real a `api.appstoreconnect.apple.com`, a reconciliação de commit perdido contra uma resposta real da Apple, e concorrência/crash-recovery do worker Apple especificamente (a state machine é estruturalmente idêntica à do Google, já testada em 2.11d-1/2c, mas não foi reexercitada aqui). Mesma classificação de honestidade usada em 2.11b/c/2.11d-2c.
+
+### Classificação final
+**CÓDIGO COMPLETO / TRANSPORTE NÃO REEXERCITADO NESTE SPRINT** — arquitetura e lógica de reconciliação implementadas e revisadas, build/lint/typecheck verdes, migration aplicada localmente; teste de ponta a ponta contra a Apple real (ou sintética) fica pendente para quando houver credencial disponível, mesmo padrão dos sprints anteriores.

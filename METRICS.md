@@ -1874,3 +1874,33 @@ Worker `/api/jobs/tick`; `pg_cron`/`pg_net` habilitado+agendado; Server Actions 
 |---|---|
 | Produção | Não tocada |
 | Classificação final | **TRANSPORTE VALIDADO / FUNCIONAL PENDENTE** (mesma classificação de 2.11b/c) — CONCLUÍDO dentro desse limite |
+
+## Sprint 2.11d-2d — Apple worker real
+
+**Data:** 2026-08-15
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Arquivos alterados/criados | 4 (`apple-app-store.ts` novo, `registry.ts`, `database.types.ts`, migration nova) |
+| Migrations novas | 1 (`20260815000002_apple_operations_vault.sql`) |
+| Packages tocados | 2 (`web`, `database`) + migrations |
+| Build/lint/typecheck | ✅ monorepo completo (12/12 tasks) |
+| Migration aplicada no Postgres local | ✅ (já estava aplicada ao retomar; confirmada via `\d`/`\df`) |
+
+### Validação
+
+| Caso | Resultado |
+|---|---|
+| Round-trip Vault (`create_secret`/`update_secret`/`decrypted_secrets`) | ✅ testado diretamente contra Postgres local |
+| Contrato do adapter Apple (7 métodos usados pelo processor) | ✅ confirmado por leitura — assinatura bate |
+| GRANT `service_role` cobre nova coluna sem migration extra | ✅ (`ON ALL TABLES` + `ALTER DEFAULT PRIVILEGES`, de 2.11d-2c) |
+| Fixture completa + dispatcher real contra Apple sintética/real | ❌ não executado neste sprint (gap explícito) |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada |
+| Classificação final | **CÓDIGO COMPLETO / TRANSPORTE NÃO REEXERCITADO** — build/lint/typecheck verdes, lógica revisada, teste de ponta a ponta contra a Apple pendente de credencial |

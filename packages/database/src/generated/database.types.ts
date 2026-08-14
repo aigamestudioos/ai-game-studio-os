@@ -239,6 +239,9 @@ export type ProviderUploadsRow = WithStudio & {
   // Ponteiro para o Vault (nunca a session URI em texto puro) — ver
   // `set_provider_upload_resumable_session`/`get_provider_upload_resumable_session`.
   google_resumable_session_ref: string | null;
+  // Sprint 2.11d-2d (20260815000002_apple_operations_vault.sql) — ponteiro
+  // Vault para `uploadOperations` (contém URLs presignadas/headers).
+  apple_operations_ref: string | null;
 };
 
 // Sprint 2.11d-1 (20260813000002_integration_jobs.sql) — mecanismo
@@ -469,6 +472,19 @@ export type Database = {
         Returns: string | null;
       };
       clear_provider_upload_resumable_session: {
+        Args: { p_provider_upload_id: string };
+        Returns: undefined;
+      };
+      // Sprint 2.11d-2d (20260815000002_apple_operations_vault.sql).
+      set_provider_upload_apple_operations: {
+        Args: { p_provider_upload_id: string; p_operations_json: string };
+        Returns: undefined;
+      };
+      get_provider_upload_apple_operations: {
+        Args: { p_provider_upload_id: string };
+        Returns: string | null;
+      };
+      clear_provider_upload_apple_operations: {
         Args: { p_provider_upload_id: string };
         Returns: undefined;
       };
