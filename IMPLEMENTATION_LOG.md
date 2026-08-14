@@ -2560,3 +2560,50 @@ Não havia runner de testes no monorepo. Como o avaliador é SQL e o que precisa
 - **2.12b:** UI de readiness + o Submission Gate propriamente dito (impedir a transição de submissão quando `status = NOT_READY`). Este sub-sprint só *calcula* o veredito; ninguém ainda o *aplica*.
 - **2.12c:** golden paths Google/Apple completos e matriz de segurança expandida (member sem permissão, roles parciais, Release arquivada).
 - **2.12d:** E2E, deploy das migrations em produção e os 7 documentos finais.
+
+## Sprint 2.12b — UI de Release Readiness + Submission Gate (2026-08-14)
+
+Segundo sub-sprint do 2.12. Consome só o que o 2.12a já expõe (`get_release_readiness` via `createReadinessRepository`) — nenhuma migration nova, nenhuma mudança na lógica de readiness.
+
+### GATE 7 — Server Action
+
+`apps/web/app/publishing/readiness-actions.ts` — `getReleaseReadinessAction(releaseId)`, `"use server"`. Autentica a sessão (`serverClient.auth.getUser()`) e delega toda autorização à RPC, que já falha alto (`insufficient_privilege`) se a Release não pertence ao Studio do usuário — a action nunca recebe nem repassa `studio_id`. Mesmo padrão de `getAuthorizedServerClient()` já usado em `provider-upload-actions.ts`.
+
+### GATE 8 — UI
+
+`apps/web/components/publishing/readiness-panel.tsx` (`ReadinessPanel`) e `apps/web/hooks/use-release-readiness.ts` (`useReleaseReadiness`). Não existe hoje nenhuma tela de "detalhe de Release" no projeto — só de Submission (`app/publishing/[id]/page.tsx`) e o diálogo "New Submission" (`app/publishing/page.tsx`), que referenciam Release via `usePublishableReleases`/`SubmissionWithDetails`. O painel foi plugado nos dois lugares reais (ver DECISIONS.md). `SubmissionWithDetails` ganhou `releaseId`/`platformId` (campo que faltava para a tela de Submission poder pedir o readiness do seu próprio Release).
+
+Visualmente: badge READY (verde) / NOT_READY (vermelho) no cabeçalho; cada check com ícone (✓ verde PASS, ✕ vermelho/amarelo FAIL conforme `blocking`, ⚠ amarelo WARN, ? cinza NOT_APPLICABLE) e um badge "Bloqueia submissão" só quando `check.blocking` é `true` — nunca inferido de `status === "FAIL"` sozinho, porque um FAIL não-bloqueante existe no catálogo. Link "Corrigir" (`readinessFixHref`) só para os casos inequívocos (Store Connection → `/settings/store-connections`; Package Name/Bundle Identifier/Artifact/Build → `/games`), deliberadamente genérico para não estourar o limite de arquivos com deep-linking por Game/Version.
+
+### GATE 9 — Submission Gate
+
+No diálogo "New Submission", assim que um Release é selecionado, `useReleaseReadiness` roda e o botão "Criar Submissão" fica `disabled` até `readiness.status === "READY"`. A criação em si (`createSubmission`) não mudou uma linha — o gate só controla se o botão pode ser clicado, nunca dispara nada além do já existente (nenhum envio a review, nenhuma publicação).
+
+### GATE 10 — Recarregamento
+
+`useReleaseReadiness` expõe `reload()`; um botão "Recarregar" manual existe no painel. Nenhum polling novo foi criado — coerente com o pedido explícito do prompt ("não precisa de polling contínuo se um refetch pós-ação já resolver"): diferente do `provider_upload` (que muda em segundo plano, por um worker, exigindo polling — `use-provider-uploads.ts`), readiness só muda por ação explícita do usuário (corrigir uma conexão, reenviar um artifact), então um refetch sob demanda é suficiente e mais barato.
+
+### Testes
+
+Não havia nenhuma configuração de teste de componente React no monorepo (nenhum `package.json`, incluindo `packages/testing`, tinha `vitest`/Testing Library). Criados `apps/web/vitest.config.ts` + `vitest.setup.ts`, script `"test": "vitest run"`, e `turbo.json` atualizado para a task `test` depender de `^build`. 8 testes:
+
+- `components/publishing/readiness-panel.test.tsx` (6 testes): loading, erro, vazio, READY, NOT_READY com blocker acionável (link "Corrigir" com `href` correto), distinção visual WARN/NOT_APPLICABLE vs. blocker real (só 1 badge "Bloqueia submissão" entre 3 checks de status diferentes).
+- `app/publishing/page.test.tsx` (2 testes): Submission Gate — botão desabilitado quando NOT_READY (mostra o blocker, `createSubmission` nunca chamado) e habilitado quando READY (`createSubmission` chamado exatamente uma vez, com o payload exato esperado — nada além disso).
+
+Todos os hooks/repos externos foram mockados via `vi.mock` (padrão de módulo, não de instância) — o teste do Submission Gate não bate em rede nem em Supabase real.
+
+### Build/lint/typecheck/test
+
+`npx turbo run build lint typecheck test` — 48/48 tasks ✅ (12 packages × 4 tasks).
+
+### Escopo
+
+15 arquivos alterados (8 novos), 2 packages tocados (`apps/web`, `packages/database`) — dentro do limite do CLAUDE.md.
+
+### Pendências deixadas explícitas
+
+- **Aspereza herdada do 2.12a, não corrigida (ver DECISIONS.md):** a primeiríssima Submission de um Release nasce com o Submission Gate desabilitado, porque `SUBMISSION_TARGETS_MISSING` só passa quando já existe uma Submission ativa. Registrado como débito de UX para 2.12c/2.12d decidir com o usuário.
+- **Deep-linking do "Corrigir" é genérico** (`/games`, não `/games/[id]/versions/[versionId]`) para os checks de Build/Artifact — corte de escopo explícito para caber no limite de arquivos.
+- **Produção não foi tocada** — nenhuma migration neste sub-sprint.
+- **2.12c:** golden paths Google/Apple completos e matriz de segurança expandida.
+- **2.12d:** E2E e os documentos finais.

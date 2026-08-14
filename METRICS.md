@@ -2013,3 +2013,42 @@ Primeira camada de Readiness sobre a infraestrutura de publishing do 2.11a-d. Na
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada (migrations aplicadas só no Docker local — pendência de deploy para 2.12d) |
+
+## Sprint 2.12b — UI de Release Readiness + Submission Gate (2026-08-14)
+
+Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só UI/Server Action sobre o RPC puro do 2.12a — nenhuma migration nova, nenhuma mudança de lógica de readiness.
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Commits (antes deste sprint) | 92 |
+| Typecheck | ✅ (`npx turbo run typecheck` — 12/12 tasks) |
+| Lint | ✅ (`npx turbo run lint` — 12/12 tasks) |
+| Build | ✅ (`npx turbo run build` — 12/12 tasks) |
+| Testes | ✅ 8/8 (`npx turbo run test` — primeira suíte de componente React do projeto) |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados | 15 (incl. `pnpm-lock.yaml`) | ≤ 50 (ideal ~30) |
+| Arquivos novos | 8 | ≤ 10 |
+| Packages tocados | 2 (`apps/web`, `packages/database`) | ≤ 3 |
+| Migrations novas | 0 | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| GATE 7 — Server Action `getReleaseReadinessAction` | ✅ auth via sessão, `studio_id` nunca recebido do client |
+| GATE 8 — `ReadinessPanel` (READY/NOT_READY, blocking vs WARN/NOT_APPLICABLE, link "Corrigir", loading/erro/vazio) | ✅ na tela de detalhe de Submission e no diálogo "New Submission" |
+| GATE 9 — Submission Gate (botão desabilitado se NOT_READY) | ✅ sem alterar o fluxo de criação em si |
+| GATE 10 — recarregamento pós-ação | ✅ `reload()` explícito, sem polling novo |
+| Infra de teste de componente React (Vitest + Testing Library) | ✅ criada do zero — não existia em nenhum package antes |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada (sem migrations; só código de `apps/web`/`packages/database`, deploy normal via Vercel quando autorizado) |
