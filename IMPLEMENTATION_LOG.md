@@ -2858,3 +2858,36 @@ Arquivos modificados: `apps/web/app/games/[id]/page.tsx`, `apps/web/components/p
 ### Classificação do Sprint 2.15: **PASS**
 
 `game_localizations` tinha ownership/granularidade claros no schema (Game+idioma) desde o início — não foi preciso redesenhar domínio nem tocar `get_release_readiness`. Permissão nova avaliada e descartada por evidência (nenhuma tabela irmã do domínio Game tem permission granular hoje). Store Listing ganhou repository/hook/Server Action/UI reais pela primeira vez, reusando (não duplicando) os campos de identificador já existentes do fluxo de Provider Upload. RLS já era suficiente; gap pré-existente de `game_id` "estrangeiro" documentado como dívida sistêmica, não corrigido fora de escopo. GATE 31 (critério decisivo) demonstrado: a fixture E2E não insere mais `game_localizations`, e o teste ainda chega a READY e cria a 1ª Submission inteiramente pela UI. `scripts/metrics.sh` verificado já correto desde o 2.14 (a premissa do briefing de que ainda estaria quebrado não se confirmou). Build/lint/typecheck/test/test:e2e/SQL/golden-path todos verdes; nenhuma operação de produção executada; nenhum push; commit local único ao final.
+
+## Production Validation Gate — RC Sprints 2.13+2.14+2.15 (2026-08-17)
+
+**Objetivo:** gate de promoção controlada para produção do Release Candidate composto pelas Sprints 2.13, 2.14 e 2.15 (commits `ec71c71`..`09626a5`, 9 commits acima de `origin/main`), não um sprint de feature.
+
+**G0 (Local Integrity).** HEAD local = `09626a5` (baseline esperado), branch `main`, working tree limpa, sem merge/rebase incompleto. Varredura de secrets nos arquivos do diff: nenhum segredo real versionado — as ocorrências de `SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_SECRET_KEY` são nomes de variável (não valores) em docs/código, e os JWTs em `e2e/fixtures/seed.mjs`/`scripts/test-readiness-golden-path.mjs` são as chaves demo públicas e bem conhecidas do Supabase CLI local (`iss: supabase-demo`), nunca credenciais de produção.
+
+**G1 (Schema Drift).** Produção tinha 35 migrations, local 37 — divergência exatamente as duas migrations do Sprint 2.13 (`20260815000001_submission_duplicate_prevention`, `20260815000002_publishing_granular_permissions`), confirmado via `list_migrations` contra o projeto `vkyswyuxitwakjqjteso`. Zero migrations `PRODUCTION_ONLY`.
+
+**G2/G3/G4 (Migration Safety + Prechecks).** Revisão linha a linha das duas migrations pendentes: SAFE (índice único parcial aditivo; permissões novas + RLS split + backfill idempotente `on conflict do nothing`). Precheck G3 (duplicate submission): `0 conflicting_groups` para o predicate exato do índice, em produção. Precheck G4 (authorization): catálogo de `permissions`/`roles`/`role_permissions` de produção auditado (73 studios, só roles Owner/Admin/Member, nenhuma role customizada, nenhuma permission órfã) — Owner/Admin recebem as duas permissions novas via backfill, Member só `publishing.read`, coerente com o design documentado no cabeçalho da própria migration.
+
+**G5/G6 (Regressão local + integridade E2E).** `pnpm turbo run lint typecheck build` (36/36, cache reproduzível), `pnpm turbo run test` (Vitest 15/15), `bash scripts/test-readiness.sh` (SQL: `readiness_test.sql` + `game_localizations_test.sql`, "TODOS OS TESTES PASSARAM"; HTTP golden path 29/29), `pnpm turbo run test:e2e` (Playwright 1/1) — todos verdes contra o Postgres local (Docker), sem regressão em relação ao baseline informado (2.15). Inspeção de código de `e2e/fixtures/seed.mjs`/`critical-path.spec.ts` confirmou: nenhum insert de `game_localizations` na fixture, nenhuma criação de Store Listing via `service_role`, nenhum bypass do readiness evaluator, nenhuma manipulação direta de status de Submission.
+
+**G7 (Release Plan).** Análise OLD-CODE+NEW-SCHEMA vs NEW-CODE+OLD-SCHEMA: ambos os estados intermediários são seguros para as duas migrations do RC (aditivas; a app antiga em produção, pré-2.12, não exercita os caminhos de Publishing alterados). Ordem escolhida: schema primeiro (migrations aplicadas), depois push do código — consistente com o padrão já usado em sprints anteriores (DEPLOY_RUNBOOK.md).
+
+**G8/G9 (Push + Database Promotion).** As duas migrations pendentes aplicadas via MCP (`apply_migration`), postcheck confirmado (índice único parcial com predicate correto; policies `submissions_select`/`submissions_insert`/`submissions_update`; `publishing.read`/`publishing.create_submission` no catálogo; 120 grants Owner+Admin). **Achado recorrente (mesmo do Sprint 2.11c/2.11d-2):** `apply_migration` gerou seus próprios timestamps de versão (`20260817131747`/`20260817131851`) em vez de usar os prefixos locais — corrigido com `UPDATE supabase_migrations.schema_migrations` para os prefixos exatos (`20260815000001`/`20260815000002`), mantendo local e remoto sincronizados versão-a-versão. `git push origin main` sem force — `origin/main` avançou de `2b11199` para `09626a5`, confirmado por fetch.
+
+**G10 (Application Deployment).** Deploy automático via integração Git↔Vercel (mecanismo já em uso desde o início do projeto — nenhuma infraestrutura nova criada). Deployment `dpl_8qe8yrUPSP46r1qj3gLdg6aGPHQM` — `READY`, SHA `09626a5` confirmado idêntico ao RC, alias de produção `aigamestudioos.com` atualizado.
+
+**G11 (Basic Health).** Homepage/login 200 (conteúdo real, prerender Next.js), `/dashboard`/`/publishing` 307 (redirect esperado para usuário não autenticado), `/api/jobs/tick` 405 em GET (esperado — exige POST + secret), nenhum erro de servidor no HTML.
+
+**G17/G18 (Dispatcher/Observability).** `pg_cron` job `jobs-dispatcher-tick` ativo (`* * * * *`). `integration_jobs`: 2 FAILED / 1 SUCCEEDED — volume baixo, consistente com a limitação já documentada (sem credencial real Apple/Google). `get_advisors` (security): nenhum achado novo introduzido pelo RC — os warnings existentes (funções `SECURITY DEFINER` chamáveis por `anon`/`authenticated`, `pg_net` no schema `public`, `job_dispatcher_config` sem policy) já existiam antes deste RC e são o padrão arquitetural deliberado de auth via RPC do projeto, não regressões.
+
+**Limitação registrada:** não havia, nesta sessão, uma conta/fixture de produção oficialmente destinada a smoke test mutável (criar Store Listing/Submission reais via UI em produção) — por decisão conservadora do gate, essas mutações não foram fabricadas em produção. Os fluxos G14/G15/G21 (Store Listing → Readiness → Submission, autorização granular ponta a ponta) foram validados de forma completa e real contra o Postgres local pós-migration (schema idêntico ao de produção após G9) via Playwright, mas não repetidos contra produção com um usuário real. Classificação: **PRODUCTION_VALIDATED_WITH_LIMITATIONS**.
+
+### Deploy Checklist (schema)
+[x] Migrations já existiam em `supabase/migrations/` (Sprint 2.13), nomes timestamped
+[x] Migrations validadas localmente (Postgres real, `scripts/test-readiness.sh`)
+[x] Migrations aplicadas em produção (`apply_migration` MCP + correção de versão do ledger)
+[x] Schema sync confirmado (`list_migrations` — 37/37 local == produção, versão-a-versão)
+[ ] Golden Path executado contra produção com mutação real (limitado — ver acima; validado contra Postgres local pós-migration)
+[x] Evidências de produção anexadas (deployment SHA, migrations, advisors, health checks)
+[x] IMPLEMENTATION_LOG.md/METRICS.md atualizados

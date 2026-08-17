@@ -2313,3 +2313,22 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada, nenhuma migration criada (logo nenhuma para aplicar) |
+
+## Production Validation Gate — RC Sprints 2.13+2.14+2.15 (2026-08-17)
+
+| Métrica | Valor |
+|---|---|
+| RC (commits promovidos) | `ec71c71`..`09626a5` (9 commits) |
+| origin/main antes | `2b11199` |
+| origin/main depois | `09626a5` |
+| Migrations aplicadas em produção | 2 (`20260815000001_submission_duplicate_prevention`, `20260815000002_publishing_granular_permissions`) |
+| Migrations locais vs produção (pós-gate) | 37/37 — sincronizado versão-a-versão |
+| Duplicate precheck (G3) | 0 conflicting_groups |
+| Build/lint/typecheck | 36/36 tasks turbo, verde |
+| Vitest | 15/15 |
+| SQL (readiness + game_localizations) | TODOS PASSARAM |
+| HTTP golden path | 29/29 |
+| Playwright | 1/1 |
+| Deployment Vercel | `dpl_8qe8yrUPSP46r1qj3gLdg6aGPHQM` — READY, SHA `09626a5` |
+| Produção — health check | Homepage/login 200, rotas protegidas 307, `/api/jobs/tick` 405 sem secret |
+| Classificação final | PRODUCTION_VALIDATED_WITH_LIMITATIONS |
