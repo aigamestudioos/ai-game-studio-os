@@ -7,7 +7,7 @@ Status atual do projeto AI Game Studio OS.
 | Área            | Status                        |
 |-----------------|--------------------------------|
 | Arquitetura     | Definida (docs/frozen importado) |
-| Implementação   | Sprint 0 concluído · Sprint 1 (Application Foundation) em andamento — Dashboard Premium, Projects, Games, Knowledge, Publishing, Auth (mock) e Foundation for Supabase concluídos |
+| Implementação   | Sprint 0/1 concluídos · Sprint 2 (Release Pipeline & Publishing) em andamento — até o Sprint 2.15 (Store Listing Management, local): Games/Versions/Builds/Releases reais, Store Connections (Apple/Google), upload de artefato + envio à loja (worker assíncrono), Release Readiness derivado com Submission Gate, duplicate prevention + permissões granulares de Publishing, E2E via Playwright, e agora Store Listing gerenciável pela UI (fecha o gargalo de `METADATA_LISTING_MISSING`). Ver `PRODUCT_PROGRESS.md`/`IMPLEMENTATION_LOG.md` para o detalhe sprint a sprint — as tabelas abaixo (sprint 0/1) não foram atualizadas desde então; considerar dívida documental (ver `IMPLEMENTATION_LOG.md`, Sprint 2.15) |
 | Deploy          | **Produção:** https://ai-game-studio-os-web.vercel.app/ ✅ |
 
 ## Sprint 0 — Foundation

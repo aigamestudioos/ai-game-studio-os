@@ -1,24 +1,28 @@
 import { test, expect } from "@playwright/test";
 import { seedCriticalPath, fixStoreConnectionBlocker, cleanup } from "./fixtures/seed.mjs";
 
-// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 1+4 — E2E crítico de Publishing,
-// contra o stack LOCAL (Docker + `next start`, ver playwright.config.ts).
-// Login é real (via UI, email/senha de um usuário criado por fixture/seed —
-// nunca uma credencial humana). Fluxo coberto, ponta a ponta:
+// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 1+4 / Sprint 2.15 GATE 17+31 — E2E
+// crítico de Publishing, contra o stack LOCAL (Docker + `next start`, ver
+// playwright.config.ts). Login é real (via UI, email/senha de um usuário
+// criado por fixture/seed — nunca uma credencial humana). Fluxo coberto,
+// ponta a ponta:
 //
-//   login → Publishing → Release READY, ZERO Submissions (nenhuma seed
-//   artificial) → abrir "New Submission" → selecionar o Release e a
-//   plataforma Google Play → botão "Criar Submissão" já habilitado (GATE 9
-//   revisado no 2.14: `SUBMISSION_TARGETS_MISSING` não bloqueia a criação
-//   da 1ª Submission) → criar a Submission (Google Play) pela UI real →
-//   confirmar que ela aparece na lista → reload da página → confirmar que
-//   persiste → abrir "New Submission" de novo → agora com 1 Submission
-//   ativa, o readiness passa a avaliar os checks por Submission e mostra
-//   NOT_READY com o blocker STORE_CONNECTION_MISSING → corrigir via
-//   fixture direta no banco (documentado: não há tela de verdade para
-//   conectar uma Store Connection sem credencial real de Google/Apple —
-//   ver e2e/fixtures/seed.mjs) → "Recarregar" (refetch já existente do
-//   hook `useReleaseReadiness`, sem polling novo) → READY → criar a 2ª
+//   login → Game → Store Listing VAZIA (nenhuma seed de
+//   `game_localizations` — ver e2e/fixtures/seed.mjs) → preenche e salva a
+//   ficha de loja pela UI real → Publishing → Release READY, ZERO
+//   Submissions (nenhuma seed artificial) → abrir "New Submission" →
+//   selecionar o Release e a plataforma Google Play → botão "Criar
+//   Submissão" já habilitado (GATE 9 revisado no 2.14:
+//   `SUBMISSION_TARGETS_MISSING` não bloqueia a criação da 1ª Submission)
+//   → criar a Submission (Google Play) pela UI real → confirmar que ela
+//   aparece na lista → reload da página → confirmar que persiste → abrir
+//   "New Submission" de novo → agora com 1 Submission ativa, o readiness
+//   passa a avaliar os checks por Submission e mostra NOT_READY com o
+//   blocker STORE_CONNECTION_MISSING → corrigir via fixture direta no
+//   banco (documentado: não há tela de verdade para conectar uma Store
+//   Connection sem credencial real de Google/Apple — ver
+//   e2e/fixtures/seed.mjs) → "Recarregar" (refetch já existente do hook
+//   `useReleaseReadiness`, sem polling novo) → READY → criar a 2ª
 //   Submission (App Store) pela UI → persiste após reload.
 //
 // Sprint 2.14 fechou a limitação anterior: nenhuma Submission é
@@ -26,6 +30,15 @@ import { seedCriticalPath, fixStoreConnectionBlocker, cleanup } from "./fixtures
 // pela UI, com os mesmos contratos do produto (ver DECISIONS.md/
 // IMPLEMENTATION_LOG.md, Sprint 2.14, causa raiz de
 // SUBMISSION_TARGETS_MISSING).
+//
+// Sprint 2.15 fecha a limitação irmã: `METADATA_LISTING_MISSING`
+// (blocking=true, sempre avaliado, independente de Submission existir) só
+// deixava de bloquear a criação da 1ª Submission porque o fixture semeava
+// `game_localizations` direto no banco via service_role. Esse insert foi
+// removido do fixture — a ficha de loja agora nasce pela UI (Game → Store
+// Listing) dentro deste próprio teste, ANTES de abrir "New Submission"
+// (senão `METADATA_LISTING_MISSING` bloquearia a 1ª Submission também,
+// já que o Submission Gate só ignora `SUBMISSION_TARGETS_MISSING`).
 
 let ctx: Awaited<ReturnType<typeof seedCriticalPath>> | undefined;
 
@@ -57,6 +70,26 @@ test("Publishing: 1ª Submission sem seed → NOT_READY → corrige blocker → 
   // refaz fetch nenhum aqui, então esperar por ele trava até o timeout
   // mesmo com a URL já correta.
   await page.waitForURL("**/dashboard", { timeout: 45_000, waitUntil: "commit" });
+
+  // ---------- GATE 31 (2.15) — Store Listing vazia, preenchida pela UI ----------
+  // Nenhum insert de `game_localizations` foi feito pelo fixture (ver
+  // e2e/fixtures/seed.mjs) — este é o critério decisivo do Sprint 2.15:
+  // "apagando todos os atalhos de fixture relacionados a
+  // `game_localizations`, o usuário ainda consegue chegar a READY?"
+  await page.goto(`/games/${ctx.gameId}`);
+  await expect(page.getByRole("heading", { name: "Store Listing" })).toBeVisible();
+  await expect(page.getByText("Não cadastrada")).toBeVisible();
+  await page.locator("#listing-title").fill("Jogo E2E — Store Listing");
+  await page.locator("#listing-short").fill("Um jogo de teste E2E.");
+  await page.locator("#listing-full").fill("Descrição completa da ficha de loja criada pela UI no E2E.");
+  await page.locator("#listing-keywords").fill("e2e, teste, jogo");
+  await page.getByRole("button", { name: "Salvar ficha de loja" }).click();
+  await expect(page.getByText("Cadastrada")).toBeVisible({ timeout: 10_000 });
+
+  // Reload confirma persistência da Store Listing antes de seguir o fluxo.
+  await page.reload();
+  await expect(page.getByText("Cadastrada")).toBeVisible();
+  await expect(page.locator("#listing-title")).toHaveValue("Jogo E2E — Store Listing");
 
   // ---------- Navega até Publishing ----------
   await page.goto("/publishing");

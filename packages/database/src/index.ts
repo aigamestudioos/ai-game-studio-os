@@ -31,4 +31,8 @@ export { createBuildArtifactsRepository } from "./repositories/build-artifacts-r
 export { createProviderUploadsRepository } from "./repositories/provider-uploads-repository";
 export { createIntegrationJobsRepository } from "./repositories/integration-jobs-repository";
 export { createReadinessRepository } from "./repositories/readiness-repository";
+export {
+  createGameLocalizationsRepository,
+  STORE_LISTING_DEFAULT_LANGUAGE_CODE,
+} from "./repositories/game-localizations-repository";
 export type { ReadinessCheck, ReleaseReadiness, ReadinessCheckDefinitionsRow } from "./generated/database.types";

@@ -2250,3 +2250,66 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada, nenhuma migration (não havia nenhuma para aplicar) |
+
+## Sprint 2.15 — Store Listing Management (2026-08-17)
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked, antes do commit) | 411 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 21919 |
+| Commits | 98 (antes do commit deste sprint) |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Build | ✅ |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Build (`apps/web` isolado) | 71s |
+| Typecheck (`apps/web` isolado) | 4s |
+| Dev server start (`apps/web`) | 4s |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários (Vitest, `apps/web`) | ✅ 15/15 (9 pré-existentes + 6 novos: `readiness-panel.test.tsx` deep link de `METADATA_LISTING_MISSING`, `store-listing-card.test.tsx` empty/loading/error/save/identificadores) |
+| Testes SQL (`supabase/tests/readiness_test.sql`) | ✅ 42/42 — revalidado sem alteração (regressão confirmada) |
+| Testes SQL novos (`supabase/tests/game_localizations_test.sql`) | ✅ 8/8 asserções — RLS de Store Listing: same-Studio create/edit, cross-Studio bloqueado (leitura e escrita), anon bloqueado (permission denied, sem GRANT), condição de `METADATA_LISTING_MISSING` satisfeita |
+| Golden path HTTP (`scripts/test-readiness-golden-path.mjs`) | ✅ 29/29 — revalidado sem alteração |
+| Testes E2E (Playwright) | ✅ 1/1 — `apps/web/e2e/critical-path.spec.ts` reescrito: Store Listing preenchida pela UI (fixture não insere mais `game_localizations`) → READY → 1ª e 2ª Submission → persistência com reload |
+| `scripts/metrics.sh` — linha "Testes E2E" | ✅ confirmado já correto desde o Sprint 2.14 (GATE 5) — "1 (em 1 arquivo(s) .spec.ts, apps/web/e2e — via Playwright)", derivado dinamicamente; a premissa de que ainda estaria hardcoded "0" (repassada no briefing deste sprint) não se confirmou na auditoria |
+| `pnpm run build/lint/typecheck/test` + `npx turbo run build lint typecheck test test:e2e` | ✅ 37/37 tasks + Playwright 1/1, todos verdes |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados (modificados) | 12 | ≤ 50 (ideal ~30) |
+| Arquivos novos | 6 | ≤ 10 |
+| Packages tocados (workspace) | 2 (`apps/web`, `packages/database`) + `supabase/tests`, `scripts/`, docs de raiz | ≤ 3 |
+| Migrations novas | 0 — schema/RLS de `game_localizations` já existiam desde o Sprint 2.1 e já eram suficientes | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| `game_localizations` — repository/hook/Server Action/UI | ✅ criados pela primeira vez (`packages/database/src/repositories/game-localizations-repository.ts`, `apps/web/hooks/use-game-listing.ts`, `apps/web/app/games/[id]/listing-actions.ts`, `apps/web/components/games/store-listing-card.tsx`) |
+| Store Listing na UI de Game | ✅ seção `Store Listing` em `/games/[id]` (loading, empty, create, edit, save, erro) |
+| Package Name/Bundle Identifier em Game | ✅ mesmo campo/mesma fonte da verdade do fluxo de Provider Upload (Sprint 2.11b/2.11c) — Server Actions `setGamePackageName`/`setGameBundleIdentifier` reusadas, não duplicadas |
+| Permissão nova para Games | ❌ não criada — investigado e decidido reusar a RLS de isolamento por Studio já existente (mesmo padrão de `builds`/`releases`/`game_versions`); nenhuma permission granular existe hoje para o domínio Games |
+| Deep link "Corrigir" | ✅ `METADATA_LISTING_MISSING`/`METADATA_PACKAGE_NAME_MISSING`/`METADATA_BUNDLE_IDENTIFIER_MISSING` agora apontam para `/games/{entityId}#store-listing` (entityId já era o `game_id` na RPC) |
+| GATE 31 — critério decisivo | ✅ fixture E2E não insere mais `game_localizations`; usuário chega a READY e cria a 1ª Submission só pela UI |
+| `get_release_readiness` | ✅ não alterada — nenhum bypass, nenhuma exception list nova |
+| Classificação do Sprint 2.15 | **PASS** |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada, nenhuma migration criada (logo nenhuma para aplicar) |

@@ -23,8 +23,10 @@ import { Textarea } from "../../../components/ui/textarea";
 import { useAuth } from "../../../hooks/use-auth";
 import { useCurrentStudio } from "../../../hooks/use-current-studio";
 import { useGame } from "../../../hooks/use-game";
+import { useGameListing } from "../../../hooks/use-game-listing";
 import { useGameVersions } from "../../../hooks/use-game-versions";
 import { toast } from "../../../hooks/use-toast";
+import { StoreListingCard } from "../../../components/games/store-listing-card";
 import { buildStatusLabel } from "../../../lib/build-status";
 import { gameStatusLabel } from "../../../lib/game-status";
 import { versionStatusLabel, versionStatusVariant } from "../../../lib/version-status";
@@ -61,6 +63,7 @@ export default function GameDetailsPage() {
   const { studio } = useCurrentStudio(session);
   const { game, builds, error } = useGame(params.id);
   const { versions, error: versionsError, createVersion } = useGameVersions(session, studio?.id, params.id);
+  const { listing, error: listingError, refresh: refreshListing } = useGameListing(params.id);
 
   const [open, setOpen] = useState(false);
   const [versionNumber, setVersionNumber] = useState("");
@@ -254,6 +257,14 @@ export default function GameDetailsPage() {
                 )}
               </CardContent>
             </Card>
+
+            <StoreListingCard
+              game={game}
+              listing={listing}
+              listingLoading={listing === undefined}
+              listingError={listingError}
+              onSaved={refreshListing}
+            />
           </div>
         </div>
       </div>

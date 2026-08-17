@@ -78,6 +78,26 @@ describe("ReadinessPanel", () => {
     expect(fixLink).toHaveAttribute("href", "/settings/store-connections");
   });
 
+  it("Sprint 2.15 — 'Corrigir' de METADATA_LISTING_MISSING aponta para o Game→Store Listing (deep link por entityId)", () => {
+    const readiness = makeReadiness({
+      status: "NOT_READY",
+      blockerCount: 1,
+      checks: [
+        makeCheck({
+          code: "METADATA_LISTING_MISSING",
+          status: "FAIL",
+          blocking: true,
+          entityType: "GAME",
+          entityId: "game-42",
+          message: "Nenhuma ficha de loja cadastrada para este Game.",
+        }),
+      ],
+    });
+    render(<ReadinessPanel readiness={readiness} />);
+    const fixLink = screen.getByRole("link", { name: "Corrigir" });
+    expect(fixLink).toHaveAttribute("href", "/games/game-42#store-listing");
+  });
+
   it("distingue visualmente WARNING/NOT_APPLICABLE de um blocker real", () => {
     const readiness = makeReadiness({
       status: "NOT_READY",

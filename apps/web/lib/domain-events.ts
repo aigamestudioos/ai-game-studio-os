@@ -199,3 +199,24 @@ export function providerUploadEvent<Name extends ProviderUploadEventName>(
 ): { event_name: Name; payload: ProviderUploadPayloadFor<Name> } {
   return { event_name: name, payload } as never;
 }
+
+// Sprint 2.15 — Store Listing Management. Mesmo padrão dos demais eventos
+// deste arquivo: só narra o fato de negócio (nunca o conteúdo completo do
+// texto da ficha de loja, só metadados estáveis para auditoria/analytics).
+export type StoreListingCreatedPayload = { game_id: string; language_code: string };
+export type StoreListingUpdatedPayload = { game_id: string; language_code: string };
+
+export type StoreListingEvent =
+  | { name: "StoreListingCreated"; payload: StoreListingCreatedPayload }
+  | { name: "StoreListingUpdated"; payload: StoreListingUpdatedPayload };
+
+export type StoreListingEventName = StoreListingEvent["name"];
+
+type StoreListingPayloadFor<Name extends StoreListingEventName> = Extract<StoreListingEvent, { name: Name }>["payload"];
+
+export function storeListingEvent<Name extends StoreListingEventName>(
+  name: Name,
+  payload: StoreListingPayloadFor<Name>,
+): { event_name: Name; payload: StoreListingPayloadFor<Name> } {
+  return { event_name: name, payload } as never;
+}

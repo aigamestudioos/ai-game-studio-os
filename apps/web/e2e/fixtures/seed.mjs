@@ -1,5 +1,5 @@
-// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 4 — fixture de seed para o E2E
-// crítico de Publishing.
+// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 4 / Sprint 2.15 GATE 17 — fixture
+// de seed para o E2E crítico de Publishing.
 //
 // Mesma técnica de `scripts/test-readiness-golden-path.mjs` (Sprint 2.12c):
 // `@supabase/supabase-js` com a service role key, contra o stack Supabase
@@ -26,6 +26,13 @@
 //     Play) é criada pela UI, o readiness passa a avaliar seus checks por
 //     Submission e fica NOT_READY com o blocker STORE_CONNECTION_MISSING
 //     visível no ReadinessPanel — é nesse ponto que o teste corrige.
+//   - ZERO `game_localizations`. Sprint 2.13/2.14 semeavam a ficha de loja
+//     (`game_localizations`) direto no banco para satisfazer
+//     `METADATA_LISTING_MISSING` — exatamente o atalho artificial que o
+//     Sprint 2.15 (Store Listing Management) elimina: o teste agora
+//     preenche e salva a ficha de loja pela UI real (Game → Store Listing)
+//     antes de conseguir chegar a READY. Sem isso, `METADATA_LISTING_MISSING`
+//     falharia como BLOCKER assim que a 1ª Submission existisse.
 //
 // A "correção" que o teste aplica (`fixStoreConnectionBlocker`) é uma
 // escrita direta no banco (fixture), não uma ação na UI — documentado
@@ -118,10 +125,10 @@ export async function seedCriticalPath() {
     package_name: "com.e2e.studio", bundle_identifier: "com.e2e.studio",
     created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
   }).throwOnError();
-  await admin.from("game_localizations").insert({
-    id: uid(RUN, "loc"), studio_id: studioId, game_id: gameId, language_code: "en-US",
-    title: "Jogo E2E", full_description: "E2E full description.",
-  }).throwOnError();
+  // Sprint 2.15 GATE 17 — PROIBIDO seedar `game_localizations` por fixture:
+  // este é exatamente o atalho que a sprint elimina. A ficha de loja
+  // (Store Listing) nasce pela UI real dentro do próprio teste (Game →
+  // Store Listing), não aqui — ver critical-path.spec.ts.
   await admin.from("game_versions").insert({
     id: versionId, studio_id: studioId, game_id: gameId, version_number: "1.0.0",
     created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",

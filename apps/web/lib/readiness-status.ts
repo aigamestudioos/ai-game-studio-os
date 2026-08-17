@@ -50,16 +50,27 @@ export function checkStatusLabel(status: ReadinessCheck["status"]): string {
 }
 
 // "Corrigir" é deliberadamente genérico (ver limite de escopo do 2.12b) —
-// só os dois casos mais comuns e inequívocos ganham deep link real; os
-// demais checks continuam totalmente visíveis, só sem atalho de navegação.
+// só os casos mais comuns e inequívocos ganham deep link real; os demais
+// checks continuam totalmente visíveis, só sem atalho de navegação.
+//
+// Sprint 2.15 — METADATA_LISTING_MISSING/METADATA_PACKAGE_NAME_MISSING/
+// METADATA_BUNDLE_IDENTIFIER_MISSING agora têm uma superfície real que
+// resolve o blocker (Game → Store Listing, `components/games/
+// store-listing-card.tsx`, id="store-listing"): `entityId` desses três
+// checks é sempre o `game_id` (RPC `get_release_readiness`, entityType
+// "GAME") — deep link preciso em vez de mandar para a lista genérica
+// `/games`. Os demais checks não relacionados a listing/identificadores
+// não foram alterados.
 export function readinessFixHref(check: ReadinessCheck): string | null {
   switch (check.code) {
     case "STORE_CONNECTION_MISSING":
     case "STORE_CONNECTION_INVALID":
     case "STORE_CONNECTION_CREDENTIALS_MISSING":
       return "/settings/store-connections";
+    case "METADATA_LISTING_MISSING":
     case "METADATA_PACKAGE_NAME_MISSING":
     case "METADATA_BUNDLE_IDENTIFIER_MISSING":
+      return check.entityId ? `/games/${check.entityId}#store-listing` : "/games";
     case "ARTIFACT_MISSING":
     case "ARTIFACT_WRONG_FORMAT":
     case "ARTIFACT_NOT_STORED":

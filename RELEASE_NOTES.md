@@ -4,6 +4,25 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.15 — Store Listing Management
+
+✨ Todo **Game** agora tem uma seção **Store Listing** (`/games/[id]`) — título, descrição curta, descrição completa e palavras-chave, com estado vazio claro e feedback de salvo
+✨ Package Name (Google Play) e Bundle Identifier (App Store) agora também podem ser definidos direto no Game — mesmo dado usado pelo envio de Build, sem duplicação
+✨ Preencher a Store Listing resolve naturalmente o blocker "ficha de loja ausente" no Release Readiness — o link "Corrigir" desse blocker agora leva direto para a seção
+🔧 O teste automatizado (Playwright) do fluxo de Publishing deixou de semear a ficha de loja direto no banco — a primeira Submission de ponta a ponta agora nasce inteiramente pela UI, sem nenhum atalho de bastidores
+📝 Ainda fora de escopo: idioma único por Game (en-US) na ficha de loja, screenshots/ícone/classificação indicativa/política de privacidade (o Readiness continua marcando esses como "não modelado ainda", nunca como aprovados por engano)
+
+## Sprint 2.14 — Corrige a primeira Submissão de um Release
+
+🔧 Criar a **primeira Submissão** de um Release não ficava mais preso atrás de um aviso que só fazia sentido depois de já existir alguma Submissão — o botão "Criar Submissão" agora habilita corretamente logo na primeira vez
+🔧 `scripts/metrics.sh` corrigido: deixou de reportar "0 testes E2E" por engano quando já existe suíte Playwright
+
+## Sprint 2.13 — Sem duplicidade e permissões reais de Publishing
+
+✨ Duas Submissions idênticas (mesmo Release + mesma loja) não são mais aceitas por engano — a segunda tentativa é recusada na hora, inclusive sob concorrência (dois cliques quase simultâneos)
+✨ Ler o Readiness/Submissions e criar uma Submissão agora são permissões distintas — Owner/Admin têm as duas; Member só lê, a menos que o Studio ajuste
+✨ Primeiro teste automatizado com navegador de verdade (Playwright): login → Publishing → criar Submissão, contra o produto real
+
 ## Sprint 2.12 — Release Readiness (2.12a–d)
 
 ✨ Novo painel de **Readiness** na tela de Submission e no diálogo "New Submission": veredito Pronto/Não pronto calculado no servidor, com a lista explicável de blockers e avisos por Release
