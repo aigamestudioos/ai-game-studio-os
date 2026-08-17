@@ -80,6 +80,10 @@ export const appleAppStoreProcessor: IntegrationJobProcessor = async (job, ctx) 
   const providerUploadsRepo = createProviderUploadsRepository(admin);
   const eventsRepo = createStudioEventsRepository(admin);
 
+  // Sprint 2.16a: ver comentário equivalente em `google-play.ts`.
+  if (!job.provider_upload_id) {
+    return { outcome: "failed", errorCode: "PROVIDER_UPLOAD_ID_MISSING", errorClass: "NON_RETRYABLE" };
+  }
   const providerUpload = await providerUploadsRepo.getById(job.provider_upload_id);
   if (!providerUpload) return { outcome: "failed", errorCode: "PROVIDER_UPLOAD_NOT_FOUND", errorClass: "NON_RETRYABLE" };
 

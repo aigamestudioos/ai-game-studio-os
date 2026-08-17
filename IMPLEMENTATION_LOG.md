@@ -2891,3 +2891,80 @@ Arquivos modificados: `apps/web/app/games/[id]/page.tsx`, `apps/web/components/p
 [ ] Golden Path executado contra produção com mutação real (limitado — ver acima; validado contra Postgres local pós-migration)
 [x] Evidências de produção anexadas (deployment SHA, migrations, advisors, health checks)
 [x] IMPLEMENTATION_LOG.md/METRICS.md atualizados
+
+## Production QA Foundation (2026-08-17) — BLOCKED na criação de identidade
+
+**Objetivo:** criar fundação permanente de QA em produção (identidade QA, Studio QA, política, naming
+convention, smoke automatizável) e, usando-a, fechar a limitação do Production Validation Gate acima
+(critical path mutável não reexecutado em produção). Não é sprint de feature — nenhuma mudança de
+produto foi feita.
+
+**Fase 0 (baseline).** `git status` limpo, `HEAD` = `origin/main` = `26ce377`, working tree limpo.
+`list_migrations` (projeto `vkyswyuxitwakjqjteso`) = 37 migrations, idêntico a `supabase/migrations/`
+local, versão-a-versão. Sem drift.
+
+**Fase 1 (auditoria auth/Studio).** `bootstrap_studio_for_current_user()` (SECURITY DEFINER, roda como
+usuário autenticado) é o único caminho seguro para criar Studio+role Owner — usado pela própria
+aplicação via `useAuth().ensureStudio()`. Confirmado: a aplicação **não tem rota de self-signup**
+(`grep` em `apps/web/app` não encontra `/signup`; `use-auth.ts` só expõe `login`, não `signUp`).
+Contas só existem via convite (`invites`, migration `20260728000001`) ou criação administrativa. Já
+existem contas `qa-*@example.com` antigas em `auth.users` de produção (sprints 2.11b/2.11c/hotfix),
+com `email_confirmed_at` preenchido — precedente de que alguma via administrativa foi usada
+anteriormente, mas sem acesso, nesta sessão, à credencial/API que a viabilizou.
+
+**Fase 2 (policy).** `PRODUCTION_QA_POLICY.md` criado — identidade, Studio, naming (`QA-PROD-`),
+proibições, retenção, event store, guardas de automação (`RUN_PRODUCTION_QA=true`,
+`PROD_QA_EMAIL`/`PROD_QA_PASSWORD`, hostname/prefixo/service_role checks, fail-closed).
+
+**Fase 3 (schema).** Nenhuma migration nova necessária — naming convention + identidade + Studio já
+identificam de forma inequívoca o namespace QA sem coluna/flag nova.
+
+**Ferramentas confirmadas:** Playwright real (Chromium) disponível via `node_modules` de `apps/web`
+(`@playwright/test`), navegação real contra `https://aigamestudioos.com` testada com sucesso (título
+da página confirmado). Ou seja, a limitação **não é falta de automação de browser**.
+
+**STOP CONDITION (Fase 4 — criação de identidade QA).** Para criar a conta `qa-production@<domínio>`
+sem violar a Production Safety Rule (§4/§12 do prompt — proibido fabricar estado via SQL/service_role,
+UI é obrigatória para o critical path), é necessário UM de:
+1. um Owner de Studio real enviando um convite real para a conta QA (fluxo de produto real), com
+   acesso a uma caixa de email real para aceitar o convite; ou
+2. `service_role key`/Supabase Auth Admin API para `auth.admin.createUser({ email_confirm: true })`,
+   criando **apenas a identidade QA** (não dados de negócio).
+
+Nenhuma das duas esteve disponível nesta sessão: sem inbox real, sem `service_role key` exposta pelas
+ferramentas MCP disponíveis (`execute_sql` roda como Postgres, não substitui o Auth Admin API do
+GoTrue; inserir diretamente em `auth.users` via SQL seria exatamente o tipo de fabricação de estado
+que o prompt proíbe, além de tecnicamente frágil — hashing de senha, tabela `identities`, triggers do
+GoTrue). Por isso a execução foi interrompida aqui, conforme mandado pelo prompt: "pare e reporte" em
+vez de contornar.
+
+**Classificação:** `BLOCKED` — fundação de política/documentação/automação entregue e pronta para uso
+assim que a identidade QA existir; o smoke mutável em produção (Fases 6-19) não foi executado.
+Production Validation Gate **permanece** `PRODUCTION_VALIDATED_WITH_LIMITATIONS` — não reclassificado.
+
+Arquivos: `PRODUCTION_QA_POLICY.md` (novo), `IMPLEMENTATION_LOG.md`. Nenhuma migration, nenhum código
+de produto alterado, nenhum push.
+
+## Sprint 2.16a — Submission Lifecycle Foundation (2026-08-17)
+
+**Objetivo:** fechar o gargalo estrutural identificado no fechamento do 2.15/Production Validation Gate — uma Submission nascia `DRAFT` e nunca mudava de estado, sem nenhum RPC que a movesse adiante. Construir o lifecycle real (DRAFT → READY_TO_SUBMIT → SUBMITTING → SUBMITTED/FAILED, com retry), server-side, assíncrono via o dispatcher já existente (2.11d), parando explicitamente antes de qualquer mutação real e irreversível de loja (produção proibida neste sprint — regra do próprio prompt).
+
+**GATE 0 (auditoria de domínio, feita antes de qualquer código).** Ver DECISIONS.md desta mesma data para o detalhe completo. Resumo: nenhum código escrevia `submissions.status` além do `insert` inicial (`DRAFT`); `WAITING`/`APPROVED`/`PUBLISHED` são DEFINED_BUT_UNREACHABLE; `store_reviews` é uma entidade semanticamente distinta (decisão de review já ocorrida), não reusada para o mecanismo de execução do envio.
+
+**Decisão de escopo (§29 da spec do sprint).** O sprint foi mantido como um único sub-sprint local (2.16a) — não foi necessário dividir em 2.16a-d: o total de arquivos tocados (~25 entre novos e modificados) ficou dentro do limite saudável do CLAUDE.md (≤30), e 2 packages (`packages/database`, `apps/web`) + `supabase/`, dentro do limite de 3. A orquestração completa de Google (track/commit real) e Apple (Review Submission real) foi deliberadamente **não implementada em profundidade** — os processors têm o ponto de extensão pronto e guardado (PRODUCTION GUARD), mas o cliente HTTP real dessas duas operações específicas fica para quando Production Validation precisar dele. Isso não é uma divisão em sub-sprints seguintes dentro deste mesmo prompt — é a aplicação literal da REGRA DE ESCOPO do próprio sprint (§1: "não deve enviar App para review real em produção... nem commitEdit real do Google", §10/§11: "implementar o adapter até um ponto testável... chamada externa destrutiva/review real fica para Production Validation posterior").
+
+**O que foi construído:**
+1. **Schema/state machine** — `submission_status` ganha `READY_TO_SUBMIT`/`SUBMITTING`/`FAILED`; `integration_jobs` passa a aceitar `submission_id` (além de `provider_upload_id`, agora nullable) via constraint de exclusividade; tabela `submission_events` (append-only, GATE 16).
+2. **RPC única de transição** — `transition_submission` (`PREPARE`/`SUBMIT`/`RETRY`, `authenticated`, `SECURITY DEFINER`): valida permissão (`publishing.submit`, nova), Studio (derivado da própria Submission, nunca do client), estado atual→destino, recalcula `get_release_readiness` no servidor a cada chamada (defense-in-depth, GATE 9), é idempotente (duplo clique/retry de rede nunca criam um segundo job), e enfileira o job de execução na mesma transação da transição para `SUBMITTING`.
+3. **Job assíncrono** — reaproveita `integration_jobs`/dispatcher/claim/lease/checkpoint/retry do 2.11d, sem fila paralela. Dois processors novos (`submission_google_play`/`submission_apple`), registrados junto dos processors de transporte existentes.
+4. **PRODUCTION GUARD** — `env.allowStoreMutation` (`AGSOS_ALLOW_STORE_MUTATION`), desligado por padrão e por todo este sprint; os processors localizam todos os dados reais (Submission → Release → Build → `provider_uploads` SUCCEEDED → Store Connection) e produzem um resultado **simulado** quando o guard está desligado — nunca uma chamada de rede real à Apple/Google.
+5. **UI** — botões "Preparar envio"/"Enviar"/"Retry" na tela de detalhe da Submission, condicionados ao estado atual (`allowedSubmissionAction`, helper puro testável); rótulos em português para os 3 estados novos; polling automático (3s) enquanto `SUBMITTING`, parando sozinho ao concluir. "Enviado" nunca é rotulado como "Publicado".
+6. **Testes** — 14 asserções SQL novas (`submission_lifecycle_test.sql`: PREPARE feliz+idempotente, permission gate, cross-Studio, anon, SUBMIT+job+idempotência de duplo clique, `complete_submission_job` feliz+idempotente+`service_role`-only, unique index do 2.13 preservado, RETRY revalida readiness, PREPARE nunca regride estado terminal), 19 testes unitários novos (state machine helpers + classificação de erro), regressão completa (`test-readiness.sh`, 29/29) e monorepo inteiro (`build`/`lint`/`typecheck`, 12 tasks) verdes.
+
+**Não feito neste sprint (deliberado, ver §26 da spec e DECISIONS.md):** cliente HTTP real de `edits.tracks.update`/`edits.commit` (Google) e Review Submission (Apple); expansão do Playwright `critical-path.spec.ts` para o novo lifecycle (cobertura ficou em SQL+unit); qualquer chamada real à Apple/Google; qualquer migration aplicada em produção; qualquer push.
+
+**Validação executada (tudo local):** `npx supabase migration up --local` (2 migrations novas, aplicadas limpo sobre o HEAD real do banco local, 37→39 migrations); `bash scripts/test-submission-lifecycle.sh` (14/14); `bash scripts/test-readiness.sh` (29/29, sem regressão — RLS, cross-Studio, duplicidade, concorrência real via HTTP); `npx turbo run build lint typecheck` (12/12 tasks); `npx vitest run` em `apps/web` (34/34, incluindo os 19 testes novos).
+
+**Impacto:** ver lista completa de arquivos em CHANGELOG.md/DECISIONS.md desta mesma entrada. Dentro do limite do CLAUDE.md (bem abaixo de 50 arquivos, 2 migrations SQL novas — não 10 arquivos novos de schema —, 2 packages de código + `supabase/`).
+
+**Classificação:** `PARCIAL` — o lifecycle interno (schema, RPC, permissão, readiness defense-in-depth, job assíncrono idempotente, UI, eventos, testes SQL/unit, PRODUCTION GUARD) está completo e testado; a orquestração real de Google/Apple (chamadas HTTP reais de commit/review, sempre atrás do guard) e a cobertura Playwright do novo lifecycle ficam como próximo passo explícito, não fingidas como concluídas. Nenhuma mutação real de loja foi feita ou é possível com a configuração atual.

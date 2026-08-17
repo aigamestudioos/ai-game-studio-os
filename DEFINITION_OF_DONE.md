@@ -189,3 +189,18 @@ Sprints puramente de processo/infraestrutura (sem nada perceptível na aplicaç�
 **Regra permanente:** qualquer sprint que adicione um novo tipo de escrita em `submissions` (ex. cancelamento, edição de metadata pré-envio) precisa decidir explicitamente se usa `publishing.create_submission` ou uma permissão nova — nunca herdar autorização de outra tabela por conveniência. Qualquer sprint que altere o ciclo de vida de `submission_status` (novos estados, mudança de quais são terminais) precisa reavaliar `idx_submissions_release_platform_active` — a lista de estados terminais está hardcoded na migration, não derivada de um catálogo.
 
 **Se qualquer um desses falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.
+
+## 14. Lifecycle de Submission (obrigatório desde o Sprint 2.16)
+
+**Origem:** até o Sprint 2.15, uma Submission nascia `DRAFT` e nunca mudava de estado — não existia nenhum RPC/mecanismo que a movesse adiante. Sprint 2.16a fechou essa lacuna.
+
+- **Transição server-side única** — toda mudança de `submissions.status` passa por `transition_submission` (RPC `SECURITY DEFINER`, ações `PREPARE`/`SUBMIT`/`RETRY`) ou por `complete_submission_job` (worker, `service_role`). Nenhum código de aplicação faz `update submissions set status = ...` diretamente.
+- **State machine real:** `DRAFT → READY_TO_SUBMIT → SUBMITTING → SUBMITTED | FAILED`, com `FAILED → READY_TO_SUBMIT` via `RETRY`. `WAITING`/`APPROVED`/`PUBLISHED` continuam `DEFINED_BUT_UNREACHABLE` — nenhum código escreve esses valores; nenhum sprint pode tratá-los como alcançáveis sem construir o mecanismo real que os produz (Store Review ingestion, fora de escopo).
+- **Readiness defense-in-depth** — `PREPARE` e `SUBMIT`/`RETRY` recalculam `get_release_readiness` no servidor a cada chamada; nunca confiam num veredito que a UI viu antes.
+- **Execução assíncrona** — `SUBMIT`/`RETRY` enfileiram um job em `integration_jobs` (mesma tabela/dispatcher do transporte de artifact, Sprint 2.11d — `integration_name` distingue `submission_google_play`/`submission_apple` de `google_play`/`apple_app_store`) e retornam imediatamente. Nenhuma Server Action bloqueia esperando o provider.
+- **`SUBMITTED` ≠ `PUBLISHED`** — `SUBMITTED` prova só que o envio local terminou com sucesso (ou, enquanto o guard de produção estiver desligado, que a simulação terminou com sucesso). Nunca é exibido como "Publicado" na UI.
+- **PRODUCTION GUARD** — nenhum processor de Submission (`submission-google-play.ts`/`submission-apple.ts`) executa uma mutação real e irreversível de loja (commit de Google Play Edit, criação de Apple Review Submission) a menos que `env.allowStoreMutation` (`AGSOS_ALLOW_STORE_MUTATION=true`) esteja ligado — nenhum `.env`/deploy até este sprint define essa variável. Ligar a flag é decisão de Production Validation, nunca implícita.
+
+**Regra permanente:** qualquer sprint que estenda o lifecycle (ex. cancelamento, novos estados de review) precisa decidir explicitamente as transições novas via `transition_submission`/RPC equivalente — nunca um `update` direto em `submissions.status`. Qualquer sprint que ligue `AGSOS_ALLOW_STORE_MUTATION` precisa ser um sprint de Production Validation dedicado, com o mesmo rigor do §6.
+
+**Se qualquer um desses falhar:** mesmo tratamento do Gate de Schema (§10) — sprint relatado como **Parcialmente Concluído**, item faltante nomeado.

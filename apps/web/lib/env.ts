@@ -32,4 +32,15 @@ export const env = {
   get jobsDispatcherSecret(): string {
     return required("JOBS_DISPATCHER_SECRET", process.env.JOBS_DISPATCHER_SECRET);
   },
+  // Sprint 2.16 (GATE 25 — PRODUCTION GUARD) — nenhum processor de
+  // Submission executa uma mutação real e irreversível de loja (commit de
+  // Google Play Edit, criação de Apple Review Submission) a menos que esta
+  // flag esteja `"true"`. Nenhum `.env`/deploy deste sprint a define — por
+  // padrão é sempre `false`, mesmo em produção, até que Production
+  // Validation (sprint posterior) decida ligá-la explicitamente. Ver
+  // `apps/web/lib/jobs/processors/submission-google-play.ts` e
+  // `submission-apple.ts`.
+  get allowStoreMutation(): boolean {
+    return process.env.AGSOS_ALLOW_STORE_MUTATION === "true";
+  },
 } as const;

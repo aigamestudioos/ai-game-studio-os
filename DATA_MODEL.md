@@ -322,6 +322,25 @@ store_reviews (
   decision          submission_status NULL,  -- reaproveita o enum, ou considerar enum próprio se divergir
   reviewed_at       TIMESTAMPTZ NULL
 )
+```
+
+**Lifecycle de `submission_status` (Sprint 2.16a, `20260817000001_submission_lifecycle.sql`):** o enum original (`DRAFT`, `WAITING`, `SUBMITTED`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `PUBLISHED`, `CANCELLED`) ganhou `READY_TO_SUBMIT`, `SUBMITTING`, `FAILED`. Transições reais e alcançáveis por código: `DRAFT → READY_TO_SUBMIT → SUBMITTING → SUBMITTED | FAILED`, `FAILED → READY_TO_SUBMIT` (retry) — todas via `transition_submission`/`complete_submission_job` (RPCs, `20260817000002_submission_lifecycle_rpcs.sql`), nunca `update` direto. `WAITING`/`APPROVED`/`PUBLISHED` permanecem **DEFINED_BUT_UNREACHABLE** — presentes no enum (Postgres não suporta remover valor de enum), nunca escritos por nenhum código real; alcançá-los de verdade exigiria Store Review ingestion, fora de escopo até este sprint.
+
+`store_reviews` foi auditada e **não** foi redesenhada/reusada pelo lifecycle: seu propósito (registrar uma decisão de review já ocorrida) é distinto do mecanismo de execução do envio (`integration_jobs`/`submission_events`). Nenhum código deste sprint escreve em `store_reviews`.
+
+```sql
+-- Sprint 2.16a — eventos append-only de lifecycle de Submission (GATE 16
+-- da spec do sprint). Nunca contém segredo.
+submission_events (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  studio_id         UUID NOT NULL REFERENCES studios(id),
+  submission_id     UUID NOT NULL REFERENCES submissions(id),
+  event_type        TEXT NOT NULL,  -- SubmissionReadyToSubmit | SubmissionSubmissionStarted | SubmissionSubmitted | SubmissionSubmissionFailed | SubmissionRetried
+  payload           JSONB NOT NULL DEFAULT '{}',
+  occurred_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actor_type        actor_type NOT NULL,
+  actor_id          UUID NULL
+)
 
 certificates (
   -- padrão (§2)

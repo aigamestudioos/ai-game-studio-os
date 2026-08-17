@@ -3,6 +3,7 @@
 import { notFound, useParams } from "next/navigation";
 import { AppShell } from "../../../components/layout/app-shell";
 import { ReadinessPanel } from "../../../components/publishing/readiness-panel";
+import { SubmissionLifecycleActions } from "../../../components/publishing/submission-lifecycle-actions";
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Spinner } from "../../../components/ui/spinner";
@@ -14,7 +15,7 @@ import { submissionStatusLabel, submissionStatusVariant } from "../../../lib/sub
 export default function SubmissionDetailsPage() {
   const params = useParams<{ id: string }>();
   const { session } = useAuth();
-  const { submission, reviews, error } = useSubmission(params.id);
+  const { submission, reviews, error, reload } = useSubmission(params.id);
   const {
     readiness,
     loading: readinessLoading,
@@ -52,6 +53,7 @@ export default function SubmissionDetailsPage() {
             <p className="text-muted-foreground">
               {submission.platformName} — v{submission.versionNumber}
             </p>
+            <SubmissionLifecycleActions submissionId={submission.id} status={submission.status} onChanged={reload} />
           </div>
         </section>
 

@@ -2332,3 +2332,22 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Deployment Vercel | `dpl_8qe8yrUPSP46r1qj3gLdg6aGPHQM` — READY, SHA `09626a5` |
 | Produção — health check | Homepage/login 200, rotas protegidas 307, `/api/jobs/tick` 405 sem secret |
 | Classificação final | PRODUCTION_VALIDATED_WITH_LIMITATIONS |
+
+## Sprint 2.16a — Submission Lifecycle Foundation (2026-08-17)
+
+| Métrica | Valor |
+|---|---|
+| Arquivos (git-tracked, repo inteiro) | 419 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 22743 |
+| Migrations novas | 2 (`20260817000001_submission_lifecycle`, `20260817000002_submission_lifecycle_rpcs`) — locais apenas, não aplicadas em produção (regra do sprint) |
+| Migrations locais aplicadas (banco Docker local) | `npx supabase migration up --local` — 37 → 39, limpo |
+| Typecheck (monorepo, turbo) | ✅ 12/12 tasks |
+| Lint (monorepo, turbo) | ✅ 12/12 tasks |
+| Build (monorepo, turbo) | ✅ 12/12 tasks |
+| SQL — `submission_lifecycle_test.sql` (novo) | 14/14 asserções |
+| SQL — `readiness_test.sql`/`game_localizations_test.sql` (regressão) | TODOS PASSARAM |
+| HTTP golden path (`test-readiness-golden-path.mjs`, regressão) | 29/29 |
+| Vitest (apps/web) | 34/34 (19 novos: `submission-lifecycle.test.ts`, `submission-google-play.test.ts`) |
+| Playwright | não estendido para o novo lifecycle neste sprint (ver Known Limitations) |
+| Produção | Não tocada — sprint inteiro local-only, nenhuma migration aplicada remotamente, nenhuma chamada real a Apple/Google, nenhum push |
+| Classificação do Sprint 2.16a | **PARCIAL** — lifecycle interno completo e testado; orquestração real de loja (atrás do PRODUCTION GUARD, sempre desligado) e Playwright do novo fluxo ficam como próximo passo |

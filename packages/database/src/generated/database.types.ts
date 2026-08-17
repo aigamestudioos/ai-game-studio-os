@@ -18,7 +18,22 @@ export type GameStatus = "DRAFT" | "IN_DEVELOPMENT" | "TESTING" | "READY_FOR_REL
 export type VersionStatus = "DRAFT" | "IN_DEVELOPMENT" | "TESTING" | "READY" | "RELEASED" | "DEPRECATED";
 export type BuildStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
 export type ReleaseStatus = "DRAFT" | "READY_FOR_SUBMISSION" | "SUBMISSION_IN_PROGRESS" | "PARTIALLY_PUBLISHED" | "PUBLISHED" | "REJECTED" | "CANCELLED" | "ARCHIVED";
-export type SubmissionStatus = "DRAFT" | "WAITING" | "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "PUBLISHED" | "CANCELLED";
+// Sprint 2.16a (20260817000001_submission_lifecycle.sql) — READY_TO_SUBMIT/
+// SUBMITTING/FAILED adicionados para o lifecycle real de Submission.
+// WAITING/APPROVED/PUBLISHED permanecem DEFINED_BUT_UNREACHABLE (nenhum
+// código escreve esses valores — ver GATE 0 do Sprint 2.16 em DECISIONS.md).
+export type SubmissionStatus =
+  | "DRAFT"
+  | "WAITING"
+  | "READY_TO_SUBMIT"
+  | "SUBMITTING"
+  | "SUBMITTED"
+  | "IN_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "PUBLISHED"
+  | "CANCELLED"
+  | "FAILED";
 export type IntegrationStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED" | "DEGRADED" | "ERROR" | "DISABLED";
 export type BuildType = "DEBUG" | "RELEASE" | "INTERNAL" | "PRODUCTION";
 export type ReleaseChannel = "INTERNAL" | "ALPHA" | "BETA" | "PRODUCTION";
@@ -251,7 +266,13 @@ export type ProviderUploadsRow = WithStudio & {
 export type IntegrationJobsRow = {
   id: string;
   studio_id: string;
-  provider_upload_id: string;
+  // Sprint 2.16a — passou a aceitar `provider_upload_id` OU `submission_id`
+  // (exatamente um dos dois, nunca os dois nem nenhum — ver constraint
+  // `integration_jobs_exactly_one_target`). Mesma tabela/dispatcher, dois
+  // tipos de trabalho: transporte de artifact (provider_upload) e execução
+  // de Submission (submission).
+  provider_upload_id: string | null;
+  submission_id: string | null;
   integration_name: string;
   operation: string;
   status: JobStatus;
@@ -281,6 +302,20 @@ export type SubmissionsRow = WithStudio & {
   platform_id: string;
   build_id: string;
   status: SubmissionStatus;
+};
+
+// Sprint 2.16a (20260817000002_submission_lifecycle_rpcs.sql) — eventos
+// append-only de lifecycle de Submission (GATE 16). Nunca contém segredo —
+// só IDs/plataforma/attempt/errorCode/durationMs.
+export type SubmissionEventsRow = {
+  id: string;
+  studio_id: string;
+  submission_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+  actor_type: ActorType;
+  actor_id: string | null;
 };
 
 export type StoreReviewsRow = WithStudio & {
@@ -442,6 +477,7 @@ export type Database = {
       provision_profiles: Table<ProvisionProfilesRow, Partial<ProvisionProfilesRow>, Partial<ProvisionProfilesRow>>;
       store_connections: Table<StoreConnectionsRow, Partial<StoreConnectionsRow>, Partial<StoreConnectionsRow>>;
       submissions: Table<SubmissionsRow, Partial<SubmissionsRow>, Partial<SubmissionsRow>>;
+      submission_events: Table<SubmissionEventsRow, Partial<SubmissionEventsRow>, Partial<SubmissionEventsRow>>;
       store_reviews: Table<StoreReviewsRow, Partial<StoreReviewsRow>, Partial<StoreReviewsRow>>;
       knowledge_documents: Table<KnowledgeDocumentsRow, Partial<KnowledgeDocumentsRow>, Partial<KnowledgeDocumentsRow>>;
       knowledge_document_versions: Table<KnowledgeDocumentVersionsRow, Partial<KnowledgeDocumentVersionsRow>, Partial<KnowledgeDocumentVersionsRow>>;
@@ -570,6 +606,21 @@ export type Database = {
       get_release_readiness: {
         Args: { p_release_id: string };
         Returns: ReleaseReadiness;
+      };
+      // Sprint 2.16a (20260817000002_submission_lifecycle_rpcs.sql).
+      transition_submission: {
+        Args: { p_submission_id: string; p_action: "PREPARE" | "SUBMIT" | "RETRY"; p_actor_id: string };
+        Returns: { submission: SubmissionsRow; job?: IntegrationJobsRow; noop: boolean };
+      };
+      complete_submission_job: {
+        Args: {
+          p_job_id: string;
+          p_submission_id: string;
+          p_result: "SUBMITTED" | "FAILED";
+          p_error_code: string | null;
+          p_duration_ms: number | null;
+        };
+        Returns: SubmissionsRow;
       };
     };
     Enums: Record<string, never>;

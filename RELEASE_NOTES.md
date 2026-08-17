@@ -4,6 +4,14 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.16a — Submission Lifecycle Foundation
+
+✨ Uma Submission agora tem um ciclo de vida real: **Rascunho → Pronto para enviar → Enviando… → Enviado** (ou **Falhou**, com **Retry**) — antes ficava parada em "Rascunho" para sempre
+✨ Na tela de detalhe da Submission, botões **Preparar envio**, **Enviar** e **Retry** aparecem só quando fazem sentido no estado atual
+🔧 O envio roda em segundo plano — a tela nunca trava esperando a loja responder; o estado se atualiza sozinho enquanto está "Enviando…"
+🔒 Clique duplo, reload de página ou retry nunca criam um segundo envio para a mesma Submission
+📝 Este sprint **não envia nada de verdade para Apple/Google** — "Enviado" aqui é sempre local/simulado neste momento, nunca deve ser confundido com "Publicado". Enviar de fato para revisão de loja fica para um sprint futuro dedicado (Production Validation), com todas as salvaguardas necessárias
+
 ## Sprint 2.15 — Store Listing Management
 
 ✨ Todo **Game** agora tem uma seção **Store Listing** (`/games/[id]`) — título, descrição curta, descrição completa e palavras-chave, com estado vazio claro e feedback de salvo

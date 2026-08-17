@@ -147,5 +147,34 @@ export function createSubmissionsRepository(client: SupabaseClient<Database>) {
       if (error) throw error;
       return data;
     },
+
+    // Sprint 2.16a — única porta de entrada para transições de lifecycle
+    // (DRAFT → READY_TO_SUBMIT → SUBMITTING → SUBMITTED/FAILED). Nunca faz
+    // `update` direto em `submissions.status` a partir de código de
+    // feature — sempre via `transition_submission` (RPC SECURITY DEFINER
+    // que valida permissão/Studio/readiness/idempotência no servidor).
+    async transition(
+      submissionId: string,
+      action: "PREPARE" | "SUBMIT" | "RETRY",
+      actorId: string,
+    ): Promise<{ submission: SubmissionsRow; job?: unknown; noop: boolean }> {
+      const { data, error } = await client.rpc("transition_submission", {
+        p_submission_id: submissionId,
+        p_action: action,
+        p_actor_id: actorId,
+      });
+      if (error) throw error;
+      return data as { submission: SubmissionsRow; job?: unknown; noop: boolean };
+    },
+
+    async listEvents(submissionId: string) {
+      const { data, error } = await client
+        .from("submission_events")
+        .select("*")
+        .eq("submission_id", submissionId)
+        .order("occurred_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
   };
 }

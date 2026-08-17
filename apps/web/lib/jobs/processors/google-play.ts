@@ -71,6 +71,15 @@ export const googlePlayProcessor: IntegrationJobProcessor = async (job, ctx) => 
   const providerUploadsRepo = createProviderUploadsRepository(admin);
   const eventsRepo = createStudioEventsRepository(admin);
 
+  // Sprint 2.16a: `provider_upload_id` passou a ser nullable em
+  // `integration_jobs` (jobs de Submission usam `submission_id` em vez
+  // disso — ver `integration_jobs_exactly_one_target`). Este processor só
+  // é registrado sob `integration_name = "google_play"`
+  // (`registry.ts`), que `enqueue_provider_upload_job` sempre preenche com
+  // `provider_upload_id` — nunca chamado para um job de Submission.
+  if (!job.provider_upload_id) {
+    return { outcome: "failed", errorCode: "PROVIDER_UPLOAD_ID_MISSING", errorClass: "NON_RETRYABLE" };
+  }
   const providerUpload = await providerUploadsRepo.getById(job.provider_upload_id);
   if (!providerUpload) {
     return { outcome: "failed", errorCode: "PROVIDER_UPLOAD_NOT_FOUND", errorClass: "NON_RETRYABLE" };
