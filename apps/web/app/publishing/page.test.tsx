@@ -36,34 +36,63 @@ vi.mock("../../hooks/use-submissions", () => ({
   useSubmissions: () => ({ submissions: [], error: null, refresh: vi.fn() }),
 }));
 
-let readinessStatus: "READY" | "NOT_READY" = "NOT_READY";
+// Sprint 2.14 — GATE 1: "FIRST_SUBMISSION" reproduz o veredito real de
+// `get_release_readiness` para um Release sem nenhuma Submission ativa —
+// o único check é `SUBMISSION_TARGETS_MISSING` (blocking=true), porque os
+// demais checks (artifact, store connection...) só são avaliados por
+// Submission já existente. O Submission Gate não deve tratar esse caso
+// como bloqueado (ver lib/readiness-status.ts).
+let readinessStatus: "READY" | "NOT_READY" | "FIRST_SUBMISSION" = "NOT_READY";
 vi.mock("../../hooks/use-release-readiness", () => ({
   useReleaseReadiness: () => ({
     readiness:
       readinessStatus === "READY"
         ? { releaseId: "release-1", studioId: "studio-1", status: "READY", blockerCount: 0, evaluatedAt: "", checks: [] }
-        : {
-            releaseId: "release-1",
-            studioId: "studio-1",
-            status: "NOT_READY",
-            blockerCount: 1,
-            evaluatedAt: "",
-            checks: [
-              {
-                code: "STORE_CONNECTION_MISSING",
-                status: "FAIL",
-                category: "STORE_CONNECTION",
-                severity: "BLOCKER",
-                blocking: true,
-                implementationStatus: "IMPLEMENTED",
-                message: "O Studio não tem conexão configurada com Google Play.",
-                entityType: "PLATFORM",
-                entityId: "platform-1",
-                submissionId: null,
-                platform: "Google Play",
-              },
-            ],
-          },
+        : readinessStatus === "FIRST_SUBMISSION"
+          ? {
+              releaseId: "release-1",
+              studioId: "studio-1",
+              status: "NOT_READY",
+              blockerCount: 1,
+              evaluatedAt: "",
+              checks: [
+                {
+                  code: "SUBMISSION_TARGETS_MISSING",
+                  status: "FAIL",
+                  category: "SUBMISSION",
+                  severity: "BLOCKER",
+                  blocking: true,
+                  implementationStatus: "IMPLEMENTED",
+                  message: "A Release ainda não tem nenhuma Submission para esta plataforma.",
+                  entityType: "RELEASE",
+                  entityId: "release-1",
+                  submissionId: null,
+                  platform: null,
+                },
+              ],
+            }
+          : {
+              releaseId: "release-1",
+              studioId: "studio-1",
+              status: "NOT_READY",
+              blockerCount: 1,
+              evaluatedAt: "",
+              checks: [
+                {
+                  code: "STORE_CONNECTION_MISSING",
+                  status: "FAIL",
+                  category: "STORE_CONNECTION",
+                  severity: "BLOCKER",
+                  blocking: true,
+                  implementationStatus: "IMPLEMENTED",
+                  message: "O Studio não tem conexão configurada com Google Play.",
+                  entityType: "PLATFORM",
+                  entityId: "platform-1",
+                  submissionId: null,
+                  platform: "Google Play",
+                },
+              ],
+            },
     loading: false,
     error: null,
     reload: vi.fn(),
@@ -105,6 +134,28 @@ describe("Publishing — Submission Gate", () => {
     expect(screen.getByText("O Studio não tem conexão configurada com Google Play.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar Submissão" })).toBeDisabled();
     expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it("habilita 'Criar Submissão' para a 1ª Submission mesmo com SUBMISSION_TARGETS_MISSING (GATE 1, Sprint 2.14)", async () => {
+    readinessStatus = "FIRST_SUBMISSION";
+    const user = userEvent.setup();
+    render(<PublishingPage />);
+
+    await user.click(screen.getByRole("button", { name: /new submission/i }));
+    await user.click(screen.getByRole("button", { name: /Meu Jogo/i }));
+    await user.click(screen.getByRole("button", { name: "Google Play" }));
+
+    const submitButton = screen.getByRole("button", { name: "Criar Submissão" });
+    expect(submitButton).toBeEnabled();
+
+    await user.click(submitButton);
+
+    expect(createSubmission).toHaveBeenCalledTimes(1);
+    expect(createSubmission).toHaveBeenCalledWith({
+      releaseId: "release-1",
+      buildId: "build-1",
+      platformId: "platform-1",
+    });
   });
 
   it("habilita 'Criar Submissão' quando o Release está READY e cria só a Submission", async () => {

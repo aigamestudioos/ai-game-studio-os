@@ -1,4 +1,5 @@
-// Sprint 2.13 GATE 3 — fixture de seed para o E2E crítico de Publishing.
+// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 4 — fixture de seed para o E2E
+// crítico de Publishing.
 //
 // Mesma técnica de `scripts/test-readiness-golden-path.mjs` (Sprint 2.12c):
 // `@supabase/supabase-js` com a service role key, contra o stack Supabase
@@ -11,18 +12,20 @@
 // Cenário construído (ver e2e/critical-path.spec.ts):
 //   - 1 Studio, 1 Owner (login real na UI).
 //   - 1 Release com 2 Builds (Google Play + App Store), ambos SUCCEEDED.
-//   - Um artifact STORED+VALID já anexado ao Build Google (para o teste
-//     começar com só 1 blocker visível, não uma lista inteira).
-//   - Uma Submission Google Play PRÉ-CRIADA via fixture (não pela UI) —
-//     necessária porque `SUBMISSION_TARGETS_MISSING` bloqueia a Release
-//     inteira até existir ao menos 1 Submission ativa (aspereza
-//     pré-existente documentada em DECISIONS.md, Sprint 2.12b) — testar o
-//     ciclo completo "criar a primeira Submission" exigiria mudar essa
-//     lógica, fora do escopo deste sprint. O teste E2E foca no que É
-//     testável hoje: corrigir o blocker restante (Store Connection) e
-//     criar a 2ª Submission (App Store) pela UI de verdade.
-//   - NENHUMA Store Connection ainda → readiness fica NOT_READY com o
-//     blocker STORE_CONNECTION_MISSING visível no ReadinessPanel.
+//   - Um artifact STORED+VALID já anexado ao Build Google.
+//   - ZERO Submissions. Sprint 2.13 pré-criava a Submission Google Play
+//     direto no banco porque o Submission Gate da época tratava
+//     `SUBMISSION_TARGETS_MISSING` como blocker também para a ação de criar
+//     a 1ª Submission (aspereza documentada em DECISIONS.md, Sprint 2.12b).
+//     Sprint 2.14 investigou a causa raiz e corrigiu o Gate (não o RPC —
+//     ver DECISIONS.md/IMPLEMENTATION_LOG.md 2.14): esse check nunca é
+//     acionável no momento de criar a 1ª Submission, então deixou de
+//     bloquear o botão. Este fixture não precisa mais fabricar a Submission
+//     que o teste deveria criar pela UI.
+//   - NENHUMA Store Connection ainda → depois que a 1ª Submission (Google
+//     Play) é criada pela UI, o readiness passa a avaliar seus checks por
+//     Submission e fica NOT_READY com o blocker STORE_CONNECTION_MISSING
+//     visível no ReadinessPanel — é nesse ponto que o teste corrige.
 //
 // A "correção" que o teste aplica (`fixStoreConnectionBlocker`) é uma
 // escrita direta no banco (fixture), não uma ação na UI — documentado
@@ -78,7 +81,6 @@ export async function seedCriticalPath() {
   const buildGoogleId = uid(RUN, "buildgoogle");
   const buildAppleId = uid(RUN, "buildapple");
   const artifactGoogleId = uid(RUN, "artifactgoogle");
-  const submissionGoogleId = uid(RUN, "submissiongoogle");
 
   const email = `e2e-owner-${RUN}@test.local`;
   const password = "TestPassw0rd!23";
@@ -145,16 +147,11 @@ export async function seedCriticalPath() {
     upload_status: "STORED", validation_status: "VALID", created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
   }).throwOnError();
 
-  // Submission Google pré-criada via fixture (não pela UI) — ver comentário
-  // no topo do arquivo sobre a aspereza SUBMISSION_TARGETS_MISSING.
-  await admin.from("submissions").insert({
-    id: submissionGoogleId, studio_id: studioId, release_id: releaseId, platform_id: googleId, build_id: buildGoogleId,
-    status: "DRAFT", created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
-  }).throwOnError();
-
+  // Sprint 2.14 — ZERO Submissions no fim do seed, de propósito: a 1ª
+  // Submission (Google Play) deve ser criada pelo teste, pela UI real.
   return {
     run: RUN, studioId, gameId, releaseId, userId, email, password,
-    googleId, appleId, buildAppleId, artifactGoogleId, submissionGoogleId,
+    googleId, appleId, buildGoogleId, buildAppleId, artifactGoogleId,
   };
 }
 

@@ -1,30 +1,31 @@
 import { test, expect } from "@playwright/test";
 import { seedCriticalPath, fixStoreConnectionBlocker, cleanup } from "./fixtures/seed.mjs";
 
-// Sprint 2.13 GATE 3 — E2E crítico de Publishing, contra o stack LOCAL
-// (Docker + `next dev`, ver playwright.config.ts). Login é real (via UI,
-// email/senha de um usuário criado por fixture/seed — nunca uma credencial
-// humana). Fluxo coberto, ponta a ponta:
+// Sprint 2.13 GATE 3 / Sprint 2.14 GATE 1+4 — E2E crítico de Publishing,
+// contra o stack LOCAL (Docker + `next start`, ver playwright.config.ts).
+// Login é real (via UI, email/senha de um usuário criado por fixture/seed —
+// nunca uma credencial humana). Fluxo coberto, ponta a ponta:
 //
-//   login → Publishing → abrir "New Submission" → selecionar o Release →
-//   ver o painel de Readiness em NOT_READY com o blocker
-//   STORE_CONNECTION_MISSING visível → corrigir via fixture direta no
-//   banco (documentado: não há tela de verdade para conectar uma Store
-//   Connection sem credencial real de Google/Apple — ver
-//   e2e/fixtures/seed.mjs) → clicar "Recarregar" (refetch já existente do
-//   hook `useReleaseReadiness`, sem polling novo) → readiness vira READY →
-//   botão "Criar Submissão" habilita → criar a Submission (App Store) →
+//   login → Publishing → Release READY, ZERO Submissions (nenhuma seed
+//   artificial) → abrir "New Submission" → selecionar o Release e a
+//   plataforma Google Play → botão "Criar Submissão" já habilitado (GATE 9
+//   revisado no 2.14: `SUBMISSION_TARGETS_MISSING` não bloqueia a criação
+//   da 1ª Submission) → criar a Submission (Google Play) pela UI real →
 //   confirmar que ela aparece na lista → reload da página → confirmar que
-//   o estado persiste.
+//   persiste → abrir "New Submission" de novo → agora com 1 Submission
+//   ativa, o readiness passa a avaliar os checks por Submission e mostra
+//   NOT_READY com o blocker STORE_CONNECTION_MISSING → corrigir via
+//   fixture direta no banco (documentado: não há tela de verdade para
+//   conectar uma Store Connection sem credencial real de Google/Apple —
+//   ver e2e/fixtures/seed.mjs) → "Recarregar" (refetch já existente do
+//   hook `useReleaseReadiness`, sem polling novo) → READY → criar a 2ª
+//   Submission (App Store) pela UI → persiste após reload.
 //
-// Limitação honesta: o fixture pré-cria uma Submission Google Play direto
-// no banco (não pela UI) porque `SUBMISSION_TARGETS_MISSING` bloqueia toda
-// Release sem nenhuma Submission ativa — não há como o botão "Criar
-// Submissão" ficar habilitado para a PRIMEIRA Submission de um Release
-// (aspereza pré-existente, documentada em DECISIONS.md desde o Sprint
-// 2.12b, fora do escopo deste sprint mudar). Este teste cobre a criação da
-// 2ª Submission (App Store) do mesmo Release pela UI, que é o caminho
-// realmente exercitável hoje.
+// Sprint 2.14 fechou a limitação anterior: nenhuma Submission é
+// pré-semeada no banco — a 1ª Submission do cenário nasce inteiramente
+// pela UI, com os mesmos contratos do produto (ver DECISIONS.md/
+// IMPLEMENTATION_LOG.md, Sprint 2.14, causa raiz de
+// SUBMISSION_TARGETS_MISSING).
 
 let ctx: Awaited<ReturnType<typeof seedCriticalPath>> | undefined;
 
@@ -36,7 +37,7 @@ test.afterAll(async () => {
   await cleanup(ctx);
 });
 
-test("Publishing: readiness NOT_READY → corrige blocker → READY → cria Submission → persiste após reload", async ({ page }) => {
+test("Publishing: 1ª Submission sem seed → NOT_READY → corrige blocker → READY → 2ª Submission → persiste após reload", async ({ page }) => {
   if (!ctx) throw new Error("fixture não inicializado");
 
   // ---------- Login real via UI ----------
@@ -49,21 +50,50 @@ test("Publishing: readiness NOT_READY → corrige blocker → READY → cria Sub
   await expect(emailInput).toHaveValue(ctx.email);
   await expect(passwordInput).toHaveValue(ctx.password);
   await page.getByRole("button", { name: "Entrar" }).click();
-  // `next dev` compila cada rota sob demanda na primeira visita (cold
-  // start) — a primeira navegação pós-login pode levar bem mais que os
-  // ~1-2s normais de uma rota já compilada. `waitUntil: "commit"` (não o
-  // default "load") porque router.push é navegação client-side (History
-  // API) — o evento `load` do documento não refaz fetch nenhum aqui, então
-  // esperar por ele trava até o timeout mesmo com a URL já correta.
+  // `next start` (build de produção) ainda pode levar mais que os ~1-2s
+  // normais na primeira navegação pós-login sob carga do Playwright.
+  // `waitUntil: "commit"` (não o default "load") porque router.push é
+  // navegação client-side (History API) — o evento `load` do documento não
+  // refaz fetch nenhum aqui, então esperar por ele trava até o timeout
+  // mesmo com a URL já correta.
   await page.waitForURL("**/dashboard", { timeout: 45_000, waitUntil: "commit" });
 
   // ---------- Navega até Publishing ----------
   await page.goto("/publishing");
   await expect(page.getByRole("heading", { name: "Publishing" })).toBeVisible();
 
-  // ---------- Abre o diálogo e seleciona o Release do fixture ----------
+  // ---------- GATE 1 — 1ª Submission (Google Play), ZERO Submissions no início ----------
+  // Nenhum insert direto de Submission foi feito pelo fixture (ver
+  // e2e/fixtures/seed.mjs) — este é o cenário real: Release READY, zero
+  // Submissions, criada inteiramente pelo fluxo normal da aplicação.
   await page.getByRole("button", { name: "New Submission" }).click();
   const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Nova Submissão" })).toBeVisible();
+  await dialog.getByText("Jogo E2E", { exact: false }).first().click();
+
+  // Sem nenhuma Submission ainda, `get_release_readiness` só tem checks de
+  // nível Release (nenhum artifact/store connection é avaliado por
+  // Submission inexistente) — o único FAIL possível é
+  // `SUBMISSION_TARGETS_MISSING`, que o Submission Gate (2.14) não trata
+  // como blocker de criação. Botão já habilita ao escolher a plataforma.
+  const googlePlayOption = dialog.getByText("Google Play", { exact: true });
+  await expect(googlePlayOption).toBeVisible();
+  await googlePlayOption.evaluate((el) => (el.closest("button") as HTMLElement).click());
+
+  const createFirstButton = dialog.getByRole("button", { name: "Criar Submissão" });
+  await expect(createFirstButton).toBeEnabled();
+  await createFirstButton.evaluate((el) => (el as HTMLElement).click());
+
+  // ---------- Confirma persistência da 1ª Submission ----------
+  await expect(page.getByRole("heading", { name: "Nova Submissão" })).not.toBeVisible({ timeout: 10_000 });
+  const googlePlayCard = page.getByText("Google Play — v1.0.0");
+  await expect(googlePlayCard).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Google Play — v1.0.0")).toBeVisible();
+
+  // ---------- GATE 2 — agora com 1 Submission ativa, readiness passa a avaliar seus checks ----------
+  await page.getByRole("button", { name: "New Submission" }).click();
   await expect(dialog.getByRole("heading", { name: "Nova Submissão" })).toBeVisible();
   await dialog.getByText("Jogo E2E", { exact: false }).first().click();
 

@@ -51,6 +51,18 @@ if pnpm test >/tmp/metrics-test.log 2>&1; then
   UNIT_TESTS="ver /tmp/metrics-test.log"
 fi
 
+# Sprint 2.14 — GATE 5: E2E derivado da suíte Playwright real
+# (apps/web/e2e/*.spec.ts), não hardcoded. Conta declarações `test(`/
+# `test.only(` de nível de arquivo (exclui fixtures/helpers, que não têm
+# essas declarações) e o número de arquivos .spec.ts encontrados.
+if [ -d apps/web/e2e ]; then
+  E2E_SPEC_FILES=$(find apps/web/e2e -name "*.spec.ts" | wc -l | tr -d ' ')
+  E2E_TEST_COUNT=$(grep -rhoE '^\s*test(\.only)?\(' apps/web/e2e --include="*.spec.ts" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$E2E_TEST_COUNT" -gt 0 ]; then
+    E2E_TESTS="$E2E_TEST_COUNT (em $E2E_SPEC_FILES arquivo(s) .spec.ts, apps/web/e2e — via Playwright)"
+  fi
+fi
+
 echo "=== Código ==="
 echo "Apps: $APPS"
 echo "Packages: $PACKAGES"

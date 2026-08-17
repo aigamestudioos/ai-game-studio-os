@@ -24,6 +24,7 @@ import { usePublishableReleases } from "../../hooks/use-publishable-releases";
 import { useReleaseReadiness } from "../../hooks/use-release-readiness";
 import { useSubmissions } from "../../hooks/use-submissions";
 import { toast } from "../../hooks/use-toast";
+import { isReadyForSubmissionGate } from "../../lib/readiness-status";
 import { releaseChannelLabel } from "../../lib/release-status";
 
 export default function PublishingPage() {
@@ -51,7 +52,13 @@ export default function PublishingPage() {
     error: readinessError,
     reload: reloadReadiness,
   } = useReleaseReadiness(session, releaseId ?? undefined);
-  const isReady = readiness?.status === "READY";
+  // Sprint 2.14 — GATE resolvido (ver lib/readiness-status.ts): o Submission
+  // Gate não trata `SUBMISSION_TARGETS_MISSING` como blocker de criação —
+  // ele descreve exatamente a ausência que este diálogo serve para
+  // resolver, não uma inconsistência prévia. A lógica do RPC 2.12a/2.12c
+  // permanece intocada; só a interpretação do Gate mudou. Investigação e
+  // decisão completas em DECISIONS.md/IMPLEMENTATION_LOG.md (Sprint 2.14).
+  const isReady = isReadyForSubmissionGate(readiness);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

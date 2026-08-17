@@ -6,6 +6,12 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ## [Unreleased]
 
+### Fixed — Sprint 2.14 (Submission Creation Completion)
+- `apps/web/lib/readiness-status.ts` — `isSubmissionGateBlocking()`/`isReadyForSubmissionGate()`: o Submission Gate deixa de tratar `SUBMISSION_TARGETS_MISSING` como blocker de criação (causa raiz: check de nível Release-agregado aplicado no momento errado — descrevia exatamente a ação que o diálogo serve para resolver). RPC `get_release_readiness` **não foi alterado**.
+- `apps/web/app/publishing/page.tsx`, `apps/web/components/publishing/readiness-panel.tsx` — Submission Gate e painel de Readiness passam a usar o mesmo veredito efetivo, para nunca discordarem.
+- `apps/web/e2e/fixtures/seed.mjs`, `apps/web/e2e/critical-path.spec.ts` — fixture deixa de pré-criar a 1ª Submission direto no banco; o E2E cria a 1ª Submission de um Release do zero, inteiramente pela UI.
+- `scripts/metrics.sh` — "Testes E2E" deixa de ser hardcoded `"0 (sem suíte configurada)"` (achado do Sprint 2.13); agora conta a suíte Playwright real dinamicamente.
+
 ### Added — Sprint 2.12a–d (Release Readiness)
 - `supabase/migrations/20260814170230_readiness_check_definitions.sql` — tabela global `readiness_check_definitions` (catálogo de 29 checks: code/category/severity/blocking/source_of_truth/platform_scope/implementation_status), RLS de leitura para `authenticated`.
 - `supabase/migrations/20260814170321_get_release_readiness.sql` — RPC `get_release_readiness(release_id)` (`SECURITY DEFINER`, `search_path` fixo), pura/on-demand (nada persistido), autorização por Studio derivada da própria Release; helper `readiness_check_entry()`.

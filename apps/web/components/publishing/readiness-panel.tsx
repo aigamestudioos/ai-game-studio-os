@@ -7,7 +7,14 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Spinner } from "../ui/spinner";
-import { checkStatusLabel, readinessFixHref, readinessStatusLabel, readinessStatusVariant } from "../../lib/readiness-status";
+import {
+  checkStatusLabel,
+  isReadyForSubmissionGate,
+  isSubmissionGateBlocking,
+  readinessFixHref,
+  readinessStatusLabel,
+  readinessStatusVariant,
+} from "../../lib/readiness-status";
 
 // Sprint 2.12b — GATE 8: painel "RELEASE READINESS".
 //
@@ -21,7 +28,12 @@ function CheckIcon({ check }: { check: ReadinessCheck }) {
   if (check.status === "NOT_APPLICABLE") return <CircleHelp className="size-4 shrink-0 text-text-tertiary" aria-hidden="true" />;
   if (check.status === "WARN") return <CircleAlert className="size-4 shrink-0 text-warning" aria-hidden="true" />;
   if (check.status === "PASS") return <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden="true" />;
-  return <XCircle className={`size-4 shrink-0 ${check.blocking ? "text-destructive" : "text-warning"}`} aria-hidden="true" />;
+  return (
+    <XCircle
+      className={`size-4 shrink-0 ${isSubmissionGateBlocking(check) ? "text-destructive" : "text-warning"}`}
+      aria-hidden="true"
+    />
+  );
 }
 
 function CheckRow({ check }: { check: ReadinessCheck }) {
@@ -37,9 +49,13 @@ function CheckRow({ check }: { check: ReadinessCheck }) {
           </p>
           <div className="flex items-center gap-sm">
             <span className="text-xs text-text-tertiary">{checkStatusLabel(check.status)}</span>
-            {check.blocking ? (
+            {isSubmissionGateBlocking(check) ? (
               <Badge variant="destructive" className="text-[0.65rem]">
                 Bloqueia submissão
+              </Badge>
+            ) : check.blocking ? (
+              <Badge variant="outline" className="text-[0.65rem]">
+                Resolvido ao criar a Submission
               </Badge>
             ) : null}
           </div>
@@ -71,7 +87,9 @@ export function ReadinessPanel({
         <div className="flex items-center justify-between gap-sm">
           <CardTitle className="text-base">Release Readiness</CardTitle>
           {readiness ? (
-            <Badge variant={readinessStatusVariant(readiness.status)}>{readinessStatusLabel(readiness.status)}</Badge>
+            <Badge variant={readinessStatusVariant(isReadyForSubmissionGate(readiness) ? "READY" : "NOT_READY")}>
+              {readinessStatusLabel(isReadyForSubmissionGate(readiness) ? "READY" : "NOT_READY")}
+            </Badge>
           ) : null}
         </div>
         {onReload ? (

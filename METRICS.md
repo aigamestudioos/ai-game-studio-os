@@ -2187,3 +2187,66 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Métrica | Valor |
 |---|---|
 | Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada |
+
+## Sprint 2.14 — Submission Creation Completion (2026-08-17)
+
+### Código
+
+| Métrica | Valor |
+|---|---|
+| Apps | 1 |
+| Packages | 11 |
+| Arquivos (git-tracked) | 411 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 21816 |
+| Commits | 97 (antes do commit deste sprint) |
+| Typecheck | ✅ |
+| Lint | ✅ |
+| Build | ✅ |
+
+### Infraestrutura
+
+| Métrica | Valor |
+|---|---|
+| Build (monorepo completo) | 70s |
+| Build (`apps/web` isolado) | 64s |
+| Typecheck (`apps/web` isolado) | 5s |
+| Dev server start (`apps/web`) | 4s |
+
+### Qualidade
+
+| Métrica | Valor |
+|---|---|
+| Testes unitários (Vitest, `apps/web`) | ✅ 9/9 (8 pré-existentes + 1 novo: Submission Gate habilita a 1ª Submission mesmo com `SUBMISSION_TARGETS_MISSING`) |
+| Testes SQL (`supabase/tests/readiness_test.sql`) | ✅ 42/42 — revalidado sem alteração (regressão do 2.13 confirmada) |
+| Golden path HTTP (`scripts/test-readiness-golden-path.mjs`) | ✅ 29/29 — revalidado sem alteração (regressão do 2.13, incluindo duplicidade/concorrência, confirmada) |
+| Testes E2E (Playwright) | ✅ 1/1 — `apps/web/e2e/critical-path.spec.ts` reescrito: 1ª Submission criada do zero pela UI (sem seed artificial) + 2ª Submission (fluxo NOT_READY→READY do 2.13) + persistência com reload |
+| `scripts/metrics.sh` — linha "Testes E2E" | ✅ GATE 5 corrigido: passou de hardcoded `"0 (sem suíte configurada)"` (achado do 2.13) para `"1 (em 1 arquivo(s) .spec.ts, apps/web/e2e — via Playwright)"`, derivado dinamicamente da suíte real |
+| `pnpm run build/lint/typecheck/test` + `npx playwright test` (`apps/web`) | ✅ todos verdes |
+
+### Escopo do sprint (limites do CLAUDE.md)
+
+| Métrica de tamanho | Valor | Limite |
+|---|---|---|
+| Arquivos alterados (modificados) | 12 | ≤ 50 (ideal ~30) |
+| Arquivos novos | 0 | ≤ 10 |
+| Packages tocados (workspace) | 1 (`apps/web`) | ≤ 3 |
+| Migrations novas | 0 — nenhuma foi necessária (correção puramente client-side) | — |
+
+### Entregas
+
+| Item | Resultado |
+|---|---|
+| Causa raiz de `SUBMISSION_TARGETS_MISSING` | ✅ identificada com evidência: Submission Gate (UI) aplicando um check de nível Release-agregado como pré-condição da ação que ele mesmo resolve; não é entidade nova, não é bug de schema |
+| GATE 1 — Primeira Submission real | ✅ Release READY + zero Submissions → 1ª Submission criada pela UI, sem seed artificial, persistente após reload |
+| GATE 2 — Regressão de duplicidade (2.13) | ✅ revalidado, sem alteração, sem regressão |
+| GATE 3 — Autorização (2.13) | ✅ revalidado, sem alteração, sem regressão |
+| GATE 4 — E2E sem artifício | ✅ fixture não pré-cria mais nenhuma Submission |
+| GATE 5 — Métricas | ✅ `scripts/metrics.sh` corrigido e validado |
+| GATE 6 — Regressão completa | ✅ build/lint/typecheck/test/test:e2e/SQL/golden-path todos verdes |
+| Classificação do Sprint 2.14 | **PASS** |
+
+### Deploy
+
+| Métrica | Valor |
+|---|---|
+| Produção | Não tocada — sprint inteiro local-only, nenhuma ferramenta MCP de escrita remota usada, nenhuma migration (não havia nenhuma para aplicar) |

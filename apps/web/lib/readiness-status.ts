@@ -1,4 +1,4 @@
-import type { ReadinessCheck } from "@agsos/database";
+import type { ReadinessCheck, ReleaseReadiness } from "@agsos/database";
 
 // Rótulos/variantes para o resultado de Release Readiness (Sprint 2.12b) —
 // mesmo padrão de apps/web/lib/release-status.ts e submission-status.ts.
@@ -6,6 +6,25 @@ import type { ReadinessCheck } from "@agsos/database";
 // Readiness ≠ Submission ≠ Publication (ver DECISIONS.md do 2.12a): este
 // arquivo só formata o veredito devolvido por `get_release_readiness`,
 // nunca decide nada por conta própria.
+
+// Sprint 2.14 — `SUBMISSION_TARGETS_MISSING` (catálogo 2.12a) só falha
+// quando o Release ainda não tem NENHUMA Submission ativa. `blocking=true`
+// nesse check é verdade sobre o Release como um todo, mas para a AÇÃO
+// "criar a primeira Submission" ele descreve exatamente o que essa ação
+// resolve — nunca uma inconsistência a corrigir antes. O RPC (2.12a/2.12c)
+// não muda: ele continua reportando `blocking: true` honestamente. Este é
+// o único ponto do produto (Submission Gate) que interpreta esse check
+// como não-acionável, e é usado tanto pelo botão "Criar Submissão"
+// (apps/web/app/publishing/page.tsx) quanto pelo próprio painel
+// (readiness-panel.tsx), para os dois nunca discordarem entre si.
+export function isSubmissionGateBlocking(check: Pick<ReadinessCheck, "blocking" | "code">): boolean {
+  return check.blocking && check.code !== "SUBMISSION_TARGETS_MISSING";
+}
+
+export function isReadyForSubmissionGate(readiness: ReleaseReadiness | null | undefined): boolean {
+  if (!readiness) return false;
+  return !readiness.checks.some(isSubmissionGateBlocking);
+}
 
 export function readinessStatusLabel(status: "READY" | "NOT_READY"): string {
   return status === "READY" ? "Pronto para submissão" : "Não pronto";
