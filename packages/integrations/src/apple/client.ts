@@ -276,6 +276,172 @@ export async function getAppleBuildUpload(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sprint 2.16b — GATE 12/14/15: cliente HTTP real para Review Submission.
+// Contrato confirmado contra a documentação oficial atual da App Store
+// Connect API (developer.apple.com/documentation/appstoreconnectapi/
+// review-submissions, review-submission-items): `ReviewSubmission` é a
+// entidade que representa "enviar para review" (distinta de `Build` e de
+// `AppStoreVersion`); `ReviewSubmissionItem` associa um recurso revisável
+// (aqui: o `Build`) a essa submissão; `submitted` (PATCH em
+// `/v1/reviewSubmissions/{id}`, atributo `state: WAITING_FOR_REVIEW` — a
+// documentação oficial usa a transição de `attributes.submitted: true`, não
+// um endpoint `:submit` separado como o `edits.commit` do Google) inicia a
+// review de fato.
+type AppleReviewSubmissionResponse = {
+  data: { id: string; attributes?: { platform?: ApplePlatform; state?: string } };
+};
+type AppleReviewSubmissionItemResponse = {
+  data: { id: string; attributes?: { state?: string } };
+};
+
+// GET /v1/reviewSubmissions?filter[app]={appId}&filter[platform]={platform}
+// — usado ANTES de criar uma Review Submission nova (GATE 15,
+// reconciliation): se já existir uma em estado não-terminal para este
+// app/plataforma, reutiliza-a em vez de criar duplicata.
+export async function listAppleReviewSubmissions(
+  credentials: AppleCredentials,
+  params: { appId: string; platform: ApplePlatform },
+  baseUrl: string = BASE_URL,
+): Promise<ListResult<{ id: string; state: string | null }>> {
+  try {
+    const jwt = createAppleJwt(credentials);
+    const { status, body } = await fetchJson(
+      `${baseUrl}/reviewSubmissions?filter[app]=${encodeURIComponent(params.appId)}&filter[platform]=${encodeURIComponent(params.platform)}`,
+      { headers: { Authorization: `Bearer ${jwt}` } },
+    );
+    if (status < 200 || status >= 300) {
+      const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
+      return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };
+    }
+    const items = ((body as { data: AppleReviewSubmissionResponse["data"][] }).data ?? []).map((row) => ({
+      id: row.id,
+      state: row.attributes?.state ?? null,
+    }));
+    return { ok: true, items };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+export async function createAppleReviewSubmission(
+  credentials: AppleCredentials,
+  params: { appId: string; platform: ApplePlatform },
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>> {
+  try {
+    const jwt = createAppleJwt(credentials);
+    const { status, body } = await fetchJson(`${baseUrl}/reviewSubmissions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: {
+          type: "reviewSubmissions",
+          attributes: { platform: params.platform },
+          relationships: { app: { data: { type: "apps", id: params.appId } } },
+        },
+      }),
+    });
+    if (status < 200 || status >= 300) {
+      const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
+      return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };
+    }
+    const data = (body as AppleReviewSubmissionResponse).data;
+    return { ok: true, item: { reviewSubmissionId: data.id, state: data.attributes?.state ?? null } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// POST /v1/reviewSubmissionItems — `relationships.reviewSubmission` +
+// `relationships.build` (o item revisável, neste sprint sempre o Build já
+// commitado pelo transporte). `itemType` NÃO é enviado no corpo — a
+// documentação oficial confirma que o recurso relacionado (`build`) já
+// determina o tipo do item.
+export async function createAppleReviewSubmissionItem(
+  credentials: AppleCredentials,
+  params: { reviewSubmissionId: string; buildId: string },
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ reviewSubmissionItemId: string }>> {
+  try {
+    const jwt = createAppleJwt(credentials);
+    const { status, body } = await fetchJson(`${baseUrl}/reviewSubmissionItems`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: {
+          type: "reviewSubmissionItems",
+          relationships: {
+            reviewSubmission: { data: { type: "reviewSubmissions", id: params.reviewSubmissionId } },
+            build: { data: { type: "builds", id: params.buildId } },
+          },
+        },
+      }),
+    });
+    if (status < 200 || status >= 300) {
+      const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
+      return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };
+    }
+    const data = (body as AppleReviewSubmissionItemResponse).data;
+    return { ok: true, item: { reviewSubmissionItemId: data.id } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// PATCH /v1/reviewSubmissions/{id} — `attributes.submitted: true`. Esta é a
+// operação irreversível real (envia para review de fato). Assim como
+// `commitGoogleEdit`, este client NÃO decide se a chamada pode acontecer —
+// é responsabilidade do processor checar `env.allowStoreMutation` +
+// allowlist de `baseUrl` (GATE 16) antes de chamar.
+export async function submitAppleReviewSubmission(
+  credentials: AppleCredentials,
+  reviewSubmissionId: string,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>> {
+  try {
+    const jwt = createAppleJwt(credentials);
+    const { status, body } = await fetchJson(`${baseUrl}/reviewSubmissions/${encodeURIComponent(reviewSubmissionId)}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${jwt}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: { type: "reviewSubmissions", id: reviewSubmissionId, attributes: { submitted: true } },
+      }),
+    });
+    if (status < 200 || status >= 300) {
+      const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
+      return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };
+    }
+    const data = (body as AppleReviewSubmissionResponse).data;
+    return { ok: true, item: { reviewSubmissionId: data.id, state: data.attributes?.state ?? null } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// GET /v1/reviewSubmissions/{id} — reconciliation (GATE 15): confirma o
+// `state` atual quando uma resposta de create/submit foi perdida.
+export async function getAppleReviewSubmission(
+  credentials: AppleCredentials,
+  reviewSubmissionId: string,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>> {
+  try {
+    const jwt = createAppleJwt(credentials);
+    const { status, body } = await fetchJson(`${baseUrl}/reviewSubmissions/${encodeURIComponent(reviewSubmissionId)}`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    if (status < 200 || status >= 300) {
+      const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
+      return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };
+    }
+    const data = (body as AppleReviewSubmissionResponse).data;
+    return { ok: true, item: { reviewSubmissionId: data.id, state: data.attributes?.state ?? null } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
 // DELETE /v1/buildUploads/{id} — best-effort (mesmo padrão do
 // `deleteGoogleEdit`, Sprint 2.11b): nunca deixar um BuildUpload
 // incompleto/órfão pendurado quando o fluxo falha antes do commit.

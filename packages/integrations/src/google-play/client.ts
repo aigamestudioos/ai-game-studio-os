@@ -3,7 +3,7 @@ import { classifyHttpStatus } from "../core/errors";
 import type { HealthResult, ItemResult, ListResult } from "../core/types";
 import { getGoogleAccessToken, parseServiceAccount } from "./oauth";
 import { sanitizeGoogleError, sanitizeUnexpectedError } from "./errors";
-import type { GoogleApp, GoogleBundle, GoogleCredentials } from "./types";
+import type { GoogleApp, GoogleBundle, GoogleCredentials, GoogleTrack } from "./types";
 
 const BASE_URL = "https://androidpublisher.googleapis.com/androidpublisher/v3";
 // Upload de mídia usa um host/path diferente do resto da API (convenção
@@ -256,6 +256,149 @@ export async function uploadGoogleResumableChunk(
       return { ok: true, item: { status: "complete", versionCode: Number(versionCode) } };
     }
     return { ok: false, error: sanitizeGoogleError(res.status), code: classifyHttpStatus(res.status) };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 2.16b — GATE 9/10/11: cliente HTTP real para a etapa final do
+// fluxo de Submission (track assignment + `edits.commit`). Contrato
+// confirmado contra a documentação oficial atual da Android Publisher API
+// v3 (developers.google.com/android-publisher/api-ref/rest/v3/edits.tracks,
+// .../edits): `edits.tracks.get`/`edits.tracks.update` operam sobre um
+// `Track` (recurso `{track, releases[]}`), `TrackRelease` carrega
+// `versionCodes`/`status`. `edits.commit` torna as mudanças do Edit
+// (incluindo a atualização de track) efetivas — é a operação irreversível
+// real. `edits.get` é usado só para reconciliation (GATE 11): confirmar se
+// um Edit ainda existe (não commitado) ou já foi consumido pelo commit.
+//
+// Todas aceitam `baseUrl` opcional (default = Android Publisher real) para
+// permitir apontar para o fake provider server nos testes — NUNCA usado
+// para trocar de ambiente em produção (o guard fail-closed, ver
+// `apps/web/lib/env.ts#storeMutationBaseUrlAllowlist`, é quem decide se um
+// `baseUrl` não-default pode ser usado).
+export async function getGoogleEdit(
+  credentials: GoogleCredentials,
+  editId: string,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ editId: string; expiryTimeSeconds: string | null }>> {
+  const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
+  if (!serviceAccount) {
+    return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
+  }
+  const tokenResult = await getGoogleAccessToken(serviceAccount);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
+  try {
+    const { status, body } = await fetchJson(
+      `${baseUrl}/applications/${encodeURIComponent(credentials.packageName)}/edits/${encodeURIComponent(editId)}`,
+      { headers: { Authorization: `Bearer ${tokenResult.accessToken}` } },
+    );
+    if (status < 200 || status >= 300) {
+      return { ok: false, error: sanitizeGoogleError(status), code: classifyHttpStatus(status) };
+    }
+    const b = body as { id?: string; expiryTimeSeconds?: string } | null;
+    if (!b?.id) return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+    return { ok: true, item: { editId: b.id, expiryTimeSeconds: b.expiryTimeSeconds ?? null } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+export async function getGoogleTrack(
+  credentials: GoogleCredentials,
+  editId: string,
+  track: string,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<GoogleTrack>> {
+  const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
+  if (!serviceAccount) {
+    return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
+  }
+  const tokenResult = await getGoogleAccessToken(serviceAccount);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
+  try {
+    const { status, body } = await fetchJson(
+      `${baseUrl}/applications/${encodeURIComponent(credentials.packageName)}/edits/${encodeURIComponent(editId)}/tracks/${encodeURIComponent(track)}`,
+      { headers: { Authorization: `Bearer ${tokenResult.accessToken}` } },
+    );
+    if (status < 200 || status >= 300) {
+      return { ok: false, error: sanitizeGoogleError(status), code: classifyHttpStatus(status) };
+    }
+    const b = body as GoogleTrack | null;
+    if (!b?.track) return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+    return { ok: true, item: { track: b.track, releases: b.releases ?? [] } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// `edits.tracks.update` (PUT) — corpo é o `Track` inteiro (não PATCH
+// parcial; confirmado pela documentação oficial: PUT substitui o recurso).
+// Quem chama é responsável por montar `releases` incluindo o
+// `TrackRelease` novo com o `versionCode` recém-enviado — esta função não
+// decide política de release (fração de rollout, notas etc.), só executa o
+// PUT com o corpo fornecido.
+export async function updateGoogleTrack(
+  credentials: GoogleCredentials,
+  editId: string,
+  track: GoogleTrack,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<GoogleTrack>> {
+  const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
+  if (!serviceAccount) {
+    return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
+  }
+  const tokenResult = await getGoogleAccessToken(serviceAccount);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
+  try {
+    const { status, body } = await fetchJson(
+      `${baseUrl}/applications/${encodeURIComponent(credentials.packageName)}/edits/${encodeURIComponent(editId)}/tracks/${encodeURIComponent(track.track)}`,
+      {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${tokenResult.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ track: track.track, releases: track.releases }),
+      },
+    );
+    if (status < 200 || status >= 300) {
+      return { ok: false, error: sanitizeGoogleError(status), code: classifyHttpStatus(status) };
+    }
+    const b = body as GoogleTrack | null;
+    if (!b?.track) return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+    return { ok: true, item: { track: b.track, releases: b.releases ?? [] } };
+  } catch {
+    return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+  }
+}
+
+// `edits.commit` — POST sem corpo, torna TODAS as mudanças do Edit
+// (incluindo o `updateGoogleTrack` acima) efetivas no Play Console. Esta é
+// a operação irreversível real do fluxo de Submission — protegida em duas
+// camadas fora deste client: `env.allowStoreMutation` E a allowlist de
+// `baseUrl` (GATE 16), nenhuma das duas verificada aqui (este client é
+// puro transporte HTTP; a decisão de permitir a chamada é do processor).
+export async function commitGoogleEdit(
+  credentials: GoogleCredentials,
+  editId: string,
+  baseUrl: string = BASE_URL,
+): Promise<ItemResult<{ editId: string }>> {
+  const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
+  if (!serviceAccount) {
+    return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
+  }
+  const tokenResult = await getGoogleAccessToken(serviceAccount);
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
+  try {
+    const { status, body } = await fetchJson(
+      `${baseUrl}/applications/${encodeURIComponent(credentials.packageName)}/edits/${encodeURIComponent(editId)}:commit`,
+      { method: "POST", headers: { Authorization: `Bearer ${tokenResult.accessToken}` } },
+    );
+    if (status < 200 || status >= 300) {
+      return { ok: false, error: sanitizeGoogleError(status), code: classifyHttpStatus(status) };
+    }
+    const b = body as { id?: string } | null;
+    if (!b?.id) return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
+    return { ok: true, item: { editId: b.id } };
   } catch {
     return { ok: false, error: sanitizeUnexpectedError(), code: "UNEXPECTED_ERROR" };
   }

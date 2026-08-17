@@ -2,11 +2,16 @@ import {
   checkAppleHealth,
   commitAppleBuildUploadFile,
   createAppleBuildUpload,
+  createAppleReviewSubmission,
+  createAppleReviewSubmissionItem,
   deleteAppleBuildUpload,
   fetchAppleApp,
   fetchAppleApps,
   getAppleBuildUpload,
+  getAppleReviewSubmission,
+  listAppleReviewSubmissions,
   reserveAppleBuildUploadFile,
+  submitAppleReviewSubmission,
   uploadAppleBuildUploadFileOperations,
 } from "./client";
 import type { AppleCredentials, ApplePublishingAdapter } from "./types";
@@ -52,6 +57,31 @@ export function createApplePublishingAdapter(credentials: AppleCredentials): App
     },
     async deleteBuildUpload(buildUploadId) {
       return deleteAppleBuildUpload(credentials, buildUploadId);
+    },
+    async listReviewSubmissions(params, baseUrl) {
+      return baseUrl
+        ? listAppleReviewSubmissions(credentials, params, baseUrl)
+        : listAppleReviewSubmissions(credentials, params);
+    },
+    async createReviewSubmission(params, baseUrl) {
+      return baseUrl
+        ? createAppleReviewSubmission(credentials, params, baseUrl)
+        : createAppleReviewSubmission(credentials, params);
+    },
+    async createReviewSubmissionItem(params, baseUrl) {
+      return baseUrl
+        ? createAppleReviewSubmissionItem(credentials, params, baseUrl)
+        : createAppleReviewSubmissionItem(credentials, params);
+    },
+    async submitReviewSubmission(reviewSubmissionId, baseUrl) {
+      return baseUrl
+        ? submitAppleReviewSubmission(credentials, reviewSubmissionId, baseUrl)
+        : submitAppleReviewSubmission(credentials, reviewSubmissionId);
+    },
+    async getReviewSubmission(reviewSubmissionId, baseUrl) {
+      return baseUrl
+        ? getAppleReviewSubmission(credentials, reviewSubmissionId, baseUrl)
+        : getAppleReviewSubmission(credentials, reviewSubmissionId);
     },
   };
 }

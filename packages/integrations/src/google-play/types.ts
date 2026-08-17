@@ -34,6 +34,15 @@ export type GoogleResumableChunkResult =
   | { status: "complete"; versionCode: number }
   | { status: "incomplete"; bytesReceived: number };
 
+// Sprint 2.16b — mirrors `Track`/`TrackRelease` da Android Publisher API v3.
+export type GoogleTrackRelease = {
+  name?: string;
+  versionCodes?: string[];
+  status?: "draft" | "inProgress" | "halted" | "completed";
+  releaseNotes?: { language: string; text: string }[];
+};
+export type GoogleTrack = { track: string; releases: GoogleTrackRelease[] };
+
 export interface GooglePlayPublishingAdapter extends IntegrationAdapter {
   listApps(): Promise<ListResult<GoogleApp>>;
   // Cria um Edit rascunho — obrigatório antes de qualquer upload
@@ -55,6 +64,16 @@ export interface GooglePlayPublishingAdapter extends IntegrationAdapter {
   createResumableSession(editId: string, totalBytes: number, mimeType: string): Promise<ItemResult<{ sessionUri: string }>>;
   uploadResumableChunk(sessionUri: string, chunk: Buffer, startByte: number, totalBytes: number): Promise<ItemResult<GoogleResumableChunkResult>>;
   queryResumableProgress(sessionUri: string, totalBytes: number): Promise<ItemResult<GoogleResumableChunkResult>>;
+
+  // Sprint 2.16b — etapa final do fluxo de Submission (GATE 9/10/11).
+  // `baseUrl` opcional em todos os quatro: usado exclusivamente pelos
+  // testes de integração para apontar o adapter ao fake provider server;
+  // nunca setado fora de teste (produção sempre usa o Android Publisher
+  // real).
+  getEdit(editId: string, baseUrl?: string): Promise<ItemResult<{ editId: string; expiryTimeSeconds: string | null }>>;
+  getTrack(editId: string, track: string, baseUrl?: string): Promise<ItemResult<GoogleTrack>>;
+  updateTrack(editId: string, track: GoogleTrack, baseUrl?: string): Promise<ItemResult<GoogleTrack>>;
+  commitEdit(editId: string, baseUrl?: string): Promise<ItemResult<{ editId: string }>>;
 }
 
 export type { HealthResult, ItemResult };

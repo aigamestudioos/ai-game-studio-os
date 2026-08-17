@@ -80,6 +80,30 @@ export interface ApplePublishingAdapter extends IntegrationAdapter {
   getBuildUpload(buildUploadId: string): Promise<ItemResult<{ state: AppleBuildUploadState }>>;
 
   deleteBuildUpload(buildUploadId: string): Promise<void>;
+
+  // Sprint 2.16b — Review Submission (GATE 12/14/15). `baseUrl` opcional em
+  // todos: usado só nos testes de integração para apontar o adapter ao
+  // fake provider server.
+  listReviewSubmissions(
+    params: { appId: string; platform: ApplePlatform },
+    baseUrl?: string,
+  ): Promise<ListResult<{ id: string; state: string | null }>>;
+  createReviewSubmission(
+    params: { appId: string; platform: ApplePlatform },
+    baseUrl?: string,
+  ): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>>;
+  createReviewSubmissionItem(
+    params: { reviewSubmissionId: string; buildId: string },
+    baseUrl?: string,
+  ): Promise<ItemResult<{ reviewSubmissionItemId: string }>>;
+  submitReviewSubmission(
+    reviewSubmissionId: string,
+    baseUrl?: string,
+  ): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>>;
+  getReviewSubmission(
+    reviewSubmissionId: string,
+    baseUrl?: string,
+  ): Promise<ItemResult<{ reviewSubmissionId: string; state: string | null }>>;
 }
 
 export type { HealthResult };

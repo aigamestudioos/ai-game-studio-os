@@ -43,4 +43,22 @@ export const env = {
   get allowStoreMutation(): boolean {
     return process.env.AGSOS_ALLOW_STORE_MUTATION === "true";
   },
+  // Sprint 2.16b (GATE 16) — segunda trava independente da anterior.
+  // Mesmo que alguém ligue `AGSOS_ALLOW_STORE_MUTATION=true` localmente
+  // (ex.: para rodar os testes de integração contra o fake provider), as
+  // chamadas HTTP reais de mutação (Google `edits.commit`/`tracks.update`,
+  // Apple `reviewSubmissions`) só são executadas se o host de destino
+  // estiver nesta allowlist. Lista vazia/ausente = falha fechada: nenhum
+  // host é permitido, mesmo com o guard principal ligado. Formato: lista
+  // separada por vírgula de origins (`scheme://host[:port]`), ex.
+  // "http://127.0.0.1:4310". Nunca inclui os hosts reais do Google/Apple
+  // em nenhum `.env` deste repositório.
+  get storeMutationBaseUrlAllowlist(): string[] {
+    const raw = process.env.AGSOS_STORE_MUTATION_BASE_URL_ALLOWLIST;
+    if (!raw) return [];
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  },
 } as const;

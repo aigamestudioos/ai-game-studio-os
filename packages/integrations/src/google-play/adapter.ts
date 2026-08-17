@@ -1,10 +1,14 @@
 import {
   checkGoogleHealth,
+  commitGoogleEdit,
   createGoogleEdit,
   createGoogleResumableSession,
   deleteGoogleEdit,
   fetchGoogleApps,
+  getGoogleEdit,
+  getGoogleTrack,
   queryGoogleResumableProgress,
+  updateGoogleTrack,
   uploadGoogleBundle,
   uploadGoogleResumableChunk,
 } from "./client";
@@ -42,6 +46,18 @@ export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials
     },
     async queryResumableProgress(sessionUri, totalBytes) {
       return queryGoogleResumableProgress(sessionUri, totalBytes);
+    },
+    async getEdit(editId, baseUrl) {
+      return baseUrl ? getGoogleEdit(credentials, editId, baseUrl) : getGoogleEdit(credentials, editId);
+    },
+    async getTrack(editId, track, baseUrl) {
+      return baseUrl ? getGoogleTrack(credentials, editId, track, baseUrl) : getGoogleTrack(credentials, editId, track);
+    },
+    async updateTrack(editId, track, baseUrl) {
+      return baseUrl ? updateGoogleTrack(credentials, editId, track, baseUrl) : updateGoogleTrack(credentials, editId, track);
+    },
+    async commitEdit(editId, baseUrl) {
+      return baseUrl ? commitGoogleEdit(credentials, editId, baseUrl) : commitGoogleEdit(credentials, editId);
     },
   };
 }

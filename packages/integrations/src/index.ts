@@ -19,6 +19,8 @@ export type {
   GoogleCredentials,
   GooglePlayPublishingAdapter,
   GoogleResumableChunkResult,
+  GoogleTrack,
+  GoogleTrackRelease,
 } from "./google-play/types";
 
 export type { HealthResult, IntegrationAdapter, ItemResult, ListResult } from "./core/types";
