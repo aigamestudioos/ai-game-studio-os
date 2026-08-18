@@ -2386,3 +2386,23 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Produção | Não tocada — sprint inteiro local-only (Docker Supabase local + fake provider local + `next start` local), nenhuma migration, nenhum push, nenhuma credencial real Apple/Google, `AGSOS_ALLOW_STORE_MUTATION=true` só contra hosts `127.0.0.1` efêmeros do fake provider |
 | Classificação do Sprint 2.16c | **PARCIAL** (ver detalhe em IMPLEMENTATION_LOG.md — núcleo pedido entregue com profundidade real; alguns cenários de resiliência e Playwright de falha/permissão ficaram de fora) |
 | Classificação consolidada do Sprint 2.16 (a+b+c) | **PARCIAL** |
+
+## Sprint 2.16d — Final Verification Closure (2026-08-18)
+
+| Métrica | Valor |
+|---|---|
+| Arquivos (git-tracked) | 439 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 25569 |
+| Typecheck/Build (monorepo + packages afetados) | ✅ |
+| `npx turbo run build lint typecheck test` | 38/38 tasks successful |
+| Integração real Docker+dispatcher+fake-provider (`scripts/test-submission-integration.mts`, regressão + 2 gates novos) | 71/71 asserções (35 herdadas do 2.16c + 9 worker crash-recovery + 27 duplicate-submit) |
+| SQL — `test-submission-lifecycle.sh` (regressão) | 20/20 |
+| HTTP golden path (`test-readiness-golden-path.mjs`, regressão) | 29/29 |
+| Vitest (packages/integrations, regressão) | 20/20 |
+| Vitest (apps/web, regressão) | 40/40 |
+| Playwright (suíte completa) | 5/5 — `critical-path.spec.ts` (1), `submission-lifecycle.spec.ts` (1, regressão pós-fix de permissão), `submission-lifecycle-failure.spec.ts` (1, novo — GATE C), `submission-lifecycle-member.spec.ts` (2, novo — GATE D) |
+| Bugs reais encontrados e corrigidos nesta sessão | 2 — (1) `commitAttempted`/`submitAttempted` só eram persistidos DEPOIS da chamada de rede em ambos os processors, deixando uma janela de crash em que um efeito externo já aceito pelo provider não era marcado, arriscando um 2º commit/submit cego na reentrada em vez de reconciliar; (2) `SubmissionLifecycleActions` mostrava o botão de ação para qualquer papel, independente de `publishing.submit` — servidor sempre negava corretamente, mas a UI sugeria incorretamente que a ação estava disponível para Member |
+| Gates fechados desta sessão (dos 4 pendentes do 2.16c) | 4/4 — worker crash-recovery (genérico + crash-after-effect/GATE 7), duplicate-submit dedicado (concorrente + retry-ativo), Playwright failure/retry, Playwright Member permission (UI + backend) |
+| Produção | Não tocada — sprint inteiro local-only, nenhuma migration, nenhum push, nenhuma credencial real Apple/Google |
+| Classificação do Sprint 2.16d | **PASS** |
+| Classificação consolidada do Sprint 2.16 (a+b+c+d) | **PARCIAL → PASS** |

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SubmissionStatus } from "@agsos/database";
 import { transitionSubmissionAction } from "../../app/publishing/submission-actions";
 import { allowedSubmissionAction, isSubmissionInFlight } from "../../lib/submission-lifecycle";
+import { getBrowserClient } from "../../lib/supabase-client";
 import { Button } from "../ui/button";
 
 // Sprint 2.16a (GATE 15) — botões de ação da tela de detalhe de
@@ -20,6 +21,31 @@ type Props = {
 export function SubmissionLifecycleActions({ submissionId, status, onChanged }: Props) {
   const [pending, setPending] = useState<"PREPARE" | "SUBMIT" | "RETRY" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Sprint 2.16d (GATE D) — todas as ações desta state machine exigem
+  // `publishing.submit` no servidor (`transition_submission` checa isso
+  // antes de qualquer outra coisa, para PREPARE/SUBMIT/RETRY igualmente).
+  // Antes deste fix o botão aparecia SEMPRE que a state machine client-side
+  // permitia (independente de permissão) — o servidor rejeitava a chamada,
+  // mas a UI sugeria incorretamente que a ação estava disponível para
+  // qualquer papel (ex.: Member com só `publishing.read`). `default: false`
+  // — nunca mostra a ação até confirmar a permissão via RPC (o mesmo check
+  // que o servidor faz), nunca assume permitido enquanto carrega.
+  const [canSubmit, setCanSubmit] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await getBrowserClient().rpc("current_user_has_permission", { p_key: "publishing.submit" });
+        if (!cancelled) setCanSubmit(data === true);
+      } catch {
+        if (!cancelled) setCanSubmit(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function run(action: "PREPARE" | "SUBMIT" | "RETRY") {
     setPending(action);
@@ -50,7 +76,7 @@ export function SubmissionLifecycleActions({ submissionId, status, onChanged }: 
   return (
     <div className="space-y-sm">
       <div className="flex gap-sm">
-        {action ? (
+        {action && canSubmit ? (
           <Button size="sm" variant={action === "RETRY" ? "secondary" : "default"} disabled={pending !== null} onClick={() => run(action)}>
             {pending === action ? labels[action].pending : labels[action].idle}
           </Button>

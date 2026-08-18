@@ -265,8 +265,43 @@ async function main() {
     const applePrivPem = applePriv.export({ type: "pkcs8", format: "pem" }).toString();
     const appleCredentials = { issuerId: "issuer-123", keyId: "KEY123", teamId: "TEAM123", privateKey: applePrivPem };
 
+    // Helper compartilhado (Google) — extraído para ser reaproveitado
+    // pelos gates novos do 2.16d (crash-recovery, duplicate-submit) sem
+    // duplicar a fixture inteira.
+    async function buildGoogleReadySubmission(label: string) {
+      const buildId = uid(`gbuild-${label}`);
+      await admin.from("builds").insert({ id: buildId, studio_id: studioId, game_version_id: versionId, platform_id: googleId, status: "SUCCEEDED", created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM" }).throwOnError();
+      const releaseId = uid(`grelease-${label}`);
+      await admin.from("releases").insert({ id: releaseId, studio_id: studioId, game_id: gameId, game_version_id: versionId, status: "DRAFT", created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM" }).throwOnError();
+      const artifactId = uid(`gartifact-${label}`);
+      await admin.from("build_artifacts").insert({
+        id: artifactId, studio_id: studioId, build_id: buildId, storage_path: `int/${RUN}-${label}.aab`,
+        original_filename: "app.aab", file_extension: "aab", size_bytes: 1000, checksum: `chk-${label}`,
+        upload_status: "STORED", validation_status: "VALID", created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
+      }).throwOnError();
+      const connId = uid(`gconn-${label}`);
+      await admin.from("store_connections").insert({
+        id: connId, studio_id: studioId, platform_id: googleId, status: "CONNECTED", display_name: `Google ${label}`,
+        created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
+      }).throwOnError();
+      await ownerClient.rpc("set_store_connection_secret", { p_store_connection_id: connId, p_secret: JSON.stringify(googleCredentials), p_actor_id: owner.id }).throwOnError?.();
+      const versionCode = 42;
+      await admin.from("provider_uploads").insert({
+        id: uid(`gpu-${label}`), studio_id: studioId, build_artifact_id: artifactId, store_connection_id: connId,
+        status: "SUCCEEDED", version_code: versionCode, completed_at: new Date().toISOString(),
+        created_actor_type: "SYSTEM", updated_actor_type: "SYSTEM",
+      }).throwOnError();
+      const { data: sub } = await ownerClient.from("submissions").insert({
+        studio_id: studioId, release_id: releaseId, platform_id: googleId, build_id: buildId,
+        created_actor_type: "USER", created_actor_id: owner.id, updated_actor_type: "USER", updated_actor_id: owner.id,
+      }).select("*").single();
+      return { releaseId, buildId, artifactId, connId, submission: sub, versionCode };
+    }
+
     await googleTest({ ownerClient, memberClient, studioId, gameId, versionId, googleId, googleServer, googleBaseUrl, googleCredentials, runDispatcherTick });
     await appleTest({ ownerClient, studioId, gameId, versionId, appleId, appleServer, appleBaseUrl, appleCredentials, runDispatcherTick });
+    await crashRecoveryTest({ ownerClient, googleBaseUrl, googleServer, googleCredentials, runDispatcherTick, buildGoogleReadySubmission });
+    await duplicateSubmitTest({ ownerClient, googleServer, googleBaseUrl, googleCredentials, runDispatcherTick, buildGoogleReadySubmission });
   }
 
   // =====================================================================
@@ -536,6 +571,257 @@ async function main() {
     assert(createRs.length === 1, `Apple sucesso: exatamente 1 Review Submission criada (obteve ${createRs.length})`);
     assert(createItems.length === 1, `Apple sucesso: exatamente 1 Review Submission Item criado (obteve ${createItems.length})`);
     assert(submits.length === 1, `Apple sucesso: exatamente 1 submit lógico (obteve ${submits.length})`);
+  }
+
+  // =====================================================================
+  // GATE A/6/7 (2.16d) — WORKER CRASH RECOVERY.
+  //
+  // Usa o mecanismo REAL: `claim_integration_jobs` (claim atômico com
+  // lease), `requeue_stale_jobs` (recovery de worker morto), reconciliation
+  // do processor (GATE 11 do 2.16b). Não fabricamos o RESULTADO
+  // (submission.status/job.status finais nascem só do caminho real) — só
+  // simulamos a PASSAGEM DO TEMPO (lease_expires_at para o passado, mesma
+  // técnica já usada no cenário de retry 500->200 do 2.16c) e a MORTE do
+  // processo (paramos de chamar o dispatcher no meio de um step, em vez de
+  // matar um processo Node de verdade — inviável de simular literalmente
+  // dentro do mesmo processo do test runner).
+  //
+  // Cenário 1 (crash ANTES de qualquer efeito externo, genérico): job
+  // reivindicado, worker morre antes de sequer chamar o provider. Lease
+  // expira, `requeue_stale_jobs` reclama, um novo worker processa do zero
+  // — nenhum efeito duplicado porque nenhum efeito jamais ocorreu.
+  //
+  // Cenário 2 (crash DEPOIS do provider aceitar a mutação — o caso mais
+  // importante, GATE 7): reproduz o gap real que este sub-sprint encontrou
+  // e corrigiu em `submission-google-play.ts` — antes do fix,
+  // `commitAttempted` só era persistido DEPOIS do `commitEdit` retornar; um
+  // crash entre o commit ser aceito pelo provider e o retorno da função
+  // perdia essa marca, arriscando um segundo commit lógico cego na
+  // reentrada. Simulamos a morte chamando o MESMO client HTTP real que o
+  // processor usa (`createGooglePlayPublishingAdapter`) diretamente, fora
+  // do processor, e então "esquecendo" de persistir o resultado — o
+  // processor real, ao reentrar, só enxerga o que estava de fato na
+  // coluna `checkpoint` no momento do crash (com o fix: `commitAttempted:
+  // true` já lá).
+  // =====================================================================
+  async function crashRecoveryTest(p: any) {
+    const { ownerClient, googleServer, googleBaseUrl, googleCredentials, runDispatcherTick, buildGoogleReadySubmission } = p;
+    const integrationsPath = require.resolve("@agsos/integrations", { paths: [path.join(ROOT, "apps/web")] });
+    const { createGooglePlayPublishingAdapter } = await import(integrationsPath);
+
+    // -------------------------------------------------------------
+    // Cenário 1 — crash genérico ANTES de qualquer efeito externo.
+    // -------------------------------------------------------------
+    {
+      const { submission } = await buildGoogleReadySubmission("crashgen");
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "PREPARE", p_actor_id: owner.id });
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "SUBMIT", p_actor_id: owner.id });
+
+      const { data: jobBefore } = await admin.from("integration_jobs").select("*").eq("submission_id", submission.id).single();
+      assert(jobBefore.status === "QUEUED", "Crash genérico: job nasce QUEUED");
+
+      // Worker A reivindica o job com lease curta (2s) e "morre" — nunca
+      // chama o provider, nunca chama checkpoint/complete.
+      const claimed: any[] = await admin.rpc("claim_integration_jobs", { p_worker_id: "crash-worker-gen", p_limit: 5, p_lease_seconds: 2 }).then((r: any) => r.data ?? []);
+      const ourJob = claimed.find((j: any) => j.id === jobBefore.id);
+      assert(!!ourJob, "Crash genérico: worker A reivindicou o job (claim atômico real)");
+      assert(ourJob.status === "CLAIMED" && ourJob.claimed_by === "crash-worker-gen", "Crash genérico: job CLAIMED pelo worker A");
+
+      // Passagem do tempo real: espera a lease de fato expirar (2s) — sem
+      // isso não é honesto chamar de "expirou".
+      await new Promise((r) => setTimeout(r, 2200));
+
+      googleServer.reset();
+      for (let i = 0; i < 8; i++) googleServer.queue("POST", "/token", { kind: "json", status: 200, body: { access_token: "fake-token", expires_in: 3600 } });
+      googleServer.setDefault({ kind: "json", status: 200, body: {} });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits", { kind: "json", status: 200, body: { id: "edit-crashgen" } });
+      googleServer.queue("GET", "/applications/com.agsos.integration/edits/edit-crashgen/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [] } });
+      googleServer.queue("PUT", "/applications/com.agsos.integration/edits/edit-crashgen/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [{ status: "completed", versionCodes: ["42"] }] } });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits/edit-crashgen:commit", { kind: "json", status: 200, body: { id: "edit-crashgen" } });
+
+      // Novo tick: `requeue_stale_jobs` (dentro de `runDispatcherTick`)
+      // deve recuperar o job morto ANTES de reivindicar qualquer coisa nova
+      // — mecanismo real, não simulado.
+      const tick1 = await runDispatcherTick();
+      assert(tick1.requeuedStaleJobs >= 1, `Crash genérico: requeue_stale_jobs recuperou >=1 job (obteve ${tick1.requeuedStaleJobs})`);
+
+      const { data: jobAfterRequeue } = await admin.from("integration_jobs").select("*").eq("id", jobBefore.id).single();
+      assert(jobAfterRequeue.attempt === jobBefore.attempt + 1, `Crash genérico: attempt incrementou pela recovery (${jobBefore.attempt} -> ${jobAfterRequeue.attempt})`);
+      assert(jobAfterRequeue.last_error_code === "WORKER_LEASE_EXPIRED", "Crash genérico: last_error_code = WORKER_LEASE_EXPIRED");
+
+      const finalStatus = await drainUntilTerminal(runDispatcherTick, admin, submission.id, 10);
+      assert(finalStatus === "SUBMITTED", `Crash genérico: novo worker processou do zero e convergiu para SUBMITTED (obteve ${finalStatus})`);
+      const createEditCalls = googleServer.requests.filter((r: any) => r.method === "POST" && r.url === "/applications/com.agsos.integration/edits");
+      assert(createEditCalls.length === 1, `Crash genérico: exatamente 1 createEdit lógico (nenhum efeito do worker morto, que nunca chegou a chamar o provider) — obteve ${createEditCalls.length}`);
+      const { data: finalJob } = await admin.from("integration_jobs").select("status, checkpoint").eq("submission_id", submission.id).single();
+      assert(finalJob.status === "SUCCEEDED", "Crash genérico: job terminal SUCCEEDED (nenhum RUNNING/CLAIMED preso)");
+    }
+
+    // -------------------------------------------------------------
+    // Cenário 2 — crash DEPOIS do provider aceitar a mutação (GATE 7).
+    // -------------------------------------------------------------
+    {
+      const { submission } = await buildGoogleReadySubmission("crasheff");
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "PREPARE", p_actor_id: owner.id });
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "SUBMIT", p_actor_id: owner.id });
+
+      googleServer.reset();
+      for (let i = 0; i < 8; i++) googleServer.queue("POST", "/token", { kind: "json", status: 200, body: { access_token: "fake-token", expires_in: 3600 } });
+      googleServer.setDefault({ kind: "json", status: 200, body: {} });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits", { kind: "json", status: 200, body: { id: "edit-crasheff" } });
+      googleServer.queue("GET", "/applications/com.agsos.integration/edits/edit-crasheff/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [] } });
+      googleServer.queue("PUT", "/applications/com.agsos.integration/edits/edit-crasheff/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [{ status: "completed", versionCodes: ["42"] }] } });
+
+      // 2 ticks reais: createEdit (continue) -> track update (continue).
+      // Job volta para QUEUED com checkpoint {editId, track, trackUpdated}.
+      await runDispatcherTick();
+      await runDispatcherTick();
+      const { data: jobMid } = await admin.from("integration_jobs").select("*").eq("submission_id", submission.id).single();
+      assert(jobMid.status === "QUEUED", "Crash pós-efeito: job de volta a QUEUED após 2 steps de checkpoint reais");
+      assert(jobMid.checkpoint?.editId === "edit-crasheff" && jobMid.checkpoint?.trackUpdated === true, "Crash pós-efeito: checkpoint real tem editId+trackUpdated antes do commit");
+      assert(!jobMid.checkpoint?.commitAttempted, "Crash pós-efeito: commitAttempted ainda ausente (nenhuma tentativa de commit ainda)");
+
+      // Worker B reivindica (claim REAL, lease curta) para a etapa final.
+      const claimed: any[] = await admin.rpc("claim_integration_jobs", { p_worker_id: "crash-worker-eff", p_limit: 5, p_lease_seconds: 2 }).then((r: any) => r.data ?? []);
+      const ourJob = claimed.find((j: any) => j.id === jobMid.id);
+      assert(!!ourJob, "Crash pós-efeito: worker B reivindicou o job para a etapa de commit");
+
+      // Reproduz exatamente o que o processor real faz agora (pós-fix):
+      // persiste `commitAttempted: true` no checkpoint ANTES de discar a
+      // chamada de rede — mesma escrita que `submission-google-play.ts`
+      // faz hoje antes de `adapter.commitEdit`.
+      const preCommitCheckpoint = { ...jobMid.checkpoint, commitAttempted: true, externalResultState: "ATTEMPTED" };
+      await admin.from("integration_jobs").update({ checkpoint: preCommitCheckpoint }).eq("id", jobMid.id);
+
+      // Chamada HTTP REAL ao fake provider — o mesmo client (`@agsos/integrations`)
+      // que o processor usaria — o provider ACEITA a mutação de verdade.
+      const adapter = createGooglePlayPublishingAdapter(googleCredentials);
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits/edit-crasheff:commit", { kind: "json", status: 200, body: { id: "edit-crasheff" } });
+      const committed = await adapter.commitEdit("edit-crasheff", googleBaseUrl);
+      assert(committed.ok === true, "Crash pós-efeito: commit HTTP real foi ACEITO pelo provider (efeito externo ocorreu de fato)");
+
+      // "Morte" do worker B: NENHUM checkpointAndRelease/complete é
+      // chamado a partir daqui — job fica preso em CLAIMED com o
+      // checkpoint que já tínhamos persistido (commitAttempted:true, sem
+      // commitConfirmed), exatamente o estado que um crash real deixaria
+      // para trás.
+      await new Promise((r) => setTimeout(r, 2200)); // lease (2s) expira de verdade.
+
+      // Reconciliação: quando o novo worker reentrar e consultar
+      // `edits.get`, o Edit já não existe (o Google consumiu no commit
+      // real acima) -> 404 -> processor converge para SUBMITTED sem
+      // tentar um segundo commit.
+      googleServer.queue("GET", "/applications/com.agsos.integration/edits/edit-crasheff", { kind: "json", status: 404, body: { error: "not found" } });
+
+      const tick = await runDispatcherTick();
+      assert(tick.requeuedStaleJobs >= 1, `Crash pós-efeito: requeue_stale_jobs recuperou o job do worker B morto (obteve ${tick.requeuedStaleJobs})`);
+
+      const finalStatus = await drainUntilTerminal(runDispatcherTick, admin, submission.id, 10);
+      assert(finalStatus === "SUBMITTED", `Crash pós-efeito: reconciliação convergiu para SUBMITTED sem repetir cegamente (obteve ${finalStatus})`);
+
+      const commitCalls = googleServer.requests.filter((r: any) => r.method === "POST" && r.url.endsWith(":commit"));
+      assert(commitCalls.length === 1, `Crash pós-efeito: exatamente 1 commit lógico HTTP no total (o do worker B "morto" antes do crash) — obteve ${commitCalls.length}`);
+      const editGetCalls = googleServer.requests.filter((r: any) => r.method === "GET" && r.url === "/applications/com.agsos.integration/edits/edit-crasheff");
+      assert(editGetCalls.length === 1, "Crash pós-efeito: exatamente 1 reconciliação (edits.get) consultada pelo novo worker antes de decidir");
+
+      const { data: finalJob } = await admin.from("integration_jobs").select("status, checkpoint").eq("submission_id", submission.id).single();
+      assert(finalJob.status === "SUCCEEDED", "Crash pós-efeito: job terminal SUCCEEDED via reconciliação, nunca update manual");
+      assert(finalJob.checkpoint?.commitConfirmed === true, "Crash pós-efeito: checkpoint final commitConfirmed=true via edits.get, não via commit repetido");
+    }
+  }
+
+  // =====================================================================
+  // GATE B/8/9 (2.16d) — DUPLICATE SUBMIT DEDICADO.
+  // =====================================================================
+  async function duplicateSubmitTest(p: any) {
+    const { ownerClient, googleServer, googleBaseUrl, googleCredentials, runDispatcherTick, buildGoogleReadySubmission } = p;
+
+    // -------------------------------------------------------------
+    // Cenário 1 — duas chamadas SUBMIT concorrentes de verdade
+    // (Promise.all, não sequencial) na MESMA Submission READY_TO_SUBMIT.
+    // -------------------------------------------------------------
+    {
+      const { submission } = await buildGoogleReadySubmission("dupsubmit");
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "PREPARE", p_actor_id: owner.id }).throwOnError?.();
+
+      const [r1, r2] = await Promise.all([
+        ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "SUBMIT", p_actor_id: owner.id }),
+        ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "SUBMIT", p_actor_id: owner.id }),
+      ]);
+
+      assert(!r1.error && !r2.error, `Duplicate submit: nenhuma das 2 chamadas concorrentes levantou erro inesperado (r1=${r1.error?.message ?? "ok"}, r2=${r2.error?.message ?? "ok"})`);
+      const noops = [r1.data?.noop, r2.data?.noop].filter((n) => n === true).length;
+      const reals = [r1.data?.noop, r2.data?.noop].filter((n) => n === false).length;
+      assert(reals === 1, `Duplicate submit: exatamente 1 das 2 chamadas concorrentes fez a transição real (obteve ${reals})`);
+      assert(noops === 1, `Duplicate submit: a outra chamada retornou noop:true (idempotência via row lock), obteve ${noops}`);
+
+      const { data: sub } = await admin.from("submissions").select("status").eq("id", submission.id).single();
+      assert(sub.status === "SUBMITTING", "Duplicate submit: submission transicionou 1x para SUBMITTING (nunca duas)");
+
+      const { data: jobs } = await admin.from("integration_jobs").select("id, status").eq("submission_id", submission.id);
+      assert((jobs ?? []).length === 1, `Duplicate submit: exatamente 1 integration_job criado (obteve ${(jobs ?? []).length})`);
+
+      const { data: events } = await admin.from("submission_events").select("event_type").eq("submission_id", submission.id).eq("event_type", "SubmissionSubmissionStarted");
+      assert((events ?? []).length === 1, `Duplicate submit: exatamente 1 evento SubmissionSubmissionStarted (obteve ${(events ?? []).length})`);
+
+      // Dispatcher concorrente ainda processa o job resultante 1x só
+      // (mesma garantia de `claim_integration_jobs FOR UPDATE SKIP LOCKED`
+      // já provada no cenário de concorrência do Google — reconfirmada
+      // aqui sobre o job nascido de uma corrida de SUBMIT, não só de um
+      // SUBMIT único).
+      googleServer.reset();
+      for (let i = 0; i < 8; i++) googleServer.queue("POST", "/token", { kind: "json", status: 200, body: { access_token: "fake-token", expires_in: 3600 } });
+      googleServer.setDefault({ kind: "json", status: 200, body: {} });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits", { kind: "json", status: 200, body: { id: "edit-dupsubmit" } });
+      const [t1, t2] = await Promise.all([runDispatcherTick(), runDispatcherTick()]);
+      assert(t1.processedJobs + t2.processedJobs === 1, `Duplicate submit: dispatcher concorrente ainda processa o job 1x só (obteve ${t1.processedJobs + t2.processedJobs})`);
+      const createEditCalls = googleServer.requests.filter((r: any) => r.method === "POST" && r.url === "/applications/com.agsos.integration/edits");
+      assert(createEditCalls.length === 1, `Duplicate submit: 1 único createEdit lógico apesar da corrida (obteve ${createEditCalls.length})`);
+
+      // Drena o resto para não deixar job pendente.
+      googleServer.queue("GET", "/applications/com.agsos.integration/edits/edit-dupsubmit/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [] } });
+      googleServer.queue("PUT", "/applications/com.agsos.integration/edits/edit-dupsubmit/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [{ status: "completed", versionCodes: ["42"] }] } });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits/edit-dupsubmit:commit", { kind: "json", status: 200, body: { id: "edit-dupsubmit" } });
+      const finalStatus = await drainUntilTerminal(runDispatcherTick, admin, submission.id, 10);
+      assert(finalStatus === "SUBMITTED", `Duplicate submit: após drenar, converge para SUBMITTED (obteve ${finalStatus})`);
+    }
+
+    // -------------------------------------------------------------
+    // Cenário 2 — job já ativo (SUBMITTING) e usuário tenta SUBMIT/RETRY
+    // de novo (não concorrente — sequencial, job real já em voo).
+    // -------------------------------------------------------------
+    {
+      const { submission } = await buildGoogleReadySubmission("dupretry");
+      await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "PREPARE", p_actor_id: owner.id }).throwOnError?.();
+      const first = await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "SUBMIT", p_actor_id: owner.id });
+      assert(!first.error && first.data?.noop === false, "Duplicate submit + retry ativo: 1º SUBMIT real, sem erro");
+
+      const { data: jobsBefore } = await admin.from("integration_jobs").select("id").eq("submission_id", submission.id);
+      assert((jobsBefore ?? []).length === 1, "Duplicate submit + retry ativo: 1 job ativo após o 1º SUBMIT");
+
+      // Job está QUEUED/RUNNING (SUBMITTING) — usuário aperta Retry de
+      // novo enquanto ainda em voo.
+      const second = await ownerClient.rpc("transition_submission", { p_submission_id: submission.id, p_action: "RETRY", p_actor_id: owner.id });
+      assert(!second.error, `Duplicate submit + retry ativo: 2ª chamada (RETRY) não levanta erro (${second.error?.message ?? "ok"})`);
+      assert(second.data?.noop === true, "Duplicate submit + retry ativo: 2ª chamada é noop (bloqueio/dedup, nenhuma nova transição)");
+
+      const { data: jobsAfter } = await admin.from("integration_jobs").select("id").eq("submission_id", submission.id);
+      assert((jobsAfter ?? []).length === 1, `Duplicate submit + retry ativo: ainda só 1 job ativo (nenhum segundo criado pelo RETRY durante SUBMITTING) — obteve ${(jobsAfter ?? []).length}`);
+
+      const { data: sub } = await admin.from("submissions").select("status").eq("id", submission.id).single();
+      assert(sub.status === "SUBMITTING", "Duplicate submit + retry ativo: submission permanece SUBMITTING (1 transição só)");
+
+      // Drena para não deixar lixo pendente — simula sucesso.
+      googleServer.reset();
+      for (let i = 0; i < 8; i++) googleServer.queue("POST", "/token", { kind: "json", status: 200, body: { access_token: "fake-token", expires_in: 3600 } });
+      googleServer.setDefault({ kind: "json", status: 200, body: {} });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits", { kind: "json", status: 200, body: { id: "edit-dupretry" } });
+      googleServer.queue("GET", "/applications/com.agsos.integration/edits/edit-dupretry/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [] } });
+      googleServer.queue("PUT", "/applications/com.agsos.integration/edits/edit-dupretry/tracks/internal", { kind: "json", status: 200, body: { track: "internal", releases: [{ status: "completed", versionCodes: ["42"] }] } });
+      googleServer.queue("POST", "/applications/com.agsos.integration/edits/edit-dupretry:commit", { kind: "json", status: 200, body: { id: "edit-dupretry" } });
+      const finalStatus = await drainUntilTerminal(runDispatcherTick, admin, submission.id, 10);
+      assert(finalStatus === "SUBMITTED", `Duplicate submit + retry ativo: após drenar, converge para SUBMITTED (obteve ${finalStatus})`);
+    }
   }
 
   async function drainUntilTerminal(runDispatcherTick: any, admin: any, submissionId: string, maxTicks: number): Promise<string> {

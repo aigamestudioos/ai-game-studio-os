@@ -209,6 +209,24 @@ export const submissionGooglePlayProcessor: IntegrationJobProcessor = async (job
   }
 
   const attemptedCheckpoint = { ...checkpoint, commitAttempted: true, externalResultState: "ATTEMPTED" as const };
+
+  // Sprint 2.16d (GATE 7) — bugfix achado pelo teste de crash-after-effect:
+  // antes desta escrita, `attemptedCheckpoint` só existia em memória e só
+  // era persistido DEPOIS que `commitEdit` retornava (sucesso ou falha).
+  // Se o processo morresse entre o `commitEdit` HTTP de fato ser aceito
+  // pelo provider e este retorno acontecer (ex.: worker morto/lease
+  // expirado no meio do await), o job reentrava com `commitAttempted`
+  // ausente — reentraria direto para um NOVO `edits.commit` cego, sem
+  // passar pela reconciliation acima (linha ~179), arriscando um segundo
+  // commit lógico sobre um Edit que o Google já tinha consumido. Persistir
+  // `commitAttempted` ANTES de discar a chamada de rede garante que
+  // qualquer crash a partir daqui sempre reentra na reconciliation
+  // (`edits.get`) antes de tentar de novo — nunca repete cegamente.
+  await admin
+    .from("integration_jobs")
+    .update({ checkpoint: attemptedCheckpoint })
+    .eq("id", job.id);
+
   const committed = await adapter.commitEdit(checkpoint.editId, guard.baseUrl);
   if (!committed.ok) {
     // Sprint 2.16c — bugfix (achado pelo teste de integração de lost-response):

@@ -222,6 +222,18 @@ export const submissionAppleProcessor: IntegrationJobProcessor = async (job) => 
   }
 
   const attemptedCheckpoint = { ...checkpoint, submitAttempted: true, externalResultState: "ATTEMPTED" as const };
+
+  // Sprint 2.16d (GATE 7) — mesmo bugfix do processor Google (ver
+  // `submission-google-play.ts`): persiste `submitAttempted` ANTES de
+  // discar a chamada de rede, para que um crash a qualquer momento a
+  // partir daqui (inclusive entre o provider aceitar o submit e este
+  // processo retornar) sempre reentre pela reconciliation acima
+  // (`getReviewSubmission`) em vez de arriscar um segundo submit lógico.
+  await admin
+    .from("integration_jobs")
+    .update({ checkpoint: attemptedCheckpoint })
+    .eq("id", job.id);
+
   const submitted = await adapter.submitReviewSubmission(checkpoint.reviewSubmissionId, guard.baseUrl);
   if (!submitted.ok) {
     // Sprint 2.16c — mesmo bugfix do processor Google (ver

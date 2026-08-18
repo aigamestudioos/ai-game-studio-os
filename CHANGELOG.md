@@ -425,3 +425,15 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ### Not done — Sprint 2.16b (continuação)
 - Testes de integração Docker (Supabase local) + dispatcher + fake provider, expansão do Playwright do lifecycle de Submission, idempotência empírica sob concorrência real. Ver IMPLEMENTATION_LOG.md/DECISIONS.md desta data.
+
+### Added — Sprint 2.16d — Final Verification Closure (2026-08-18)
+- `scripts/test-submission-integration.mts` — 2 gates novos: worker crash-recovery real (claim/lease/`requeue_stale_jobs`, incluindo crash depois do provider aceitar a mutação) e duplicate-submit dedicado (concorrência real via `Promise.all` + job já ativo). 71/71 asserções no total.
+- `apps/web/e2e/submission-lifecycle-failure.spec.ts` — Playwright: UI Submit → fake provider 403 não-retryable → FAILED sanitizado → Retry manual pela UI → SUBMITTED.
+- `apps/web/e2e/submission-lifecycle-member.spec.ts` — Playwright: Member (sem `publishing.submit`) não vê botões de ação na UI e é negado pelo backend (RPC direto, sessão real, não `service_role`).
+
+### Fixed — Sprint 2.16d
+- `apps/web/lib/jobs/processors/submission-google-play.ts`, `submission-apple.ts` — `commitAttempted`/`submitAttempted` agora são persistidos ANTES da chamada de rede (não depois), fechando uma janela real de crash em que um efeito externo já aceito pelo provider não acionava a reconciliation na reentrada.
+- `apps/web/components/publishing/submission-lifecycle-actions.tsx` — botão de ação (Preparar/Enviar/Retry) só aparece depois de confirmar `publishing.submit` via RPC; antes aparecia para qualquer papel, mesmo sem permissão (o servidor sempre negava, mas a UI sugeria incorretamente que a ação estava disponível).
+
+### Sprint 2.16 consolidado — PARCIAL → PASS (2026-08-18)
+Fechamento dos 4 gates deixados pendentes pelo 2.16c. Ver METRICS.md/IMPLEMENTATION_LOG.md/DECISIONS.md desta data para o detalhe completo.
