@@ -4,6 +4,10 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.16b (continuação) — bastidores de teste, sem novidade visível
+
+🔧 Trabalho de bastidores: um "provedor falso" real (servidor HTTP local) passou a provar que os clientes de envio à Apple/Google enviam exatamente o formato certo — nada visível para quem usa o produto ainda
+
 ## Sprint 2.16a — Submission Lifecycle Foundation
 
 ✨ Uma Submission agora tem um ciclo de vida real: **Rascunho → Pronto para enviar → Enviando… → Enviado** (ou **Falhou**, com **Retry**) — antes ficava parada em "Rascunho" para sempre

@@ -2351,3 +2351,18 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Playwright | não estendido para o novo lifecycle neste sprint (ver Known Limitations) |
 | Produção | Não tocada — sprint inteiro local-only, nenhuma migration aplicada remotamente, nenhuma chamada real a Apple/Google, nenhum push |
 | Classificação do Sprint 2.16a | **PARCIAL** — lifecycle interno completo e testado; orquestração real de loja (atrás do PRODUCTION GUARD, sempre desligado) e Playwright do novo fluxo ficam como próximo passo |
+
+## Sprint 2.16b (continuação) — Fake Provider Server + testes payload-exatos (2026-08-18)
+
+| Métrica | Valor |
+|---|---|
+| Typecheck/Lint/Build/Test (monorepo, turbo) | ✅ 38/38 tasks |
+| Vitest (apps/web) | 40/40 |
+| Vitest (packages/integrations, novo) | 20/20 (10 Google + 10 Apple, contra fake provider server real) |
+| Total testes automatizados verdes | 60 |
+| Fake provider server | processo `node:http` real (porta local), não mock de `fetch` |
+| Integração Docker (Supabase local) + dispatcher + fake provider | **não entregue nesta sessão** |
+| Playwright (lifecycle de Submission) | **não entregue nesta sessão** |
+| Idempotência empírica (concorrência real) | **não entregue nesta sessão** |
+| Produção | Não tocada — local-only, nenhuma migration, nenhum push, nenhuma chamada real a Apple/Google |
+| Classificação do Sprint 2.16b | **PARCIAL** (2.16 consolidado permanece PARCIAL) |

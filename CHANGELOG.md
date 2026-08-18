@@ -417,3 +417,11 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ### Removed
 - Placeholders `docs/specifications/`, `docs/decisions/` e `docs/roadmap/` (Sprint -1), superados pela documentação oficial em `docs/frozen/`.
+
+### Added — Sprint 2.16b (continuação, 2026-08-18)
+- `packages/integrations/src/test-utils/fake-provider-server.ts` — fake provider HTTP real (processo `node:http`, porta local) para Google Play e Apple, usado nos testes de payload.
+- `packages/integrations/src/google-play/client.submission.test.ts`, `packages/integrations/src/apple/client.submission.test.ts` — 20 testes payload-exatos (URL/método/headers/body) contra o fake provider real, incluindo classes de erro (401/403/409/429/500) e resposta perdida.
+- `packages/integrations/vitest.config.ts`, script `test` em `packages/integrations/package.json` — primeira config de teste deste package.
+
+### Not done — Sprint 2.16b (continuação)
+- Testes de integração Docker (Supabase local) + dispatcher + fake provider, expansão do Playwright do lifecycle de Submission, idempotência empírica sob concorrência real. Ver IMPLEMENTATION_LOG.md/DECISIONS.md desta data.
