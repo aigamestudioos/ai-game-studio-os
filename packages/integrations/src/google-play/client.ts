@@ -20,8 +20,8 @@ const BUNDLE_UPLOAD_TIMEOUT_MS = 120_000;
 // acesso a um `packageName` específico é abrir um edit rascunho e
 // descartá-lo em seguida — é exatamente o que "Validate Connection" faz
 // aqui, sem deixar nenhum edit pendente no Play Console.
-async function createDraftEdit(packageName: string, accessToken: string) {
-  return fetchJson(`${BASE_URL}/applications/${encodeURIComponent(packageName)}/edits`, {
+async function createDraftEdit(packageName: string, accessToken: string, baseUrl: string = BASE_URL) {
+  return fetchJson(`${baseUrl}/applications/${encodeURIComponent(packageName)}/edits`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -77,7 +77,12 @@ export async function fetchGoogleApps(credentials: GoogleCredentials): Promise<L
 // seguida — quem chama é responsável por chamar `deleteGoogleEdit`
 // depois (sucesso ou falha), nunca deixando o edit pendurado
 // (DECISIONS.md).
-export async function createGoogleEdit(credentials: GoogleCredentials): Promise<ItemResult<{ editId: string }>> {
+// Sprint 2.16c — bugfix (auditoria pré-integração): faltava `baseUrl`, o
+// mesmo achado documentado acima em `fetchAppleApps` — `adapter.createEdit()`
+// é a PRIMEIRA chamada do processor de Submission Google
+// (`submission-google-play.ts`), então sem este parâmetro o processor nunca
+// conseguiria rodar de ponta a ponta contra o fake provider local.
+export async function createGoogleEdit(credentials: GoogleCredentials, baseUrl: string = BASE_URL): Promise<ItemResult<{ editId: string }>> {
   const serviceAccount = parseServiceAccount(credentials.serviceAccountJson);
   if (!serviceAccount) {
     return { ok: false, error: "JSON da Service Account inválido ou incompleto (client_email/private_key).", code: "UNEXPECTED_ERROR" };
@@ -86,7 +91,7 @@ export async function createGoogleEdit(credentials: GoogleCredentials): Promise<
   if (!tokenResult.ok) return { ok: false, error: tokenResult.error, code: tokenResult.code };
 
   try {
-    const created = await createDraftEdit(credentials.packageName, tokenResult.accessToken);
+    const created = await createDraftEdit(credentials.packageName, tokenResult.accessToken, baseUrl);
     if (created.status < 200 || created.status >= 300) {
       return { ok: false, error: sanitizeGoogleError(created.status), code: classifyHttpStatus(created.status) };
     }

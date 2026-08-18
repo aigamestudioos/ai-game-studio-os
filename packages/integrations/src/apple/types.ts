@@ -42,7 +42,10 @@ export type AppleApp = {
 // provider, mesmo quando alguns métodos são triviais para um provider
 // específico.
 export interface ApplePublishingAdapter extends IntegrationAdapter {
-  listApps(): Promise<ListResult<AppleApp>>;
+  // Sprint 2.16c — `baseUrl` opcional (bugfix: faltava, ver comentário em
+  // `client.ts#fetchAppleApps`), mesmo padrão dos métodos de Review
+  // Submission abaixo.
+  listApps(baseUrl?: string): Promise<ListResult<AppleApp>>;
   getApp(appId: string): Promise<ItemResult<AppleApp>>;
 
   // Sprint 2.11c — Build Uploads API. Nomes seguem a documentação oficial

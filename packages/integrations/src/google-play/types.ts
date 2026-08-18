@@ -47,7 +47,8 @@ export interface GooglePlayPublishingAdapter extends IntegrationAdapter {
   listApps(): Promise<ListResult<GoogleApp>>;
   // Cria um Edit rascunho — obrigatório antes de qualquer upload
   // (`edits.bundles.upload` sempre exige um `editId` existente).
-  createEdit(): Promise<ItemResult<{ editId: string }>>;
+  // Sprint 2.16c — `baseUrl` opcional (bugfix, ver `client.ts#createGoogleEdit`).
+  createEdit(baseUrl?: string): Promise<ItemResult<{ editId: string }>>;
   // Upload simples (não resumível) — mantido só para compatibilidade com
   // fixtures/testes pequenos (Sprint 2.11b). O fluxo real de envio
   // (Sprint 2.11d) usa `createResumableSession`/`uploadResumableChunk`.

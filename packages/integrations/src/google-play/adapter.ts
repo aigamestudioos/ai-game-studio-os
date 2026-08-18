@@ -29,8 +29,8 @@ export function createGooglePlayPublishingAdapter(credentials: GoogleCredentials
     async listApps() {
       return fetchGoogleApps(credentials);
     },
-    async createEdit() {
-      return createGoogleEdit(credentials);
+    async createEdit(baseUrl) {
+      return baseUrl ? createGoogleEdit(credentials, baseUrl) : createGoogleEdit(credentials);
     },
     async uploadBundle(editId, bundle) {
       return uploadGoogleBundle(credentials, editId, bundle);

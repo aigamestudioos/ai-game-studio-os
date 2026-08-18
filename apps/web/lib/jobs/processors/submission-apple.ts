@@ -136,7 +136,7 @@ export const submissionAppleProcessor: IntegrationJobProcessor = async (job) => 
   // Resolve `appId` a partir de `bundleIdentifier` — sempre reconsultado
   // (nunca cacheado no checkpoint) porque é barato (uma chamada `GET
   // /apps`) e não é um dado sensível.
-  const apps = await adapter.listApps();
+  const apps = await adapter.listApps(guard.baseUrl);
   if (!apps.ok) return classifiedFailure(admin, job, apps.code, checkpoint);
   const matchedApp = apps.items.find((a) => a.bundleId === bundleIdentifier);
   if (!matchedApp) return terminalFailure(admin, job, "APPLE_APP_NOT_FOUND_FOR_BUNDLE_IDENTIFIER", "NON_RETRYABLE");
@@ -224,7 +224,11 @@ export const submissionAppleProcessor: IntegrationJobProcessor = async (job) => 
   const attemptedCheckpoint = { ...checkpoint, submitAttempted: true, externalResultState: "ATTEMPTED" as const };
   const submitted = await adapter.submitReviewSubmission(checkpoint.reviewSubmissionId, guard.baseUrl);
   if (!submitted.ok) {
-    const retryable = submitted.code === "RATE_LIMITED" || submitted.code === "SERVER_ERROR" || submitted.code === "UNKNOWN";
+    // Sprint 2.16c — mesmo bugfix do processor Google (ver
+    // `submission-google-play.ts`): UNEXPECTED_ERROR é timeout/erro de rede,
+    // não uma rejeição definitiva — precisa poder reentrar e reconciliar via
+    // `getReviewSubmission` (GATE 15), não ir direto a FAILED terminal.
+    const retryable = submitted.code === "RATE_LIMITED" || submitted.code === "SERVER_ERROR" || submitted.code === "UNKNOWN" || submitted.code === "UNEXPECTED_ERROR";
     return {
       outcome: "failed",
       errorCode: submitted.code ?? "PROVIDER_ERROR",
@@ -257,7 +261,8 @@ async function classifiedFailure(
   code: string | undefined,
   checkpoint?: AppleSubmitCheckpoint,
 ): Promise<JobStepResult> {
-  const retryable = code === "RATE_LIMITED" || code === "SERVER_ERROR" || code === "UNKNOWN";
+  // Sprint 2.16c — mesmo bugfix (ver comentário acima).
+  const retryable = code === "RATE_LIMITED" || code === "SERVER_ERROR" || code === "UNKNOWN" || code === "UNEXPECTED_ERROR";
   if (job.submission_id && !retryable) {
     await admin.rpc("complete_submission_job", {
       p_job_id: job.id,

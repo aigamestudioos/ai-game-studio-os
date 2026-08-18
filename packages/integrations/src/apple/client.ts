@@ -18,9 +18,9 @@ type AppleAppsResponse = {
 
 type AppleErrorResponse = { errors?: { code?: string; title?: string }[] };
 
-async function appleFetch(path: string, credentials: AppleCredentials) {
+async function appleFetch(path: string, credentials: AppleCredentials, baseUrl: string = BASE_URL) {
   const jwt = createAppleJwt(credentials);
-  return fetchJson(`${BASE_URL}${path}`, { headers: { Authorization: `Bearer ${jwt}` } });
+  return fetchJson(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${jwt}` } });
 }
 
 // `code` (Sprint 2.10.1) — classificação estável para métricas de
@@ -45,9 +45,17 @@ export async function checkAppleHealth(credentials: AppleCredentials): Promise<H
   }
 }
 
-export async function fetchAppleApps(credentials: AppleCredentials): Promise<ListResult<AppleApp>> {
+// Sprint 2.16c — bugfix (auditoria pré-integração): esta função não aceitava
+// `baseUrl`, então `adapter.listApps()` sempre chamava o Apple real mesmo
+// com o guard `checkStoreMutationGuard` autorizando um fake provider local
+// — `submission-apple.ts` resolve `appId` via `listApps()` ANTES de criar a
+// Review Submission, então sem este parâmetro o processor nunca conseguiria
+// rodar de ponta a ponta contra o fake provider (achado ao escrever o teste
+// de integração deste sprint, não um redesenho — mesmo padrão de
+// `baseUrl` já usado por `listAppleReviewSubmissions` etc. abaixo).
+export async function fetchAppleApps(credentials: AppleCredentials, baseUrl: string = BASE_URL): Promise<ListResult<AppleApp>> {
   try {
-    const { status, body } = await appleFetch("/apps?limit=200", credentials);
+    const { status, body } = await appleFetch("/apps?limit=200", credentials, baseUrl);
     if (status < 200 || status >= 300) {
       const appleErrorCode = (body as AppleErrorResponse)?.errors?.[0]?.code;
       return { ok: false, error: sanitizeAppleError(status, appleErrorCode), code: classifyAppleError(status, appleErrorCode) };

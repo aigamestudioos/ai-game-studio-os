@@ -2366,3 +2366,23 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Idempotência empírica (concorrência real) | **não entregue nesta sessão** |
 | Produção | Não tocada — local-only, nenhuma migration, nenhum push, nenhuma chamada real a Apple/Google |
 | Classificação do Sprint 2.16b | **PARCIAL** (2.16 consolidado permanece PARCIAL) |
+
+## Sprint 2.16c — Integrated Submission Lifecycle Proof (2026-08-18)
+
+| Métrica | Valor |
+|---|---|
+| Arquivos (git-tracked) | 437 |
+| Linhas de código (ts/tsx/js/jsx/sql/css) | 25261 |
+| Typecheck/Build (monorepo + packages afetados) | ✅ |
+| Vitest (packages/integrations, regressão) | 20/20 |
+| Vitest (apps/web, regressão) | 40/40 |
+| SQL — `submission_lifecycle_test.sql` (regressão) | 14/14 |
+| HTTP golden path (`test-readiness-golden-path.mjs`, regressão) | 29/29 |
+| Integração real Docker+dispatcher+fake-provider (novo, `scripts/test-submission-integration.mts`) | 35/35 asserções — Google sucesso, Google lost-response, Google retry 500→200, Google concorrência real (`Promise.all`), Apple sucesso |
+| Bugs reais encontrados e corrigidos nesta sessão | 3 — (1) `adapter.listApps()`/`createEdit()` (Apple e Google) nunca aceitavam `baseUrl`, então mesmo com o guard autorizado o processor chamava o host real; (2) `UNEXPECTED_ERROR` (timeout/lost-response) classificado NON_RETRYABLE em 4 pontos dos processors Google/Apple, quebrando a reconciliation do GATE 11/15 |
+| Playwright (novo, `e2e/submission-lifecycle.spec.ts`) | 1/1 — login → Store Listing via UI → criar Submission via UI → Preparar envio → Enviar → dispatcher real (`/api/jobs/tick`) contra fake provider → SUBMITTED → reload → persiste |
+| Playwright (regressão, `critical-path.spec.ts`) | 1/1 |
+| Cenários de falha/resiliência entregues de verdade (de 8 da spec original) | 3 — lost-response, retry 429/500→200, concorrência real (`FOR UPDATE SKIP LOCKED`). Não entregues: worker crash recovery, duplicate submit prevention explícito, cenários adicionais de permissão/Member no Playwright |
+| Produção | Não tocada — sprint inteiro local-only (Docker Supabase local + fake provider local + `next start` local), nenhuma migration, nenhum push, nenhuma credencial real Apple/Google, `AGSOS_ALLOW_STORE_MUTATION=true` só contra hosts `127.0.0.1` efêmeros do fake provider |
+| Classificação do Sprint 2.16c | **PARCIAL** (ver detalhe em IMPLEMENTATION_LOG.md — núcleo pedido entregue com profundidade real; alguns cenários de resiliência e Playwright de falha/permissão ficaram de fora) |
+| Classificação consolidada do Sprint 2.16 (a+b+c) | **PARCIAL** |

@@ -34,8 +34,8 @@ export function createApplePublishingAdapter(credentials: AppleCredentials): App
     async health() {
       return checkAppleHealth(credentials);
     },
-    async listApps() {
-      return fetchAppleApps(credentials);
+    async listApps(baseUrl) {
+      return baseUrl ? fetchAppleApps(credentials, baseUrl) : fetchAppleApps(credentials);
     },
     async getApp(appId: string) {
       return fetchAppleApp(appId, credentials);

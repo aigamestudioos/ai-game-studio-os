@@ -147,7 +147,7 @@ export const submissionGooglePlayProcessor: IntegrationJobProcessor = async (job
 
   // Etapa 1 — sem Edit ainda: cria um Edit novo dedicado a esta submissão.
   if (!checkpoint.editId) {
-    const created = await adapter.createEdit();
+    const created = await adapter.createEdit(guard.baseUrl);
     if (!created.ok) return classifiedFailure(admin, job, created.code, created.error);
     return {
       outcome: "continue",
@@ -211,7 +211,13 @@ export const submissionGooglePlayProcessor: IntegrationJobProcessor = async (job
   const attemptedCheckpoint = { ...checkpoint, commitAttempted: true, externalResultState: "ATTEMPTED" as const };
   const committed = await adapter.commitEdit(checkpoint.editId, guard.baseUrl);
   if (!committed.ok) {
-    const retryable = committed.code === "RATE_LIMITED" || committed.code === "SERVER_ERROR" || committed.code === "UNKNOWN";
+    // Sprint 2.16c — bugfix (achado pelo teste de integração de lost-response):
+    // `UNEXPECTED_ERROR` cobre timeout/conexão perdida/exceção não tratada no
+    // client — nunca uma rejeição definitiva do provider. Classificar como
+    // NON_RETRYABLE quebrava a reconciliation do GATE 11: o job ia direto
+    // para FAILED terminal sem nunca reentrar no processor para consultar
+    // `edits.get` e descobrir se o commit perdido de fato ocorreu.
+    const retryable = committed.code === "RATE_LIMITED" || committed.code === "SERVER_ERROR" || committed.code === "UNKNOWN" || committed.code === "UNEXPECTED_ERROR";
     return {
       outcome: "failed",
       errorCode: committed.code ?? "PROVIDER_ERROR",
@@ -240,7 +246,10 @@ async function classifiedFailure(
   _error: string | undefined,
   checkpoint?: GoogleSubmitCheckpoint,
 ): Promise<JobStepResult> {
-  const retryable = code === "RATE_LIMITED" || code === "SERVER_ERROR" || code === "UNKNOWN";
+  // Sprint 2.16c — mesmo bugfix do commit final (ver comentário acima):
+  // UNEXPECTED_ERROR (timeout/erro de rede) é ambíguo, não uma rejeição
+  // definitiva — precisa poder tentar de novo.
+  const retryable = code === "RATE_LIMITED" || code === "SERVER_ERROR" || code === "UNKNOWN" || code === "UNEXPECTED_ERROR";
   if (job.submission_id && !retryable) {
     await admin.rpc("complete_submission_job", {
       p_job_id: job.id,
