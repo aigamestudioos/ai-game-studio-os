@@ -2406,3 +2406,23 @@ Segundo sub-sprint do 2.12 (Release Readiness & Publishing Orchestration). Só U
 | Produção | Não tocada — sprint inteiro local-only, nenhuma migration, nenhum push, nenhuma credencial real Apple/Google |
 | Classificação do Sprint 2.16d | **PASS** |
 | Classificação consolidada do Sprint 2.16 (a+b+c+d) | **PARCIAL → PASS** |
+
+## Sprint 2.16 — Production Validation Gate — Phase A Recovery (2026-08-18)
+
+| Métrica | Valor |
+|---|---|
+| Phase A initial attempt | FAILED — MCP `apply_migration` gerou identity de ledger divergente (`20260818124539`), migration 2 nunca aplicada, schema intermediário |
+| Recovery attempts bloqueados anteriormente | Sem credencial CLI disponível nessas sessões |
+| CLI auth (`npx supabase projects list`) | OK |
+| Migration 1 schema equivalence (proof read-only) | OK — 3/3 valores de enum confirmados (`READY_TO_SUBMIT`, `SUBMITTING`, `FAILED`) |
+| Migration history repair (`supabase migration repair --linked`) | OK — 2 chamadas (`reverted 20260818124539`, `applied 20260817000001`), sem SQL manual |
+| Migration pendente pós-reparo | 1 — exatamente `20260817000002_submission_lifecycle_rpcs.sql`, conforme esperado |
+| `supabase db push --linked` | OK — aplicou somente a migration pendente, sem reaplicar migration 1, sem novo timestamp |
+| Ledger final | `20260817000001` e `20260817000002` local=remote=applied, sem identity órfão |
+| Schema validation (read-only) | 6/6 — `publishing.submit`, `submission_events`, `integration_jobs.submission_id`, constraint exclusividade, `transition_submission`, `complete_submission_job` |
+| Permission validation | Owner (40 grants), Admin (20 grants) com `publishing.submit`; grants de função corretos (`transition_submission`→authenticated+service_role sem anon; `complete_submission_job`→só service_role) |
+| Data safety | `submission_events`=0 linhas, `submissions`=0 linhas, `integration_jobs` histórico (3 linhas) intacto |
+| Application smoke (HTTP, `aigamestudioos.com`) | 5/5 rotas sem 500 (`/`=200, `/login`=200, `/dashboard`/`/games`/`/publishing`=307 auth redirect, `/api/jobs/tick`=415/405) |
+| Store mutation guard | Inalterado — dupla camada fail-closed confirmada por leitura de código, nenhuma env var tocada |
+| Produção | Ledger e schema reconciliados via CLI oficial; nenhum SQL manual no ledger; nenhuma Submission real; nenhuma mutação de loja |
+| Classificação Phase A Recovery | **PRODUCTION_VALIDATED_PHASE_A** |

@@ -437,3 +437,8 @@ O formato é baseado em [Keep a Changelog](https://keepachangelog.com/), e este 
 
 ### Sprint 2.16 consolidado — PARCIAL → PASS (2026-08-18)
 Fechamento dos 4 gates deixados pendentes pelo 2.16c. Ver METRICS.md/IMPLEMENTATION_LOG.md/DECISIONS.md desta data para o detalhe completo.
+
+### Production — Sprint 2.16 Phase A Recovery (2026-08-18)
+- Phase A initial attempt: FAILED — MCP `apply_migration` gerou identity de ledger divergente em produção (`20260818124539` em vez de `20260817000001`), deixando schema intermediário (enum novo presente, RPCs/permissão/tabela/coluna do Sprint 2.16 ausentes).
+- Recovery bloqueado em sessões anteriores por falta de credencial do Supabase CLI.
+- Phase A Recovery: reconciliado via `supabase migration repair` (CLI oficial, sem SQL manual) + `supabase db push` — ledger de produção agora reflete exatamente as migrations do repo (`20260817000001`, `20260817000002`), schema completo (RPCs, permissão `publishing.submit`, `submission_events`, `integration_jobs.submission_id`), zero dado de produção alterado, zero mutação de loja. Classificação: PRODUCTION_VALIDATED_PHASE_A.

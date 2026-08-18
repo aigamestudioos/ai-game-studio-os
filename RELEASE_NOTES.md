@@ -4,6 +4,11 @@ Novidades do AI Game Studio OS, em linguagem simples — para quem acompanha o p
 
 ---
 
+## Sprint 2.16 — Production Validation Gate — Phase A Recovery, sem novidade visível
+
+🔧 Trabalho de bastidores: o banco de dados de produção estava com um pequeno desalinhamento interno de controle de versão (não afetava nenhum dado nem tela) depois de uma correção anterior mal-aplicada — corrigido usando somente a ferramenta oficial de linha de comando, sem alterar nenhum dado existente
+🔒 Confirmado de novo, agora contra o site em produção: nenhuma submissão real para Apple/Google é possível ainda — a trava de segurança continua ligada
+
 ## Sprint 2.16b (continuação) — bastidores de teste, sem novidade visível
 
 🔧 Trabalho de bastidores: um "provedor falso" real (servidor HTTP local) passou a provar que os clientes de envio à Apple/Google enviam exatamente o formato certo — nada visível para quem usa o produto ainda
